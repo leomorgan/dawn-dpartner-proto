@@ -1,0 +1,636 @@
+{
+  "root": {
+    "id": "scene_58mzb2f1",
+    "type": "container",
+    "role": "Header",
+    "bbox": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 1272
+    },
+    "children": [
+      {
+        "id": "scene_c8tbg67w",
+        "type": "container",
+        "role": "Header",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 136
+        },
+        "children": [
+          {
+            "id": "scene_hr3r2b2e",
+            "type": "container",
+            "role": "Container",
+            "bbox": {
+              "x": 40,
+              "y": 24,
+              "w": 1200,
+              "h": 88
+            },
+            "children": [
+              {
+                "id": "scene_hkbr4a6l",
+                "type": "text",
+                "role": "Heading",
+                "bbox": {
+                  "x": 64,
+                  "y": 24,
+                  "w": 1152,
+                  "h": 48
+                },
+                "children": [],
+                "textContent": "AI Design Partner",
+                "styles": {},
+                "metadata": {
+                  "tag": "h1"
+                }
+              },
+              {
+                "id": "scene_by0jwfvp",
+                "type": "text",
+                "role": "Text",
+                "bbox": {
+                  "x": 64,
+                  "y": 80,
+                  "w": 1152,
+                  "h": 32
+                },
+                "children": [],
+                "textContent": "Generate beautiful, crafted designs automatically",
+                "styles": {},
+                "metadata": {
+                  "tag": "p"
+                }
+              }
+            ],
+            "styles": {},
+            "metadata": {
+              "tag": "div",
+              "className": "container"
+            }
+          }
+        ],
+        "styles": {},
+        "metadata": {
+          "tag": "header",
+          "className": "header"
+        }
+      },
+      {
+        "id": "scene_rje0707p",
+        "type": "container",
+        "role": "Section",
+        "bbox": {
+          "x": 0,
+          "y": 136,
+          "w": 1280,
+          "h": 464
+        },
+        "children": [
+          {
+            "id": "scene_mzhbs7u4",
+            "type": "container",
+            "role": "Container",
+            "bbox": {
+              "x": 40,
+              "y": 24,
+              "w": 1200,
+              "h": 88
+            },
+            "children": [
+              {
+                "id": "scene_4z2z9gav",
+                "type": "container",
+                "role": "Container",
+                "bbox": {
+                  "x": 64,
+                  "y": 200,
+                  "w": 1152,
+                  "h": 336
+                },
+                "children": [
+                  {
+                    "id": "scene_irwy7tuc",
+                    "type": "container",
+                    "role": "Container",
+                    "bbox": {
+                      "x": 64,
+                      "y": 200,
+                      "w": 552,
+                      "h": 336
+                    },
+                    "children": [
+                      {
+                        "id": "scene_tegi67uf",
+                        "type": "text",
+                        "role": "Heading",
+                        "bbox": {
+                          "x": 64,
+                          "y": 200,
+                          "w": 552,
+                          "h": 176
+                        },
+                        "children": [],
+                        "textContent": "Transform Any Website Into Custom Components",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "h2"
+                        }
+                      },
+                      {
+                        "id": "scene_wz9vr9vy",
+                        "type": "text",
+                        "role": "Text",
+                        "bbox": {
+                          "x": 64,
+                          "y": 392,
+                          "w": 552,
+                          "h": 64
+                        },
+                        "children": [],
+                        "textContent": "Our AI analyzes existing designs and generates React + Tailwind code that matches your brand perfect",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "p"
+                        }
+                      },
+                      {
+                        "id": "scene_hxk12xcy",
+                        "type": "button",
+                        "role": "Button",
+                        "bbox": {
+                          "x": 64,
+                          "y": 488,
+                          "w": 160,
+                          "h": 56
+                        },
+                        "children": [],
+                        "textContent": "Get Started",
+                        "styles": {
+                          "backgroundColor": "rgb(66, 153, 225)",
+                          "borderRadius": "8px",
+                          "boxShadow": "rgba(66, 153, 225, 0.39) 0px 4px 14px 0px"
+                        },
+                        "metadata": {
+                          "tag": "button",
+                          "className": "cta-button"
+                        }
+                      }
+                    ],
+                    "styles": {},
+                    "metadata": {
+                      "tag": "div",
+                      "className": "hero-text"
+                    }
+                  },
+                  {
+                    "id": "scene_nkq4kiax",
+                    "type": "container",
+                    "role": "Container",
+                    "bbox": {
+                      "x": 664,
+                      "y": 216,
+                      "w": 552,
+                      "h": 304
+                    },
+                    "children": [
+                      {
+                        "id": "scene_y5vejo14",
+                        "type": "text",
+                        "role": "Container",
+                        "bbox": {
+                          "x": 664,
+                          "y": 216,
+                          "w": 400,
+                          "h": 304
+                        },
+                        "children": [],
+                        "textContent": "Hero Image",
+                        "styles": {
+                          "borderRadius": "12px"
+                        },
+                        "metadata": {
+                          "tag": "div",
+                          "className": "hero-image-placeholder"
+                        }
+                      }
+                    ],
+                    "styles": {},
+                    "metadata": {
+                      "tag": "div",
+                      "className": "hero-image"
+                    }
+                  }
+                ],
+                "styles": {},
+                "metadata": {
+                  "tag": "div",
+                  "className": "hero-content"
+                }
+              }
+            ],
+            "styles": {},
+            "metadata": {
+              "tag": "div",
+              "className": "container"
+            }
+          }
+        ],
+        "styles": {
+          "backgroundColor": "rgb(248, 250, 252)"
+        },
+        "metadata": {
+          "tag": "section",
+          "className": "hero"
+        }
+      },
+      {
+        "id": "scene_k34hp2v4",
+        "type": "container",
+        "role": "Section",
+        "bbox": {
+          "x": 0,
+          "y": 600,
+          "w": 1280,
+          "h": 552
+        },
+        "children": [
+          {
+            "id": "scene_fpy94bxp",
+            "type": "container",
+            "role": "Container",
+            "bbox": {
+              "x": 40,
+              "y": 24,
+              "w": 1200,
+              "h": 88
+            },
+            "children": [
+              {
+                "id": "scene_kni56up4",
+                "type": "text",
+                "role": "Heading",
+                "bbox": {
+                  "x": 64,
+                  "y": 680,
+                  "w": 1152,
+                  "h": 56
+                },
+                "children": [],
+                "textContent": "Powerful Features",
+                "styles": {},
+                "metadata": {
+                  "tag": "h3"
+                }
+              },
+              {
+                "id": "scene_jv7ph5ag",
+                "type": "container",
+                "role": "Container",
+                "bbox": {
+                  "x": 64,
+                  "y": 784,
+                  "w": 1152,
+                  "h": 288
+                },
+                "children": [
+                  {
+                    "id": "scene_6w804ehp",
+                    "type": "container",
+                    "role": "Card",
+                    "bbox": {
+                      "x": 64,
+                      "y": 784,
+                      "w": 360,
+                      "h": 288
+                    },
+                    "children": [
+                      {
+                        "id": "scene_i56g4sd6",
+                        "type": "text",
+                        "role": "Container",
+                        "bbox": {
+                          "x": 216,
+                          "y": 824,
+                          "w": 64,
+                          "h": 64
+                        },
+                        "children": [],
+                        "textContent": "🎨",
+                        "styles": {
+                          "borderRadius": "50%"
+                        },
+                        "metadata": {
+                          "tag": "div",
+                          "className": "feature-icon"
+                        }
+                      },
+                      {
+                        "id": "scene_0vld74xe",
+                        "type": "text",
+                        "role": "Container",
+                        "bbox": {
+                          "x": 96,
+                          "y": 912,
+                          "w": 296,
+                          "h": 40
+                        },
+                        "children": [],
+                        "textContent": "Style Analysis",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "h4"
+                        }
+                      },
+                      {
+                        "id": "scene_9xvvvs90",
+                        "type": "text",
+                        "role": "Text",
+                        "bbox": {
+                          "x": 96,
+                          "y": 960,
+                          "w": 296,
+                          "h": 80
+                        },
+                        "children": [],
+                        "textContent": "Automatically extract colors, fonts, spacing, and design tokens from any website.",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "p"
+                        }
+                      }
+                    ],
+                    "styles": {
+                      "backgroundColor": "rgb(255, 255, 255)",
+                      "borderRadius": "12px",
+                      "boxShadow": "rgba(0, 0, 0, 0.1) 0px 1px 3px 0px"
+                    },
+                    "metadata": {
+                      "tag": "div",
+                      "className": "feature-card"
+                    }
+                  },
+                  {
+                    "id": "scene_79q9d7d6",
+                    "type": "container",
+                    "role": "Card",
+                    "bbox": {
+                      "x": 64,
+                      "y": 784,
+                      "w": 360,
+                      "h": 288
+                    },
+                    "children": [
+                      {
+                        "id": "scene_7g6ogt6s",
+                        "type": "text",
+                        "role": "Container",
+                        "bbox": {
+                          "x": 216,
+                          "y": 824,
+                          "w": 64,
+                          "h": 64
+                        },
+                        "children": [],
+                        "textContent": "⚡",
+                        "styles": {
+                          "borderRadius": "50%"
+                        },
+                        "metadata": {
+                          "tag": "div",
+                          "className": "feature-icon"
+                        }
+                      },
+                      {
+                        "id": "scene_ma75x2gs",
+                        "type": "text",
+                        "role": "Container",
+                        "bbox": {
+                          "x": 96,
+                          "y": 912,
+                          "w": 296,
+                          "h": 40
+                        },
+                        "children": [],
+                        "textContent": "Fast Generation",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "h4"
+                        }
+                      },
+                      {
+                        "id": "scene_dgga4ngw",
+                        "type": "text",
+                        "role": "Text",
+                        "bbox": {
+                          "x": 96,
+                          "y": 960,
+                          "w": 296,
+                          "h": 80
+                        },
+                        "children": [],
+                        "textContent": "Generate complete React components in seconds, not hours of manual coding.",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "p"
+                        }
+                      }
+                    ],
+                    "styles": {
+                      "backgroundColor": "rgb(255, 255, 255)",
+                      "borderRadius": "12px",
+                      "boxShadow": "rgba(0, 0, 0, 0.1) 0px 1px 3px 0px"
+                    },
+                    "metadata": {
+                      "tag": "div",
+                      "className": "feature-card"
+                    }
+                  },
+                  {
+                    "id": "scene_mocrxl4v",
+                    "type": "container",
+                    "role": "Card",
+                    "bbox": {
+                      "x": 64,
+                      "y": 784,
+                      "w": 360,
+                      "h": 288
+                    },
+                    "children": [
+                      {
+                        "id": "scene_t1lsbfto",
+                        "type": "text",
+                        "role": "Container",
+                        "bbox": {
+                          "x": 216,
+                          "y": 824,
+                          "w": 64,
+                          "h": 64
+                        },
+                        "children": [],
+                        "textContent": "✨",
+                        "styles": {
+                          "borderRadius": "50%"
+                        },
+                        "metadata": {
+                          "tag": "div",
+                          "className": "feature-icon"
+                        }
+                      },
+                      {
+                        "id": "scene_l43zk4oz",
+                        "type": "text",
+                        "role": "Container",
+                        "bbox": {
+                          "x": 96,
+                          "y": 912,
+                          "w": 296,
+                          "h": 40
+                        },
+                        "children": [],
+                        "textContent": "Crafted Output",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "h4"
+                        }
+                      },
+                      {
+                        "id": "scene_25c5pr8e",
+                        "type": "text",
+                        "role": "Text",
+                        "bbox": {
+                          "x": 96,
+                          "y": 960,
+                          "w": 296,
+                          "h": 80
+                        },
+                        "children": [],
+                        "textContent": "Every generated design is aesthetically pleasing and maintains brand consistency.",
+                        "styles": {},
+                        "metadata": {
+                          "tag": "p"
+                        }
+                      }
+                    ],
+                    "styles": {
+                      "backgroundColor": "rgb(255, 255, 255)",
+                      "borderRadius": "12px",
+                      "boxShadow": "rgba(0, 0, 0, 0.1) 0px 1px 3px 0px"
+                    },
+                    "metadata": {
+                      "tag": "div",
+                      "className": "feature-card"
+                    }
+                  }
+                ],
+                "styles": {},
+                "metadata": {
+                  "tag": "div",
+                  "className": "features-grid"
+                }
+              }
+            ],
+            "styles": {},
+            "metadata": {
+              "tag": "div",
+              "className": "container"
+            }
+          }
+        ],
+        "styles": {
+          "backgroundColor": "rgb(255, 255, 255)"
+        },
+        "metadata": {
+          "tag": "section",
+          "className": "features"
+        }
+      },
+      {
+        "id": "scene_c9xcpwiu",
+        "type": "container",
+        "role": "Footer",
+        "bbox": {
+          "x": 0,
+          "y": 1152,
+          "w": 1280,
+          "h": 120
+        },
+        "children": [
+          {
+            "id": "scene_o0kb1lal",
+            "type": "container",
+            "role": "Container",
+            "bbox": {
+              "x": 40,
+              "y": 24,
+              "w": 1200,
+              "h": 88
+            },
+            "children": [
+              {
+                "id": "scene_ahmliu1f",
+                "type": "text",
+                "role": "Text",
+                "bbox": {
+                  "x": 96,
+                  "y": 960,
+                  "w": 296,
+                  "h": 80
+                },
+                "children": [],
+                "textContent": "© 2025 AI Design Partner Demo. Built for showcasing automated design generation.",
+                "styles": {},
+                "metadata": {
+                  "tag": "p"
+                }
+              }
+            ],
+            "styles": {},
+            "metadata": {
+              "tag": "div",
+              "className": "container"
+            }
+          }
+        ],
+        "styles": {
+          "backgroundColor": "rgb(45, 55, 72)"
+        },
+        "metadata": {
+          "tag": "footer",
+          "className": "footer"
+        }
+      }
+    ],
+    "styles": {
+      "backgroundColor": "rgb(255, 255, 255)"
+    },
+    "metadata": {
+      "tag": "body"
+    }
+  },
+  "totalNodes": 33,
+  "wrapperReduction": 0,
+  "readingOrder": [
+    "scene_hkbr4a6l",
+    "scene_by0jwfvp",
+    "scene_tegi67uf",
+    "scene_wz9vr9vy",
+    "scene_hxk12xcy",
+    "scene_y5vejo14",
+    "scene_kni56up4",
+    "scene_i56g4sd6",
+    "scene_0vld74xe",
+    "scene_9xvvvs90",
+    "scene_7g6ogt6s",
+    "scene_ma75x2gs",
+    "scene_dgga4ngw",
+    "scene_t1lsbfto",
+    "scene_l43zk4oz",
+    "scene_25c5pr8e",
+    "scene_ahmliu1f"
+  ]
+}
