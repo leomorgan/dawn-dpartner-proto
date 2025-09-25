@@ -1,0 +1,57 @@
+{
+  "colors": {
+    "primary": [
+      "#333333",
+      "#ffffff",
+      "#f8fafc",
+      "#1a202c"
+    ],
+    "neutral": [
+      "#2d3748",
+      "#4a5568",
+      "#4299e1"
+    ],
+    "semantic": {
+      "text": "#333333",
+      "background": "#ffffff"
+    }
+  },
+  "typography": {
+    "fontFamilies": [
+      "-apple-system, system-ui, Segoe UI, Roboto, sans-serif",
+      "Arial"
+    ],
+    "fontSizes": [
+      16,
+      18,
+      20,
+      24,
+      32,
+      36,
+      48
+    ],
+    "lineHeights": [
+      25.6,
+      28.8,
+      32,
+      38.4
+    ]
+  },
+  "spacing": [
+    0,
+    8,
+    16,
+    24,
+    32,
+    40
+  ],
+  "borderRadius": [
+    "12px",
+    "50%",
+    "8px"
+  ],
+  "boxShadow": [
+    "rgba(0, 0, 0, 0.1) 0px 1px 3px 0px",
+    "rgba(66, 153, 225, 0.39) 0px 4px 14px 0px"
+  ]
+}

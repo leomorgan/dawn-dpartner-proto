@@ -1,0 +1,67 @@
+{
+  "tokenCoverage": 0.95,
+  "paletteRecall": 1,
+  "contrastResults": {
+    "totalPairs": 8,
+    "aaPassing": 0,
+    "aaPassRate": 0,
+    "failures": [
+      {
+        "foreground": "#333333",
+        "background": "#ffffff",
+        "contrast": 1.0048505426544594,
+        "suggested": "#333333"
+      },
+      {
+        "foreground": "#333333",
+        "background": "#f8fafc",
+        "contrast": 1.0047249801757845,
+        "suggested": "#333333"
+      },
+      {
+        "foreground": "#ffffff",
+        "background": "#4299e1",
+        "contrast": 1.0027356855771445,
+        "suggested": "#ffffff"
+      },
+      {
+        "foreground": "#333333",
+        "background": "#ffffff",
+        "contrast": 1.0048505426544594,
+        "suggested": "#333333"
+      },
+      {
+        "foreground": "#333333",
+        "background": "#ffffff",
+        "contrast": 1.0048505426544594,
+        "suggested": "#333333"
+      },
+      {
+        "foreground": "#333333",
+        "background": "#ffffff",
+        "contrast": 1.0048505426544594,
+        "suggested": "#333333"
+      },
+      {
+        "foreground": "#333333",
+        "background": "#ffffff",
+        "contrast": 1.0048505426544594,
+        "suggested": "#333333"
+      },
+      {
+        "foreground": "#ffffff",
+        "background": "#2d3748",
+        "contrast": 1.0047764479125296,
+        "suggested": "#ffffff"
+      }
+    ]
+  },
+  "spacingDistribution": {
+    "0": 0,
+    "8": 0,
+    "16": 0,
+    "24": 0,
+    "32": 0,
+    "40": 0
+  }
+}
