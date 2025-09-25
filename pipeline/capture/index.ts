@@ -49,10 +49,10 @@ export interface CaptureMetadata {
   title: string;
 }
 
-export async function capture(url: string, outputDir?: string): Promise<CaptureResult> {
-  const runId = generateRunId();
+export async function capture(url: string, outputDir?: string, runId?: string): Promise<CaptureResult> {
+  const actualRunId = runId || generateRunId();
   const baseDir = outputDir || join(process.cwd(), 'artifacts');
-  const artifactDir = join(baseDir, runId);
+  const artifactDir = join(baseDir, actualRunId);
   const rawDir = join(artifactDir, 'raw');
 
   await mkdir(rawDir, { recursive: true });
@@ -174,7 +174,7 @@ export async function capture(url: string, outputDir?: string): Promise<CaptureR
     ]);
 
     const result: CaptureResult = {
-      runId,
+      runId: actualRunId,
       artifacts: {
         html,
         styles,

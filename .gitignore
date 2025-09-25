@@ -79,6 +79,9 @@ playwright/.cache/
 # Test artifacts
 test-artifacts/
 
+# Pipeline artifacts
+artifacts/
+
 # IDE
 .vscode/
 .idea/

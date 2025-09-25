@@ -181,7 +181,7 @@ export class PipelineOrchestrator {
   }
 
   private async runCapture(url: string, runId: string) {
-    return await capture(url, this.config.artifactDir);
+    return await capture(url, this.config.artifactDir, runId);
   }
 
   private async runTokens(runId: string) {

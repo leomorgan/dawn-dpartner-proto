@@ -128,7 +128,7 @@ function processElement(element: Element, styleMap: Map<string, ComputedStyleNod
     styles,
     metadata: {
       tag: element.tagName.toLowerCase(),
-      className: element.className || undefined,
+      className: (element.className && typeof element.className === 'string' ? element.className : '') || undefined,
       originalId: element.id || undefined,
     },
   };
@@ -169,10 +169,11 @@ function getBoundingRect(element: Element, styleMap: Map<string, ComputedStyleNo
 function findNodeId(element: Element, styleMap: Map<string, ComputedStyleNode>): string | null {
   // Try to match by tag, className, and text content
   const tag = element.tagName.toLowerCase();
-  const className = element.className;
+  const className = element.className && typeof element.className === 'string' ? element.className : '';
   const textContent = element.textContent?.trim().slice(0, 50);
 
-  for (const [nodeId, node] of styleMap.entries()) {
+  for (const nodeId of Array.from(styleMap.keys())) {
+    const node = styleMap.get(nodeId)!;
     // Match by tag first
     if (node.tag !== tag) continue;
 
@@ -195,7 +196,8 @@ function findNodeId(element: Element, styleMap: Map<string, ComputedStyleNode>):
   }
 
   // Fallback: find by tag only if nothing else matches
-  for (const [nodeId, node] of styleMap.entries()) {
+  for (const nodeId of Array.from(styleMap.keys())) {
+    const node = styleMap.get(nodeId)!;
     if (node.tag === tag) {
       return nodeId;
     }
@@ -228,7 +230,7 @@ function determineNodeType(element: Element): SceneNode['type'] {
 
 function determineRole(element: Element, rect: { x: number; y: number; w: number; h: number }, depth: number): string {
   const tag = element.tagName.toLowerCase();
-  const className = element.className?.toLowerCase() || '';
+  const className = (element.className && typeof element.className === 'string' ? element.className.toLowerCase() : '') || '';
 
   // Explicit role attribute
   if (element.hasAttribute('role')) {
@@ -261,7 +263,7 @@ function determineRole(element: Element, rect: { x: number; y: number; w: number
     return 'Navigation';
   }
 
-  if (depth <= 1 && rect.y > window.innerHeight - 200) {
+  if (depth <= 1 && rect.y > 520) { // 720 - 200 for footer detection
     return 'Footer';
   }
 
@@ -282,10 +284,11 @@ function shouldCollapseWrapper(element: Element, children: SceneNode[], rect: { 
   }
 
   // Don't collapse elements with meaningful styling
-  if (element.className && (
-    element.className.includes('bg-') ||
-    element.className.includes('border') ||
-    element.className.includes('shadow')
+  const elementClassName = element.className && typeof element.className === 'string' ? element.className : '';
+  if (elementClassName && (
+    elementClassName.includes('bg-') ||
+    elementClassName.includes('border') ||
+    elementClassName.includes('shadow')
   )) {
     return false;
   }
@@ -314,7 +317,7 @@ function mergeChildren(children: SceneNode[], rect: { x: number; y: number; w: n
     styles: extractNodeStyles(element, new Map()),
     metadata: {
       tag: element.tagName.toLowerCase(),
-      className: element.className || undefined,
+      className: (element.className && typeof element.className === 'string' ? element.className : '') || undefined,
     },
   };
 }
