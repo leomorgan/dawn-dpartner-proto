@@ -1,0 +1,76 @@
+{
+  "colors": {
+    "primary": [
+      {
+        "hex": "#2563eb",
+        "usage": "primary",
+        "area": 1000
+      },
+      {
+        "hex": "#dc2626",
+        "usage": "accent",
+        "area": 500
+      }
+    ],
+    "neutral": [
+      {
+        "hex": "#374151",
+        "usage": "text",
+        "area": 2000
+      },
+      {
+        "hex": "#f3f4f6",
+        "usage": "background",
+        "area": 3000
+      }
+    ]
+  },
+  "typography": {
+    "families": [
+      "Inter",
+      "sans-serif"
+    ],
+    "sizes": [
+      16,
+      18,
+      24,
+      32
+    ],
+    "lineHeights": [
+      1.4,
+      1.5,
+      1.6
+    ]
+  },
+  "spacing": [
+    0,
+    8,
+    16,
+    24,
+    32,
+    40
+  ],
+  "borderRadius": [
+    0,
+    4,
+    8
+  ],
+  "boxShadow": [
+    "none",
+    "0 1px 3px rgba(0,0,0,0.1)"
+  ],
+  "contrast": {
+    "ratios": [
+      {
+        "color1": "#2563eb",
+        "color2": "#ffffff",
+        "ratio": 4.5,
+        "passes": {
+          "aa": true,
+          "aaa": false
+        }
+      }
+    ],
+    "analysis": "Good contrast overall"
+  }
+}

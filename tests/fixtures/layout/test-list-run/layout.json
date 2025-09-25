@@ -1,0 +1,130 @@
+{
+  "frame": {
+    "width": 1280,
+    "maxWidth": 1280,
+    "padding": 24
+  },
+  "grid": {
+    "columns": 12,
+    "gutter": 24
+  },
+  "stacks": [
+    {
+      "id": "hero_section",
+      "direction": "column",
+      "gap": 24,
+      "areas": [
+        {
+          "section": "hero",
+          "cols": 12
+        }
+      ],
+      "justify": "center",
+      "align": "center"
+    },
+    {
+      "id": "features_section",
+      "direction": "column",
+      "gap": 32,
+      "areas": [
+        {
+          "section": "features",
+          "cols": 12
+        }
+      ]
+    },
+    {
+      "id": "testimonials_section",
+      "direction": "column",
+      "gap": 24,
+      "areas": [
+        {
+          "section": "testimonials",
+          "cols": 12
+        }
+      ]
+    }
+  ],
+  "sections": {
+    "gallery": {
+      "minWidth": 400,
+      "minHeight": 300,
+      "preferredCols": 7
+    },
+    "summary": {
+      "minWidth": 300,
+      "minHeight": 200,
+      "preferredCols": 5
+    },
+    "price_cta": {
+      "minWidth": 280,
+      "minHeight": 120,
+      "preferredCols": 4
+    },
+    "amenities": {
+      "minWidth": 600,
+      "minHeight": 200,
+      "preferredCols": 12
+    },
+    "reviews": {
+      "minWidth": 600,
+      "minHeight": 300,
+      "preferredCols": 12
+    },
+    "trust_signals": {
+      "minWidth": 200,
+      "minHeight": 80,
+      "preferredCols": 3
+    },
+    "hero": {
+      "minWidth": 800,
+      "minHeight": 400,
+      "preferredCols": 12
+    },
+    "features": {
+      "minWidth": 900,
+      "minHeight": 400,
+      "preferredCols": 12
+    },
+    "testimonials": {
+      "minWidth": 800,
+      "minHeight": 300,
+      "preferredCols": 12
+    },
+    "faq": {
+      "minWidth": 600,
+      "minHeight": 400,
+      "preferredCols": 8
+    },
+    "contact": {
+      "minWidth": 400,
+      "minHeight": 300,
+      "preferredCols": 6
+    },
+    "avatar": {
+      "minWidth": 200,
+      "minHeight": 200,
+      "preferredCols": 3
+    },
+    "bio": {
+      "minWidth": 400,
+      "minHeight": 150,
+      "preferredCols": 6
+    },
+    "experience": {
+      "minWidth": 500,
+      "minHeight": 300,
+      "preferredCols": 8
+    },
+    "portfolio": {
+      "minWidth": 600,
+      "minHeight": 400,
+      "preferredCols": 9
+    },
+    "social_links": {
+      "minWidth": 300,
+      "minHeight": 60,
+      "preferredCols": 4
+    }
+  }
+}

@@ -1,0 +1,70 @@
+/* Generated styles from design tokens */
+
+:root {
+  --color-primary-1: #2563eb;
+  --color-primary-2: #dc2626;
+  --color-neutral-1: #374151;
+  --color-neutral-2: #f3f4f6;
+  --color-text: #374151;
+  --color-background: #ffffff;
+  --font-family: Inter, sans-serif;
+  --spacing-0: 0px;
+  --spacing-1: 8px;
+  --spacing-2: 16px;
+  --spacing-3: 24px;
+  --spacing-4: 32px;
+  --spacing-5: 40px;
+}
+
+.flex {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.gallery-section {
+  grid-column: span 7;
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 16px;
+}
+
+.flex {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.summary-section {
+  grid-column: span 5;
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 16px;
+}
+
+.price-cta {
+  grid-column: span 5;
+  min-height: 120px;
+  background-color: #dc2626;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 16px;
+}
+
+.flex {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.amenities-section {
+  grid-column: 1 / -1;
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 16px;
+}

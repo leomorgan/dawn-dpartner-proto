@@ -1,0 +1,18 @@
+{
+  "page_type": "list",
+  "primary_entity": "property",
+  "required_sections": [
+    "hero",
+    "features",
+    "testimonials"
+  ],
+  "priority_order": [
+    "hero",
+    "price_cta",
+    "gallery",
+    "trust_signals",
+    "amenities"
+  ],
+  "confidence": 0.95,
+  "reasoning": "Property detail page needs visual gallery, pricing, and trust elements"
+}

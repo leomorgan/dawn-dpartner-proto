@@ -1,0 +1,256 @@
+{
+  "width": 1280,
+  "height": 1024,
+  "background": "#ffffff",
+  "elements": [
+    {
+      "id": "hero_section",
+      "x": 0,
+      "y": 24,
+      "width": 1280,
+      "height": 456,
+      "children": [
+        {
+          "id": "hero_section_bg",
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 456,
+          "fill": "#2563eb",
+          "cornerRadius": 8,
+          "stroke": "#e5e7eb",
+          "strokeWidth": 0.5
+        },
+        {
+          "id": "hero_area",
+          "x": 0,
+          "y": 8,
+          "width": 1280,
+          "height": 400,
+          "children": [
+            {
+              "id": "hero_area_bg",
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 400,
+              "fill": "#2563eb",
+              "cornerRadius": 8,
+              "stroke": "#e5e7eb",
+              "strokeWidth": 1
+            },
+            {
+              "id": "hero_area_title",
+              "x": 608,
+              "y": 128,
+              "text": "Welcome",
+              "fontSize": 48,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#ffffff",
+              "fontStyle": "bold",
+              "align": "center",
+              "verticalAlign": "middle"
+            },
+            {
+              "id": "hero_area_subtitle",
+              "x": 608,
+              "y": 168,
+              "text": "Discover amazing experiences",
+              "fontSize": 18,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#e5e7eb",
+              "align": "center",
+              "verticalAlign": "middle"
+            },
+            {
+              "id": "hero_area_cta",
+              "x": 538,
+              "y": 208,
+              "width": 140,
+              "height": 40,
+              "fill": "#ffffff",
+              "cornerRadius": 8
+            },
+            {
+              "id": "hero_area_cta_text",
+              "x": 608,
+              "y": 228,
+              "text": "Get Started",
+              "fontSize": 16,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#2563eb",
+              "fontStyle": "bold",
+              "align": "center",
+              "verticalAlign": "middle"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "main_content",
+      "x": 0,
+      "y": 512,
+      "width": 1280,
+      "height": 300,
+      "children": [
+        {
+          "id": "gallery_area",
+          "x": 0,
+          "y": 0,
+          "width": 632,
+          "height": 300,
+          "children": [
+            {
+              "id": "gallery_area_bg",
+              "x": 0,
+              "y": 0,
+              "width": 632,
+              "height": 300,
+              "fill": "#ffffff",
+              "cornerRadius": 8,
+              "strokeWidth": 0
+            },
+            {
+              "id": "gallery_area_image_0",
+              "x": 16,
+              "y": 24,
+              "width": 192,
+              "height": 192,
+              "fill": "#f3f4f6",
+              "stroke": "#d1d5db",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            },
+            {
+              "id": "gallery_area_image_text_0",
+              "x": 112,
+              "y": 120,
+              "text": "Image 1",
+              "fontSize": 12,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#9ca3af",
+              "align": "center",
+              "verticalAlign": "middle"
+            },
+            {
+              "id": "gallery_area_image_1",
+              "x": 216,
+              "y": 24,
+              "width": 192,
+              "height": 192,
+              "fill": "#f3f4f6",
+              "stroke": "#d1d5db",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            },
+            {
+              "id": "gallery_area_image_text_1",
+              "x": 312,
+              "y": 120,
+              "text": "Image 2",
+              "fontSize": 12,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#9ca3af",
+              "align": "center",
+              "verticalAlign": "middle"
+            },
+            {
+              "id": "gallery_area_image_2",
+              "x": 416,
+              "y": 24,
+              "width": 192,
+              "height": 192,
+              "fill": "#f3f4f6",
+              "stroke": "#d1d5db",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            },
+            {
+              "id": "gallery_area_image_text_2",
+              "x": 512,
+              "y": 120,
+              "text": "Image 3",
+              "fontSize": 12,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#9ca3af",
+              "align": "center",
+              "verticalAlign": "middle"
+            }
+          ]
+        },
+        {
+          "id": "sidebar",
+          "x": 648,
+          "y": 0,
+          "width": 584,
+          "height": 176,
+          "children": [
+            {
+              "id": "price_cta_area",
+              "x": 0,
+              "y": 8,
+              "width": 584,
+              "height": 120,
+              "children": [
+                {
+                  "id": "price_cta_area_bg",
+                  "x": 0,
+                  "y": 0,
+                  "width": 584,
+                  "height": 120,
+                  "fill": "#f8fafc",
+                  "cornerRadius": 8,
+                  "stroke": "#e5e7eb",
+                  "strokeWidth": 1
+                },
+                {
+                  "id": "price_cta_area_price",
+                  "x": 280,
+                  "y": 32,
+                  "text": "$299",
+                  "fontSize": 24,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#1f2937",
+                  "fontStyle": "bold",
+                  "align": "center"
+                },
+                {
+                  "id": "price_cta_area_period",
+                  "x": 280,
+                  "y": 57,
+                  "text": "/night",
+                  "fontSize": 14,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#6b7280",
+                  "align": "center"
+                },
+                {
+                  "id": "price_cta_area_button",
+                  "x": 28,
+                  "y": 44,
+                  "width": 528,
+                  "height": 36,
+                  "fill": "#2563eb",
+                  "cornerRadius": 6
+                },
+                {
+                  "id": "price_cta_area_button_text",
+                  "x": 280,
+                  "y": 62,
+                  "text": "Book Now",
+                  "fontSize": 14,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#ffffff",
+                  "fontStyle": "bold",
+                  "align": "center",
+                  "verticalAlign": "middle"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

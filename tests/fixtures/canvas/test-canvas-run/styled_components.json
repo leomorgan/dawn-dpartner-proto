@@ -1,0 +1,82 @@
+[
+  {
+    "id": "hero_section",
+    "element": "div",
+    "className": "flex flex-col justify-center items-center gap-6 hero-section",
+    "styles": {
+      "display": "flex",
+      "flexDirection": "column",
+      "justifyContent": "center",
+      "alignItems": "center",
+      "gap": "24px",
+      "backgroundColor": "#2563eb",
+      "padding": "32px"
+    },
+    "children": [
+      {
+        "id": "hero_area",
+        "section": "hero",
+        "element": "section",
+        "className": "hero-section section-hero",
+        "styles": {
+          "gridColumn": "1 / -1",
+          "backgroundColor": "#2563eb",
+          "padding": "32px"
+        }
+      }
+    ]
+  },
+  {
+    "id": "main_content",
+    "element": "div",
+    "className": "flex flex-row items-start gap-8 main-content",
+    "styles": {
+      "display": "flex",
+      "flexDirection": "row",
+      "alignItems": "flex-start",
+      "gap": "32px"
+    },
+    "children": [
+      {
+        "id": "gallery_area",
+        "section": "gallery",
+        "element": "section",
+        "className": "gallery-section section-gallery",
+        "styles": {
+          "gridColumn": "span 7",
+          "backgroundColor": "#ffffff",
+          "borderRadius": "8px",
+          "boxShadow": "none",
+          "padding": "16px"
+        }
+      },
+      {
+        "id": "sidebar",
+        "element": "div",
+        "className": "flex flex-col items-stretch gap-4 sidebar",
+        "styles": {
+          "display": "flex",
+          "flexDirection": "column",
+          "alignItems": "stretch",
+          "gap": "16px"
+        },
+        "children": [
+          {
+            "id": "price_cta_area",
+            "section": "price_cta",
+            "element": "section",
+            "className": "price-cta section-price-cta",
+            "styles": {
+              "gridColumn": "span 5",
+              "minHeight": "120px",
+              "backgroundColor": "#f8fafc",
+              "borderRadius": "8px",
+              "boxShadow": "0 1px 3px rgba(0,0,0,0.1)",
+              "padding": "16px"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
