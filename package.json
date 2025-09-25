@@ -19,6 +19,7 @@
     "layout": "npm run build:pipeline && node dist/scripts/layout.js",
     "style": "npm run build:pipeline && node dist/scripts/style.js",
     "codegen": "npm run build:pipeline && node dist/scripts/codegen.js",
+    "canvas": "npm run build:pipeline && node dist/scripts/canvas.js",
     "generate": "npm run build:pipeline && node dist/scripts/generate.js",
     "fixtures:serve": "npx serve fixtures/site -p 5050"
   },

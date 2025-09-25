@@ -1,0 +1,371 @@
+{
+  "width": 1280,
+  "height": 1140,
+  "background": "#ffffff",
+  "elements": [
+    {
+      "id": "main_content",
+      "x": 0,
+      "y": 24,
+      "width": 1280,
+      "height": 384,
+      "children": [
+        {
+          "id": "gallery_area",
+          "x": 0,
+          "y": 0,
+          "width": 632,
+          "height": 300,
+          "children": [
+            {
+              "id": "gallery_area_bg",
+              "x": 0,
+              "y": 0,
+              "width": 632,
+              "height": 300,
+              "fill": "#ffffff",
+              "cornerRadius": 12,
+              "strokeWidth": 0
+            },
+            {
+              "id": "gallery_area_image_0",
+              "x": 16,
+              "y": 24,
+              "width": 192,
+              "height": 192,
+              "fill": "#f3f4f6",
+              "stroke": "#d1d5db",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            },
+            {
+              "id": "gallery_area_image_text_0",
+              "x": 112,
+              "y": 120,
+              "text": "Image 1",
+              "fontSize": 12,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#9ca3af",
+              "align": "center",
+              "verticalAlign": "middle"
+            },
+            {
+              "id": "gallery_area_image_1",
+              "x": 216,
+              "y": 24,
+              "width": 192,
+              "height": 192,
+              "fill": "#f3f4f6",
+              "stroke": "#d1d5db",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            },
+            {
+              "id": "gallery_area_image_text_1",
+              "x": 312,
+              "y": 120,
+              "text": "Image 2",
+              "fontSize": 12,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#9ca3af",
+              "align": "center",
+              "verticalAlign": "middle"
+            },
+            {
+              "id": "gallery_area_image_2",
+              "x": 416,
+              "y": 24,
+              "width": 192,
+              "height": 192,
+              "fill": "#f3f4f6",
+              "stroke": "#d1d5db",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            },
+            {
+              "id": "gallery_area_image_text_2",
+              "x": 512,
+              "y": 120,
+              "text": "Image 3",
+              "fontSize": 12,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#9ca3af",
+              "align": "center",
+              "verticalAlign": "middle"
+            }
+          ]
+        },
+        {
+          "id": "sidebar",
+          "x": 648,
+          "y": 0,
+          "width": 584,
+          "height": 384,
+          "children": [
+            {
+              "id": "summary_area",
+              "x": 0,
+              "y": 8,
+              "width": 584,
+              "height": 200,
+              "children": [
+                {
+                  "id": "summary_area_bg",
+                  "x": 0,
+                  "y": 0,
+                  "width": 584,
+                  "height": 200,
+                  "fill": "#ffffff",
+                  "cornerRadius": 12,
+                  "strokeWidth": 0
+                },
+                {
+                  "id": "summary_area_title",
+                  "x": 16,
+                  "y": 24,
+                  "text": "Property Summary",
+                  "fontSize": 20,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#1f2937",
+                  "fontStyle": "bold",
+                  "width": 552
+                },
+                {
+                  "id": "summary_area_description",
+                  "x": 16,
+                  "y": 56,
+                  "text": "Beautiful modern property with stunning views and premium amenities.",
+                  "fontSize": 14,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#374151",
+                  "width": 536,
+                  "height": 40
+                },
+                {
+                  "id": "summary_area_tag_bg_0",
+                  "x": 16,
+                  "y": 106,
+                  "width": 96,
+                  "height": 24,
+                  "fill": "#dbeafe",
+                  "cornerRadius": 12
+                },
+                {
+                  "id": "summary_area_tag_text_0",
+                  "x": 64,
+                  "y": 118,
+                  "text": "3 Bedrooms",
+                  "fontSize": 12,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#1e40af",
+                  "align": "center",
+                  "verticalAlign": "middle"
+                },
+                {
+                  "id": "summary_area_tag_bg_1",
+                  "x": 128,
+                  "y": 106,
+                  "width": 104,
+                  "height": 24,
+                  "fill": "#dbeafe",
+                  "cornerRadius": 12
+                },
+                {
+                  "id": "summary_area_tag_text_1",
+                  "x": 180,
+                  "y": 118,
+                  "text": "2 Bathrooms",
+                  "fontSize": 12,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#1e40af",
+                  "align": "center",
+                  "verticalAlign": "middle"
+                },
+                {
+                  "id": "summary_area_tag_bg_2",
+                  "x": 160,
+                  "y": 106,
+                  "width": 64,
+                  "height": 24,
+                  "fill": "#dbeafe",
+                  "cornerRadius": 12
+                },
+                {
+                  "id": "summary_area_tag_text_2",
+                  "x": 192,
+                  "y": 118,
+                  "text": "Modern",
+                  "fontSize": 12,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#1e40af",
+                  "align": "center",
+                  "verticalAlign": "middle"
+                }
+              ]
+            },
+            {
+              "id": "price_cta_area",
+              "x": 0,
+              "y": 216,
+              "width": 584,
+              "height": 120,
+              "children": [
+                {
+                  "id": "price_cta_area_bg",
+                  "x": 0,
+                  "y": 0,
+                  "width": 584,
+                  "height": 120,
+                  "fill": "#ffffff",
+                  "cornerRadius": 12,
+                  "stroke": "#e5e7eb",
+                  "strokeWidth": 1
+                },
+                {
+                  "id": "price_cta_area_price",
+                  "x": 280,
+                  "y": 32,
+                  "text": "$299",
+                  "fontSize": 24,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#1f2937",
+                  "fontStyle": "bold",
+                  "align": "center"
+                },
+                {
+                  "id": "price_cta_area_period",
+                  "x": 280,
+                  "y": 57,
+                  "text": "/night",
+                  "fontSize": 14,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#6b7280",
+                  "align": "center"
+                },
+                {
+                  "id": "price_cta_area_button",
+                  "x": 28,
+                  "y": 44,
+                  "width": 528,
+                  "height": 36,
+                  "fill": "#333333",
+                  "cornerRadius": 6
+                },
+                {
+                  "id": "price_cta_area_button_text",
+                  "x": 280,
+                  "y": 62,
+                  "text": "Book Now",
+                  "fontSize": 14,
+                  "fontFamily": "Arial, sans-serif",
+                  "fill": "#ffffff",
+                  "fontStyle": "bold",
+                  "align": "center",
+                  "verticalAlign": "middle"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "amenities_section",
+      "x": 0,
+      "y": 440,
+      "width": 1280,
+      "height": 256,
+      "children": [
+        {
+          "id": "amenities_area",
+          "x": 0,
+          "y": 8,
+          "width": 1280,
+          "height": 200,
+          "children": [
+            {
+              "id": "amenities_area_bg",
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 200,
+              "fill": "#ffffff",
+              "cornerRadius": 12,
+              "strokeWidth": 0
+            },
+            {
+              "id": "amenities_area_title",
+              "x": 16,
+              "y": 32,
+              "text": "Amenities",
+              "fontSize": 18,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#1f2937",
+              "fontStyle": "bold"
+            },
+            {
+              "id": "amenities_area_content",
+              "x": 16,
+              "y": 66,
+              "width": 1216,
+              "height": 88,
+              "fill": "#f9fafb",
+              "stroke": "#e5e7eb",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reviews_section",
+      "x": 0,
+      "y": 728,
+      "width": 1280,
+      "height": 356,
+      "children": [
+        {
+          "id": "reviews_area",
+          "x": 0,
+          "y": 8,
+          "width": 1280,
+          "height": 300,
+          "children": [
+            {
+              "id": "reviews_area_bg",
+              "x": 0,
+              "y": 0,
+              "width": 1280,
+              "height": 300,
+              "fill": "#ffffff",
+              "cornerRadius": 12,
+              "strokeWidth": 0
+            },
+            {
+              "id": "reviews_area_title",
+              "x": 16,
+              "y": 32,
+              "text": "Reviews",
+              "fontSize": 18,
+              "fontFamily": "Arial, sans-serif",
+              "fill": "#1f2937",
+              "fontStyle": "bold"
+            },
+            {
+              "id": "reviews_area_content",
+              "x": 16,
+              "y": 66,
+              "width": 1216,
+              "height": 188,
+              "fill": "#f9fafb",
+              "stroke": "#e5e7eb",
+              "strokeWidth": 1,
+              "cornerRadius": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
