@@ -6,6 +6,14 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/artifacts/:path*',
+        destination: '/api/artifacts/:path*',
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     // Ignore optional canvas dependency in linkedom for browser builds
     if (!isServer) {

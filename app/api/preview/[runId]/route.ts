@@ -45,33 +45,71 @@ export async function GET(
       cssContent = await readFile(cssPath, 'utf8');
     }
 
-    // Load the main component (assume it's the first one or named MainColumnContainer)
-    const fs = await import('fs');
-    const componentFiles = fs.readdirSync(componentsDir).filter(file => file.endsWith('.tsx'));
+    // Load all components from index.ts
+    const indexPath = join(componentsDir, 'index.ts');
+    let componentNames: string[] = [];
 
-    if (componentFiles.length === 0) {
+    if (existsSync(indexPath)) {
+      const indexContent = await readFile(indexPath, 'utf8');
+
+      // Extract component names from export statements
+      const exportMatches = indexContent.match(/export\s+\{\s*([^}]+)\s*\}/g);
+
+      if (exportMatches) {
+        exportMatches.forEach(match => {
+          const names = match.replace(/export\s+\{\s*/, '').replace(/\s*\}/, '');
+          names.split(',').forEach(name => {
+            const componentName = name.trim().split(/\s+/)[0];
+            if (componentName && !componentName.includes('type') && !componentName.includes('Props')) {
+              componentNames.push(componentName);
+            }
+          });
+        });
+      }
+    }
+
+    // Fallback: scan for .tsx files if no index.ts or no exports found
+    if (componentNames.length === 0) {
+      const fs = await import('fs');
+      const componentFiles = fs.readdirSync(componentsDir).filter(file => file.endsWith('.tsx'));
+      componentNames = componentFiles.map(file => file.replace('.tsx', ''));
+    }
+
+    if (componentNames.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'No component files found'
       }, { status: 404 });
     }
 
-    // Find the main component file (usually the largest or container component)
-    const mainComponentFile = componentFiles.find(file =>
-      file.includes('MainColumn') || file.includes('Container')
-    ) || componentFiles[0];
+    // Load and convert all components to HTML
+    const htmlParts: string[] = [];
+    const componentFiles: string[] = [];
 
-    const componentPath = join(componentsDir, mainComponentFile);
-    const componentCode = await readFile(componentPath, 'utf8');
+    for (const componentName of componentNames) {
+      const componentFile = `${componentName}.tsx`;
+      const componentPath = join(componentsDir, componentFile);
 
-    // Extract the JSX content from the component to render as HTML
-    const html = await convertComponentToHTML(componentCode, runId);
+      if (existsSync(componentPath)) {
+        const componentCode = await readFile(componentPath, 'utf8');
+        const componentHtml = await convertComponentToHTML(componentCode, runId, componentName);
+        htmlParts.push(componentHtml);
+        componentFiles.push(componentFile);
+      }
+    }
+
+    // Combine all components into a single HTML structure
+    const html = `
+      <div class="components-container">
+        ${htmlParts.join('\n\n')}
+      </div>
+    `;
 
     return NextResponse.json({
       success: true,
       html,
       css: cssContent,
-      componentFile: mainComponentFile
+      componentFiles: componentFiles
     });
 
   } catch (error) {
@@ -84,7 +122,7 @@ export async function GET(
   }
 }
 
-async function convertComponentToHTML(componentCode: string, runId: string): Promise<string> {
+async function convertComponentToHTML(componentCode: string, runId: string, componentName?: string): Promise<string> {
   try {
     // Extract the JSX return content from the component
     const jsxMatch = componentCode.match(/return\s*\(\s*([\s\S]*?)\s*\)\s*;/);
@@ -122,6 +160,20 @@ async function convertComponentToHTML(componentCode: string, runId: string): Pro
 
     // Remove React-specific syntax that doesn't work in HTML
     jsxContent = jsxContent.replace(/\{\/\*.*?\*\/\}/g, ''); // Remove JSX comments
+
+    // Wrap with component identifier if provided
+    if (componentName) {
+      return `
+        <div class="component-section" data-component="${componentName}">
+          <div class="component-header" style="background: #f3f4f6; padding: 8px 16px; border-bottom: 1px solid #e5e7eb; margin-bottom: 16px;">
+            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #374151;">${componentName}</h3>
+          </div>
+          <div class="component-content">
+            ${jsxContent}
+          </div>
+        </div>
+      `;
+    }
 
     return jsxContent;
 
