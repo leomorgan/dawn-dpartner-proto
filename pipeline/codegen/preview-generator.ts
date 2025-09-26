@@ -81,28 +81,45 @@ export async function generatePreviewHTML(
     .component-support { transition: all 0.3s ease; }
   </style>
   <script>
-    // Configure Tailwind to include all classes we use
+    // Configure Tailwind to include all classes we use - using actual captured design tokens
     tailwind.config = {
       theme: {
         extend: {
           colors: {
             brand: {
-              50: '#f0f9ff',
-              100: '#e0f2fe',
-              200: '#bae6fd',
-              300: '#7dd3fc',
-              400: '#38bdf8',
-              500: '#635bff',
-              600: '#425466',
-              700: '#0a2540',
-              800: '#1e40af',
-              900: '#1e3a8a',
-            }
+              100: '${designTokens?.colors?.primary?.[0] || '#000000'}',
+              200: '${designTokens?.colors?.primary?.[1] || '#333333'}',
+              300: '${designTokens?.colors?.primary?.[2] || '#666666'}',
+              400: '${designTokens?.colors?.primary?.[3] || '#999999'}',
+            },
+            semantic: {
+              text: '${designTokens?.colors?.semantic?.text || '#000000'}',
+              background: '${designTokens?.colors?.semantic?.background || '#ffffff'}',
+              cta: '${designTokens?.colors?.semantic?.cta || '#0066cc'}',
+              accent: '${designTokens?.colors?.semantic?.accent || '#ff6b6b'}',
+              muted: '${designTokens?.colors?.semantic?.muted || '#666666'}',
+            },
+            ${designTokens?.colors?.contextual?.buttons?.length ? `
+            button: {
+              100: '${designTokens.colors.contextual.buttons[0] || '#0066cc'}',
+              200: '${designTokens.colors.contextual.buttons[1] || '#4788ff'}',
+              300: '${designTokens.colors.contextual.buttons[2] || '#82b1ff'}',
+            },` : ''}
+            ${designTokens?.colors?.contextual?.links?.length ? `
+            link: {
+              100: '${designTokens.colors.contextual.links[0] || '#0066cc'}',
+              200: '${designTokens.colors.contextual.links[1] || '#4788ff'}',
+              300: '${designTokens.colors.contextual.links[2] || '#82b1ff'}',
+            },` : ''}
+          },
+          spacing: {
+            ${designTokens?.spacing?.map((space: number, idx: number) => `'${idx}': '${space}px'`).join(',\n            ') || "'0': '0px'"}
           },
           borderRadius: {
-            '4': '4px',
-            '8': '8px',
-            '16.5': '16.5px'
+            ${designTokens?.borderRadius?.map((radius: string, idx: number) => `'r${idx}': '${radius}'`).join(',\n            ') || "'4': '4px'"}
+          },
+          fontFamily: {
+            primary: [${designTokens?.typography?.fontFamilies?.map((f: string) => `'${f}'`).join(', ') || "'system-ui'"}]
           }
         }
       }
@@ -147,27 +164,64 @@ export async function generatePreviewHTML(
 function generateCSSVariables(tokens: any): string {
   const vars: string[] = [];
 
-  if (tokens.colors) {
-    // Primary colors
-    if (tokens.colors.primary && Array.isArray(tokens.colors.primary)) {
-      tokens.colors.primary.forEach((color: string, i: number) => {
-        vars.push(`--color-primary-${i + 1}: ${color};`);
-      });
-    }
+  if (tokens?.colors?.primary?.length) {
+    tokens.colors.primary.forEach((color: string, index: number) => {
+      vars.push(`--color-primary-${index + 1}: ${color};`);
+    });
+  }
 
-    // Neutral colors
-    if (tokens.colors.neutral && Array.isArray(tokens.colors.neutral)) {
-      tokens.colors.neutral.forEach((color: string, i: number) => {
-        vars.push(`--color-neutral-${i + 1}: ${color};`);
-      });
-    }
+  if (tokens?.colors?.neutral?.length) {
+    tokens.colors.neutral.forEach((color: string, index: number) => {
+      vars.push(`--color-neutral-${index + 1}: ${color};`);
+    });
+  }
 
-    // Semantic colors
-    if (tokens.colors.semantic) {
-      Object.entries(tokens.colors.semantic).forEach(([key, value]) => {
-        vars.push(`--color-${key}: ${value};`);
-      });
-    }
+  // Enhanced semantic colors
+  if (tokens?.colors?.semantic) {
+    vars.push(`--color-text: ${tokens.colors.semantic.text || '#000000'};`);
+    vars.push(`--color-background: ${tokens.colors.semantic.background || '#ffffff'};`);
+    vars.push(`--color-cta: ${tokens.colors.semantic.cta || '#0066cc'};`);
+    vars.push(`--color-accent: ${tokens.colors.semantic.accent || '#ff6b6b'};`);
+    vars.push(`--color-muted: ${tokens.colors.semantic.muted || '#666666'};`);
+  }
+
+  // Contextual colors
+  if (tokens?.colors?.contextual?.buttons?.length) {
+    tokens.colors.contextual.buttons.forEach((color: string, index: number) => {
+      vars.push(`--color-button-${index + 1}: ${color};`);
+    });
+  }
+
+  if (tokens?.colors?.contextual?.links?.length) {
+    tokens.colors.contextual.links.forEach((color: string, index: number) => {
+      vars.push(`--color-link-${index + 1}: ${color};`);
+    });
+  }
+
+  // Typography
+  if (tokens?.typography?.fontFamilies?.length) {
+    vars.push(`--font-family: ${tokens.typography.fontFamilies.join(', ')};`);
+  }
+
+  // Spacing
+  if (tokens?.spacing?.length) {
+    tokens.spacing.forEach((space: number, index: number) => {
+      vars.push(`--spacing-${index}: ${space}px;`);
+    });
+  }
+
+  // Border radius
+  if (tokens?.borderRadius?.length) {
+    tokens.borderRadius.forEach((radius: string, index: number) => {
+      vars.push(`--radius-${index}: ${radius};`);
+    });
+  }
+
+  // Shadows
+  if (tokens?.boxShadow?.length) {
+    tokens.boxShadow.forEach((shadow: string, index: number) => {
+      vars.push(`--shadow-${index}: ${shadow};`);
+    });
   }
 
   return vars.join('\n      ');

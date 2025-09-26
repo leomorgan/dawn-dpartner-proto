@@ -100,11 +100,23 @@ function analyzeBrandPersonality(tokens: DesignTokens): BrandPersonality {
 function getBrandColors(tokens: DesignTokens) {
   return {
     primary: tokens.colors.primary[0] || '#000000',
-    accent: tokens.colors.neutral.find(c => c.includes('#ff') || c.includes('#0') || c.includes('#3')) || tokens.colors.primary[2] || '#ff385c',
+    accent: tokens.colors.semantic?.accent ||
+           tokens.colors.contextual?.buttons?.[0] ||
+           tokens.colors.neutral.find(c => c.includes('#ff') || c.includes('#0') || c.includes('#3')) ||
+           tokens.colors.primary[2] || '#ff385c',
+    cta: tokens.colors.semantic?.cta ||
+         tokens.colors.contextual?.buttons?.[0] ||
+         tokens.colors.primary[1] || '#ff385c',
     text: tokens.colors.semantic.text || tokens.colors.primary[0] || '#000000',
     background: tokens.colors.semantic.background || '#ffffff',
+    muted: tokens.colors.semantic?.muted || tokens.colors.neutral[0] || '#666666',
+    link: tokens.colors.contextual?.links?.[0] || tokens.colors.primary[1] || '#0066cc',
     neutral: tokens.colors.neutral[0] || '#666666',
-    light: tokens.colors.primary.find(c => c === '#ffffff' || c === '#f7f7f7') || '#f7f7f7',
+    light: tokens.colors.contextual?.backgrounds?.find(c => c === '#ffffff' || c === '#f7f7f7') ||
+           tokens.colors.primary.find(c => c === '#ffffff' || c === '#f7f7f7') || '#f7f7f7',
+    // Button variants
+    buttonPrimary: tokens.colors.contextual?.buttons?.[0] || tokens.colors.semantic?.cta || tokens.colors.primary[0],
+    buttonSecondary: tokens.colors.contextual?.buttons?.[1] || tokens.colors.neutral[0] || tokens.colors.semantic.background,
   };
 }
 
@@ -126,10 +138,18 @@ Generate professional JSX that will be placed directly inside a React component.
 
 DESIGN TOKENS TO USE:
 - Primary color: ${colors.primary}
+- CTA/Action color: ${colors.cta}
+- Accent color: ${colors.accent}
 - Text color: ${colors.text}
+- Muted text: ${colors.muted}
 - Background: ${colors.background}
+- Link color: ${colors.link}
+- Button colors: Primary ${colors.buttonPrimary}, Secondary ${colors.buttonSecondary}
+- Typography: Font family ${designTokens.typography.fontFamilies[0] || 'system-ui'}, weights ${designTokens.typography.fontWeights?.join(', ') || '400, 600, 700'}
+- Spacing scale: ${designTokens.spacing.join('px, ')}px
 - Border radius: ${designTokens.borderRadius.join(', ') || '8px, 12px, 16px'}
-- Use Tailwind CSS classes with brand colors as hex values
+- Use Tailwind CSS classes with exact hex values (e.g., bg-[${colors.primary}], text-[${colors.text}])
+- Use semantic Tailwind classes when possible (bg-semantic-cta, text-semantic-text, etc.)
 
 BRAND PERSONALITY: ${brandPersonality.tone} tone, ${brandPersonality.energy} energy, ${brandPersonality.trustLevel} trust level
 
@@ -148,24 +168,29 @@ Return ONLY the JSX content, no explanation, no markdown, no code blocks.`;
     'overview': `Create a sophisticated overview section that presents key summary information about ${intent.primaryEntity}.
       Include: headline, key metrics or highlights, brief description, and primary action.
       Use the ${brandPersonality.tone} tone to match the brand personality.
-      Apply colors: primary=${colors.primary}, text=${colors.text}`,
+      Apply colors: headline in ${colors.text}, accent elements in ${colors.accent}, CTA button in ${colors.cta}.
+      Use spacing from the scale: ${designTokens.spacing.join('px, ')}px.`,
 
     'details': `Create a detailed information section about ${intent.primaryEntity}.
       Include: structured data presentation, expandable sections if needed, clear information hierarchy.
       Present information in a ${brandPersonality.energy} way that matches the brand.
-      Apply colors strategically for readability.`,
+      Use text color ${colors.text}, muted text ${colors.muted}, links in ${colors.link}.
+      Apply consistent spacing using the scale: ${designTokens.spacing.join('px, ')}px.`,
 
     'services': `Create a services/features section highlighting key offerings related to ${intent.primaryEntity}.
       Include: service cards or list, benefits, quick actions.
-      Use ${brandPersonality.tone} tone to present the services.`,
+      Use ${brandPersonality.tone} tone to present the services.
+      Cards should use background ${colors.light}, accent borders ${colors.accent}, action buttons ${colors.cta}.`,
 
     'alerts': `Create a notifications/alerts section for important updates about ${intent.primaryEntity}.
       Include: alert message, severity indication, action button if needed.
-      Design with ${brandPersonality.energy} energy level.`,
+      Design with ${brandPersonality.energy} energy level.
+      Use CTA color ${colors.cta} for important alerts, muted color ${colors.muted} for less critical ones.`,
 
     'preferences': `Create a settings/preferences section for user customization related to ${intent.primaryEntity}.
       Include: toggle switches, options, save button.
-      Keep the interface ${brandPersonality.tone} and intuitive.`,
+      Keep the interface ${brandPersonality.tone} and intuitive.
+      Use primary button color ${colors.buttonPrimary}, secondary ${colors.buttonSecondary}, text ${colors.text}.`,
 
     'data-table': `Create a data table section showing ${intent.primaryEntity} records.
       IMPORTANT: Define the data array first (const payments = [...]) before using it in the table.

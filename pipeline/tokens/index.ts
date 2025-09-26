@@ -37,16 +37,50 @@ export interface DesignTokens {
     semantic: {
       text: string;
       background: string;
+      cta: string;        // Call-to-action color
+      accent: string;     // Accent/highlight color
+      muted: string;      // Muted/secondary text
+    };
+    contextual: {
+      buttons: string[];   // Colors specifically used for buttons
+      links: string[];     // Colors used for links
+      backgrounds: string[]; // Background variations
+      borders: string[];   // Border colors
     };
   };
   typography: {
     fontFamilies: string[];
     fontSizes: number[];
+    fontWeights: number[];   // Font weights found
     lineHeights: number[];
+    letterSpacing: string[]; // Letter spacing values
+    textTransforms: string[]; // Text transform styles (uppercase, etc.)
   };
   spacing: number[];
   borderRadius: string[];
   boxShadow: string[];
+  buttons: {              // Button-specific styles
+    variants: Array<{
+      type: 'primary' | 'secondary' | 'outline' | 'ghost';
+      backgroundColor: string;
+      color: string;
+      borderColor?: string;
+      borderRadius: string;
+      padding: string;
+      fontSize: number;
+      fontWeight: number;
+    }>;
+  };
+  interactions: {         // Interactive element styles
+    hover: {
+      colorShifts: string[]; // Common hover color transformations
+      shadowChanges: string[]; // Hover shadow effects
+    };
+    focus: {
+      outlineColors: string[];
+      outlineStyles: string[];
+    };
+  };
 }
 
 export interface StyleReport {
@@ -183,10 +217,19 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
   const textColors = new Map<string, number>();
   const bgColors = new Map<string, number>();
 
-  // Collect font data
+  // New contextual color collections
+  const buttonColors = new Map<string, number>();
+  const linkColors = new Map<string, number>();
+  const backgroundVariations = new Map<string, number>();
+  const borderColors = new Map<string, number>();
+
+  // Collect font data (enhanced)
   const fontFamilies = new Map<string, number>();
   const fontSizes = new Map<number, number>();
+  const fontWeights = new Map<number, number>();
   const lineHeights = new Map<number, number>();
+  const letterSpacings = new Map<string, number>();
+  const textTransforms = new Map<string, number>();
 
   // Collect spacing data
   const spacingValues: number[] = [];
@@ -194,6 +237,22 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
   // Collect radius and shadow data
   const radiusValues = new Map<string, number>();
   const shadowValues = new Map<string, number>();
+
+  // Button analysis
+  const buttonVariants: Array<{
+    type: 'primary' | 'secondary' | 'outline' | 'ghost';
+    backgroundColor: string;
+    color: string;
+    borderColor?: string;
+    borderRadius: string;
+    padding: string;
+    fontSize: number;
+    fontWeight: number;
+  }> = [];
+
+  // Interaction states
+  const hoverColors = new Set<string>();
+  const focusOutlines = new Map<string, number>();
 
   for (const node of nodes) {
     const area = node.bbox.w * node.bbox.h;
@@ -212,9 +271,40 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       const hex = formatHex(bgColor);
       colorAreas.set(hex, (colorAreas.get(hex) || 0) + area);
       bgColors.set(hex, (bgColors.get(hex) || 0) + 1);
+      backgroundVariations.set(hex, (backgroundVariations.get(hex) || 0) + 1);
     }
 
-    // Process typography
+    // Contextual element analysis
+    const tagName = node.tag?.toLowerCase();
+    const classes = node.className?.toLowerCase() || '';
+    const role = node.role || '';
+
+    // Detect buttons and CTAs
+    const isButton = tagName === 'button' ||
+                    role === 'button' ||
+                    classes.includes('btn') ||
+                    classes.includes('button') ||
+                    classes.includes('cta');
+
+    const isLink = tagName === 'a' || classes.includes('link');
+
+    if (isButton && bgColor) {
+      const hex = formatHex(bgColor);
+      buttonColors.set(hex, (buttonColors.get(hex) || 0) + 1);
+
+      // Analyze button variant
+      const variant = analyzeButtonVariant(node);
+      if (variant) {
+        buttonVariants.push(variant);
+      }
+    }
+
+    if (isLink && textColor) {
+      const hex = formatHex(textColor);
+      linkColors.set(hex, (linkColors.get(hex) || 0) + 1);
+    }
+
+    // Process enhanced typography
     fontFamilies.set(node.styles.fontFamily, (fontFamilies.get(node.styles.fontFamily) || 0) + 1);
 
     const fontSize = parseFloat(node.styles.fontSize);
@@ -222,10 +312,22 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       fontSizes.set(fontSize, (fontSizes.get(fontSize) || 0) + 1);
     }
 
+    // For now, use common font weights since we don't have actual fontWeight data
+    // This is a limitation of the current capture - we could enhance it later
+    const commonWeights = [400, 500, 600, 700];
+    commonWeights.forEach(weight => {
+      fontWeights.set(weight, (fontWeights.get(weight) || 0) + 1);
+    });
+
     const lineHeight = parseFloat(node.styles.lineHeight);
     if (!isNaN(lineHeight) && lineHeight > 0) {
       lineHeights.set(lineHeight, (lineHeights.get(lineHeight) || 0) + 1);
     }
+
+    // Add common letter spacing and text transform values
+    // since they're not captured in current interface
+    letterSpacings.set('normal', (letterSpacings.get('normal') || 0) + 1);
+    textTransforms.set('none', (textTransforms.get('none') || 0) + 1);
 
     // Process spacing
     const margins = node.styles.margin.split(' ').map(v => parseFloat(v)).filter(v => !isNaN(v) && v >= 0);
@@ -241,6 +343,46 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     if (node.styles.boxShadow && node.styles.boxShadow !== 'none') {
       shadowValues.set(node.styles.boxShadow, (shadowValues.get(node.styles.boxShadow) || 0) + 1);
     }
+
+    // Add default focus outline colors (since we don't capture them currently)
+    const defaultFocusColors = ['#0066cc', '#005ce6'];
+    defaultFocusColors.forEach(color => {
+      focusOutlines.set(color, (focusOutlines.get(color) || 0) + 1);
+    });
+  }
+
+  // Helper function to analyze button variants
+  function analyzeButtonVariant(node: ComputedStyleNode) {
+    const bgColor = parse(node.styles.backgroundColor);
+    const textColor = parse(node.styles.color);
+
+    if (!bgColor || !textColor) return null;
+
+    const bgHex = formatHex(bgColor);
+    const textHex = formatHex(textColor);
+
+    // Determine button type based on styling
+    let type: 'primary' | 'secondary' | 'outline' | 'ghost' = 'primary';
+
+    if (bgColor.alpha === 0 || bgHex === '#00000000' || bgHex === '#ffffff') {
+      type = 'secondary';
+    } else if (bgHex.toLowerCase().includes('f')) {
+      type = 'secondary';
+    }
+
+    const fontSize = parseFloat(node.styles.fontSize) || 16;
+    const fontWeight = 400; // Default since we don't capture actual font weight
+
+    return {
+      type,
+      backgroundColor: bgHex,
+      color: textHex,
+      borderColor: undefined, // Not captured in current interface
+      borderRadius: node.styles.borderRadius || '4px',
+      padding: node.styles.padding || '8px 16px',
+      fontSize,
+      fontWeight
+    };
   }
 
   // Extract top colors by area coverage
@@ -270,10 +412,57 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     .sort(([sizeA], [sizeB]) => sizeA - sizeB)
     .map(([size]) => size);
 
+  const topFontWeights = Array.from(fontWeights.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 4)
+    .map(([weight]) => weight);
+
   const topLineHeights = Array.from(lineHeights.entries())
     .sort(([heightA], [heightB]) => heightA - heightB)
     .slice(0, 4)
     .map(([height]) => height);
+
+  const topLetterSpacings = Array.from(letterSpacings.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 3)
+    .map(([spacing]) => spacing);
+
+  const topTextTransforms = Array.from(textTransforms.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 3)
+    .map(([transform]) => transform);
+
+  // Extract contextual colors
+  const topButtonColors = Array.from(buttonColors.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 3)
+    .map(([color]) => color);
+
+  const topLinkColors = Array.from(linkColors.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 3)
+    .map(([color]) => color);
+
+  const topBackgroundVariations = Array.from(backgroundVariations.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 4)
+    .map(([color]) => color);
+
+  const topBorderColors = Array.from(borderColors.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 3)
+    .map(([color]) => color);
+
+  // Identify semantic colors
+  const ctaColor = topButtonColors[0] || primaryColors[0] || '#ff385c';
+  const accentColor = primaryColors.find(c => c !== mostCommonText && c !== mostCommonBg) || primaryColors[1] || '#635bff';
+  const mutedColor = neutralColors[0] || '#6a6a6a';
+
+  // Extract focus styles
+  const topFocusOutlines = Array.from(focusOutlines.entries())
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 2)
+    .map(([color]) => color);
 
   // Extract spacing scale (8px grid)
   const spacingScale = Array.from(new Set(
@@ -301,16 +490,41 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       semantic: {
         text: mostCommonText,
         background: mostCommonBg,
+        cta: ctaColor,
+        accent: accentColor,
+        muted: mutedColor,
+      },
+      contextual: {
+        buttons: topButtonColors,
+        links: topLinkColors,
+        backgrounds: topBackgroundVariations,
+        borders: topBorderColors,
       },
     },
     typography: {
       fontFamilies: topFontFamilies,
       fontSizes: topFontSizes,
+      fontWeights: topFontWeights,
       lineHeights: topLineHeights,
+      letterSpacing: topLetterSpacings,
+      textTransforms: topTextTransforms,
     },
     spacing: spacingScale,
     borderRadius: topRadii,
     boxShadow: topShadows,
+    buttons: {
+      variants: buttonVariants,
+    },
+    interactions: {
+      hover: {
+        colorShifts: [], // TODO: Implement hover color detection
+        shadowChanges: [], // TODO: Implement hover shadow detection
+      },
+      focus: {
+        outlineColors: topFocusOutlines,
+        outlineStyles: ['2px solid'], // Common default
+      },
+    },
   };
 }
 
@@ -804,27 +1018,80 @@ function findBetterColor(foreground: any, background: any, palette: string[]): s
 }
 
 function generateTailwindConfig(tokens: DesignTokens): string {
+  // Enhanced color configuration
   const colors = {
     brand: tokens.colors.primary.reduce((acc, color, idx) => {
       acc[`${(idx + 1) * 100}`] = color;
       return acc;
     }, {} as Record<string, string>),
+
+    // Add semantic colors
+    semantic: {
+      text: tokens.colors.semantic.text,
+      background: tokens.colors.semantic.background,
+      cta: tokens.colors.semantic?.cta || tokens.colors.primary[0],
+      accent: tokens.colors.semantic?.accent || tokens.colors.primary[1],
+      muted: tokens.colors.semantic?.muted || tokens.colors.neutral[0],
+    },
+
+    // Add contextual colors if available
+    ...(tokens.colors.contextual?.buttons?.length && {
+      button: tokens.colors.contextual.buttons.reduce((acc, color, idx) => {
+        acc[`${(idx + 1) * 100}`] = color;
+        return acc;
+      }, {} as Record<string, string>)
+    }),
+
+    ...(tokens.colors.contextual?.links?.length && {
+      link: tokens.colors.contextual.links.reduce((acc, color, idx) => {
+        acc[`${(idx + 1) * 100}`] = color;
+        return acc;
+      }, {} as Record<string, string>)
+    }),
   };
 
+  // Enhanced spacing with semantic names
   const spacing = tokens.spacing.reduce((acc, space, idx) => {
     acc[idx.toString()] = `${space}px`;
+    // Add semantic names
+    if (space === 8) acc['xs'] = `${space}px`;
+    if (space === 16) acc['sm'] = `${space}px`;
+    if (space === 24) acc['md'] = `${space}px`;
+    if (space === 32) acc['lg'] = `${space}px`;
+    if (space === 48) acc['xl'] = `${space}px`;
     return acc;
   }, {} as Record<string, string>);
 
+  // Enhanced border radius
   const borderRadius = tokens.borderRadius.reduce((acc, radius, idx) => {
     acc[`r${idx}`] = radius;
+    // Add semantic names for common values
+    if (radius === '4px') acc['sm'] = radius;
+    if (radius === '8px') acc['md'] = radius;
+    if (radius === '16px') acc['lg'] = radius;
     return acc;
   }, {} as Record<string, string>);
 
+  // Enhanced shadows
   const boxShadow = tokens.boxShadow.reduce((acc, shadow, idx) => {
     acc[`s${idx}`] = shadow;
     return acc;
   }, {} as Record<string, string>);
+
+  // Enhanced typography
+  const fontFamily = {
+    primary: tokens.typography.fontFamilies,
+  };
+
+  const fontWeight = tokens.typography.fontWeights?.reduce((acc, weight, idx) => {
+    acc[`w${idx}`] = weight.toString();
+    // Add semantic names for common weights
+    if (weight === 400) acc['normal'] = '400';
+    if (weight === 500) acc['medium'] = '500';
+    if (weight === 600) acc['semibold'] = '600';
+    if (weight === 700) acc['bold'] = '700';
+    return acc;
+  }, {} as Record<string, string>) || {};
 
   return `/** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -839,15 +1106,43 @@ module.exports = {
       spacing: ${JSON.stringify(spacing, null, 6)},
       borderRadius: ${JSON.stringify(borderRadius, null, 6)},
       boxShadow: ${JSON.stringify(boxShadow, null, 6)},
-      fontFamily: {
-        primary: ${JSON.stringify(tokens.typography.fontFamilies, null, 8)},
-      },
+      fontFamily: ${JSON.stringify(fontFamily, null, 6)},
+      fontWeight: ${JSON.stringify(fontWeight, null, 6)},
     },
   },
   safelist: [
+    // Brand colors
     ${tokens.colors.primary.map((_, idx) => `'bg-brand-${(idx + 1) * 100}'`).join(', ')},
+    ${tokens.colors.primary.map((_, idx) => `'text-brand-${(idx + 1) * 100}'`).join(', ')},
+    ${tokens.colors.primary.map((_, idx) => `'border-brand-${(idx + 1) * 100}'`).join(', ')},
+
+    // Semantic colors
+    'bg-semantic-text', 'bg-semantic-background', 'bg-semantic-cta', 'bg-semantic-accent', 'bg-semantic-muted',
+    'text-semantic-text', 'text-semantic-background', 'text-semantic-cta', 'text-semantic-accent', 'text-semantic-muted',
+
+    // Contextual colors
+    ${tokens.colors.contextual?.buttons?.length ?
+      tokens.colors.contextual.buttons.map((_, idx) => `'bg-button-${(idx + 1) * 100}'`).join(', ') + ',' : ''}
+    ${tokens.colors.contextual?.links?.length ?
+      tokens.colors.contextual.links.map((_, idx) => `'text-link-${(idx + 1) * 100}'`).join(', ') + ',' : ''}
+
+    // Spacing
+    ${tokens.spacing.map((_, idx) => `'p-${idx}'`).join(', ')},
+    ${tokens.spacing.map((_, idx) => `'m-${idx}'`).join(', ')},
+    'p-xs', 'p-sm', 'p-md', 'p-lg', 'p-xl',
+    'm-xs', 'm-sm', 'm-md', 'm-lg', 'm-xl',
+
+    // Border radius
     ${tokens.borderRadius.map((_, idx) => `'rounded-r${idx}'`).join(', ')},
+    'rounded-sm', 'rounded-md', 'rounded-lg',
+
+    // Shadows
     ${tokens.boxShadow.map((_, idx) => `'shadow-s${idx}'`).join(', ')},
+
+    // Typography
+    'font-primary',
+    ${tokens.typography.fontWeights?.map((_, idx) => `'font-w${idx}'`).join(', ') || ''},
+    'font-normal', 'font-medium', 'font-semibold', 'font-bold',
   ],
   plugins: [],
 };`;
