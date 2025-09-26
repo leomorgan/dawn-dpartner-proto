@@ -169,4 +169,7 @@ This is an **MVP tech demo** with a core focus on **crafted design output qualit
 - **Demo-ready over production-ready** - optimize for showcasing design generation capabilities
 - **Deterministic behavior** - consistent results for reliable demos
 
+
+Test changes as you go! Code should work when completed.
+
 **Success Criteria**: Code running is baseline; the true measure is whether generated designs look like they were created by a skilled designer who understood the source brand.
