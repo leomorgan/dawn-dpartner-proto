@@ -23,7 +23,7 @@ export interface Intent {
 export interface IntentParseResult {
   runId: string;
   intent: Intent;
-  provider: 'openai' | 'anthropic' | 'mock';
+  provider: 'openai' | 'anthropic';
 }
 
 const INTENT_SCHEMA = {
@@ -68,46 +68,12 @@ const INTENT_SCHEMA = {
   required: ['page_type', 'primary_entity', 'required_sections', 'priority_order', 'confidence', 'reasoning']
 };
 
-const MOCK_INTENTS: Record<string, Intent> = {
-  'property detail': {
-    page_type: 'detail',
-    primary_entity: 'property',
-    required_sections: ['gallery', 'summary', 'price_cta', 'amenities', 'reviews'],
-    priority_order: ['hero', 'price_cta', 'gallery', 'trust_signals', 'amenities'],
-    confidence: 0.95,
-    reasoning: 'Property detail page needs visual gallery, pricing, and trust elements'
-  },
-  'product detail': {
-    page_type: 'detail',
-    primary_entity: 'product',
-    required_sections: ['gallery', 'summary', 'price_cta', 'features', 'reviews'],
-    priority_order: ['hero', 'price_cta', 'gallery', 'features', 'reviews'],
-    confidence: 0.92,
-    reasoning: 'Product page focuses on features and social proof through reviews'
-  },
-  'user profile': {
-    page_type: 'profile',
-    primary_entity: 'person',
-    required_sections: ['avatar', 'bio', 'experience', 'portfolio', 'social_links'],
-    priority_order: ['avatar', 'bio', 'portfolio', 'experience', 'social_links'],
-    confidence: 0.88,
-    reasoning: 'Profile page showcases person with work history and portfolio'
-  },
-  'listing page': {
-    page_type: 'list',
-    primary_entity: 'items',
-    required_sections: ['hero', 'features', 'testimonials'],
-    priority_order: ['hero', 'features', 'testimonials'],
-    confidence: 0.85,
-    reasoning: 'List page presents multiple items with filtering and overview'
-  }
-};
 
 export async function parseIntent(
   prompt: string,
   runId: string,
   artifactDir?: string,
-  provider?: 'openai' | 'anthropic' | 'mock'
+  provider?: 'openai' | 'anthropic'
 ): Promise<IntentParseResult> {
   const baseDir = artifactDir || join(process.cwd(), 'artifacts');
   const runDir = join(baseDir, runId);
@@ -121,7 +87,7 @@ export async function parseIntent(
     // Scenegraph is optional for intent parsing
   }
 
-  const intentProvider = provider || process.env.INTENT_PROVIDER || 'mock';
+  const intentProvider = provider || process.env.INTENT_PROVIDER || 'openai';
   let intent: Intent;
 
   switch (intentProvider) {
@@ -132,7 +98,7 @@ export async function parseIntent(
       intent = await parseWithAnthropic(prompt, scenegraph);
       break;
     default:
-      intent = parseWithMock(prompt);
+      throw new Error(`Unsupported intent provider: ${intentProvider}. Must be 'openai' or 'anthropic'.`);
   }
 
   // Save intent
@@ -249,39 +215,6 @@ Return only valid JSON.`;
   return validateIntent(intent);
 }
 
-function parseWithMock(prompt: string): Intent {
-  const normalizedPrompt = prompt.toLowerCase().trim();
-
-  // Try exact matches first
-  for (const [key, intent] of Object.entries(MOCK_INTENTS)) {
-    if (normalizedPrompt.includes(key)) {
-      return intent;
-    }
-  }
-
-  // Fuzzy matching for common terms
-  if (normalizedPrompt.includes('detail') || normalizedPrompt.includes('property') || normalizedPrompt.includes('product')) {
-    return MOCK_INTENTS['property detail'];
-  }
-
-  if (normalizedPrompt.includes('profile') || normalizedPrompt.includes('person') || normalizedPrompt.includes('user')) {
-    return MOCK_INTENTS['user profile'];
-  }
-
-  if (normalizedPrompt.includes('list') || normalizedPrompt.includes('catalog') || normalizedPrompt.includes('collection')) {
-    return MOCK_INTENTS['listing page'];
-  }
-
-  // Default fallback
-  return {
-    page_type: 'detail',
-    primary_entity: 'item',
-    required_sections: ['hero', 'summary', 'features'],
-    priority_order: ['hero', 'summary', 'features'],
-    confidence: 0.5,
-    reasoning: 'Generic detail page - could not determine specific intent from prompt'
-  };
-}
 
 function validateIntent(intent: Intent): Intent {
   // Ensure page_type is valid
