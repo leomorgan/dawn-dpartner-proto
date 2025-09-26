@@ -5,10 +5,10 @@ const playwright_1 = require("playwright");
 const promises_1 = require("fs/promises");
 const path_1 = require("path");
 const uuid_1 = require("uuid");
-async function capture(url, outputDir) {
-    const runId = generateRunId();
+async function capture(url, outputDir, runId) {
+    const actualRunId = runId || generateRunId();
     const baseDir = outputDir || (0, path_1.join)(process.cwd(), 'artifacts');
-    const artifactDir = (0, path_1.join)(baseDir, runId);
+    const artifactDir = (0, path_1.join)(baseDir, actualRunId);
     const rawDir = (0, path_1.join)(artifactDir, 'raw');
     await (0, promises_1.mkdir)(rawDir, { recursive: true });
     let browser = null;
@@ -105,7 +105,7 @@ async function capture(url, outputDir) {
             (0, promises_1.writeFile)((0, path_1.join)(rawDir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8'),
         ]);
         const result = {
-            runId,
+            runId: actualRunId,
             artifacts: {
                 html,
                 styles,

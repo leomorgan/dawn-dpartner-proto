@@ -41,5 +41,5 @@ export interface CaptureMetadata {
     userAgent: string;
     title: string;
 }
-export declare function capture(url: string, outputDir?: string): Promise<CaptureResult>;
+export declare function capture(url: string, outputDir?: string, runId?: string): Promise<CaptureResult>;
 //# sourceMappingURL=index.d.ts.map
