@@ -64,6 +64,70 @@ export interface StyleReport {
     }>;
   };
   spacingDistribution: Record<number, number>;
+  // New advanced metrics
+  brandPersonality?: BrandPersonality;
+  designSystemAnalysis?: DesignSystemAnalysis;
+  realTokenMetrics?: RealTokenMetrics;
+}
+
+// New interfaces for brand intelligence
+export interface BrandPersonality {
+  tone: 'professional' | 'playful' | 'elegant' | 'bold' | 'minimal' | 'luxury' | 'friendly';
+  energy: 'calm' | 'energetic' | 'sophisticated' | 'dynamic';
+  trustLevel: 'conservative' | 'modern' | 'innovative' | 'experimental';
+  colorPsychology: {
+    dominantMood: string;
+    emotionalResponse: string[];
+    brandAdjectives: string[];
+  };
+  spacingPersonality: {
+    rhythm: 'tight' | 'comfortable' | 'generous' | 'luxurious';
+    consistency: 'rigid' | 'systematic' | 'organic';
+  };
+  confidence: number;
+}
+
+export interface DesignSystemAnalysis {
+  maturityLevel: 'basic' | 'developing' | 'mature' | 'sophisticated';
+  consistency: {
+    colors: number;
+    spacing: number;
+    typography: number;
+    overall: number;
+  };
+  patternComplexity: 'simple' | 'moderate' | 'complex';
+  systematicApproach: boolean;
+}
+
+export interface RealTokenMetrics {
+  actualCoverage: TokenCoverageAnalysis;
+  brandCoherence: BrandCoherenceScore;
+  designSystemMaturity: DesignSystemAnalysis;
+  colorHarmony: ColorHarmonyAnalysis;
+}
+
+export interface TokenCoverageAnalysis {
+  colorsCaptured: number;
+  totalColorsFound: number;
+  coveragePercentage: number;
+  missedCriticalColors: string[];
+  confidenceScore: number;
+}
+
+export interface BrandCoherenceScore {
+  colorHarmony: number;
+  spacingConsistency: number;
+  typographyCoherence: number;
+  overallCoherence: number;
+  reasoning: string;
+}
+
+export interface ColorHarmonyAnalysis {
+  paletteType: 'monochromatic' | 'analogous' | 'complementary' | 'triadic' | 'complex';
+  harmonyScore: number;
+  dominantHue: number;
+  saturationRange: { min: number; max: number; avg: number };
+  lightnessRange: { min: number; max: number; avg: number };
 }
 
 export interface TokenExtractionResult {
@@ -250,6 +314,390 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
   };
 }
 
+// Real token coverage calculation - replaces hardcoded 0.95
+function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: DesignTokens): RealTokenMetrics {
+  // Extract all colors actually used in the DOM
+  const allColorsUsed = new Set<string>();
+  const criticalColors = new Set<string>(); // Colors on important elements
+
+  for (const node of nodes) {
+    if (node.styles.color) {
+      const color = formatHex(parse(node.styles.color) || '#000000');
+      allColorsUsed.add(color);
+
+      // Mark as critical if it's text on visible element with significant area
+      if (node.textContent && node.textContent.trim() &&
+          node.boundingBox && node.boundingBox.width * node.boundingBox.height > 100) {
+        criticalColors.add(color);
+      }
+    }
+    if (node.styles.backgroundColor && node.styles.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+      const bgColor = formatHex(parse(node.styles.backgroundColor) || '#ffffff');
+      allColorsUsed.add(bgColor);
+    }
+  }
+
+  // Check how many of the used colors we captured in our tokens
+  const extractedColors = new Set([
+    ...tokens.colors.primary,
+    ...tokens.colors.neutral,
+    tokens.colors.semantic.text,
+    tokens.colors.semantic.background
+  ]);
+
+  let captured = 0;
+  const missedCritical: string[] = [];
+
+  for (const color of allColorsUsed) {
+    let found = false;
+    for (const extractedColor of extractedColors) {
+      // Check if colors are similar (within reasonable threshold)
+      const distance = differenceEuclidean(color, extractedColor);
+      if (distance < 0.1) { // Similar colors
+        found = true;
+        break;
+      }
+    }
+    if (found) captured++;
+    else if (criticalColors.has(color)) {
+      missedCritical.push(color);
+    }
+  }
+
+  const coveragePercentage = allColorsUsed.size > 0 ? (captured / allColorsUsed.size) * 100 : 100;
+  const confidenceScore = Math.max(0, coveragePercentage / 100 - (missedCritical.length * 0.1));
+
+  const actualCoverage: TokenCoverageAnalysis = {
+    colorsCaptured: captured,
+    totalColorsFound: allColorsUsed.size,
+    coveragePercentage,
+    missedCriticalColors: missedCritical,
+    confidenceScore
+  };
+
+  const colorHarmony = analyzeColorHarmony(tokens);
+  const brandCoherence = calculateBrandCoherence(tokens, nodes);
+
+  return {
+    actualCoverage,
+    brandCoherence,
+    designSystemMaturity: analyzeDesignSystem(tokens, nodes),
+    colorHarmony
+  };
+}
+
+// Brand personality analysis from design tokens
+function analyzeBrandPersonality(tokens: DesignTokens, nodes: ComputedStyleNode[]): BrandPersonality {
+  // Analyze color psychology
+  const primaryColors = tokens.colors.primary.map(c => parse(c)).filter(Boolean);
+  const colorPsychology = analyzeColorPsychology(primaryColors);
+
+  // Analyze spacing personality
+  const spacingPersonality = analyzeSpacingPersonality(tokens.spacing);
+
+  // Determine overall brand tone
+  const tone = determineBrandTone(colorPsychology, spacingPersonality);
+  const energy = determineBrandEnergy(colorPsychology, tokens);
+  const trustLevel = determineTrustLevel(tokens, nodes);
+
+  return {
+    tone,
+    energy,
+    trustLevel,
+    colorPsychology: {
+      dominantMood: colorPsychology.dominantMood,
+      emotionalResponse: colorPsychology.emotions,
+      brandAdjectives: colorPsychology.adjectives
+    },
+    spacingPersonality,
+    confidence: 0.8 // Based on analysis depth
+  };
+}
+
+function analyzeColorPsychology(colors: any[]) {
+  if (!colors.length) return { dominantMood: 'neutral', emotions: ['balanced'], adjectives: ['neutral'] };
+
+  // Analyze hue, saturation, lightness patterns
+  let totalHue = 0, totalSat = 0, totalLight = 0;
+  const hues: number[] = [];
+
+  for (const color of colors) {
+    if (color) {
+      // Convert to HSL if not already
+      let hslColor = color;
+      if (!('h' in color)) {
+        const hexColor = formatHex(color);
+        hslColor = parse(hexColor);
+      }
+
+      if (hslColor && typeof hslColor === 'object' && 'h' in hslColor) {
+        const hue = hslColor.h || 0;
+        const sat = hslColor.s || 0;
+        const light = hslColor.l || 0;
+
+        totalHue += hue;
+        totalSat += sat;
+        totalLight += light;
+        hues.push(hue);
+      }
+    }
+  }
+
+  const avgHue = totalHue / colors.length;
+  const avgSat = totalSat / colors.length;
+  const avgLight = totalLight / colors.length;
+
+  // Determine mood based on color characteristics
+  let dominantMood = 'neutral';
+  let emotions: string[] = [];
+  let adjectives: string[] = [];
+
+  // Blue range (210-270): professional, trustworthy, calm
+  if (avgHue >= 210 && avgHue <= 270) {
+    dominantMood = 'professional';
+    emotions = ['calm', 'trustworthy', 'stable'];
+    adjectives = ['professional', 'reliable', 'corporate'];
+  }
+  // Red range (0-30, 330-360): energetic, bold, passionate
+  else if (avgHue <= 30 || avgHue >= 330) {
+    dominantMood = 'energetic';
+    emotions = ['exciting', 'passionate', 'urgent'];
+    adjectives = ['bold', 'dynamic', 'powerful'];
+  }
+  // Green range (90-150): natural, growth, harmony
+  else if (avgHue >= 90 && avgHue <= 150) {
+    dominantMood = 'natural';
+    emotions = ['harmonious', 'growing', 'fresh'];
+    adjectives = ['sustainable', 'organic', 'balanced'];
+  }
+  // Purple range (270-330): luxury, creative, sophisticated
+  else if (avgHue >= 270 && avgHue <= 330) {
+    dominantMood = 'sophisticated';
+    emotions = ['luxurious', 'creative', 'mystical'];
+    adjectives = ['premium', 'artistic', 'elegant'];
+  }
+
+  // Adjust based on saturation and lightness
+  if (avgSat > 0.7) {
+    adjectives.push('vibrant', 'energetic');
+  } else if (avgSat < 0.3) {
+    adjectives.push('subtle', 'refined');
+  }
+
+  if (avgLight > 0.8) {
+    adjectives.push('light', 'airy');
+  } else if (avgLight < 0.3) {
+    adjectives.push('dramatic', 'bold');
+  }
+
+  return { dominantMood, emotions, adjectives };
+}
+
+function analyzeSpacingPersonality(spacing: number[]) {
+  const avgSpacing = spacing.reduce((a, b) => a + b, 0) / spacing.length;
+  const maxSpacing = Math.max(...spacing);
+
+  let rhythm: 'tight' | 'comfortable' | 'generous' | 'luxurious';
+  let consistency: 'rigid' | 'systematic' | 'organic';
+
+  // Determine rhythm
+  if (avgSpacing < 12) rhythm = 'tight';
+  else if (avgSpacing < 24) rhythm = 'comfortable';
+  else if (avgSpacing < 48) rhythm = 'generous';
+  else rhythm = 'luxurious';
+
+  // Determine consistency - check if values follow systematic pattern
+  const spacingSet = new Set(spacing);
+  const uniqueValues = spacingSet.size;
+  const systematicPattern = spacing.every(s => s % 4 === 0) || spacing.every(s => s % 8 === 0);
+
+  if (uniqueValues <= 4 && systematicPattern) consistency = 'rigid';
+  else if (uniqueValues <= 6 && systematicPattern) consistency = 'systematic';
+  else consistency = 'organic';
+
+  return { rhythm, consistency };
+}
+
+function determineBrandTone(colorPsychology: any, spacingPersonality: any): BrandPersonality['tone'] {
+  const { dominantMood } = colorPsychology;
+  const { rhythm } = spacingPersonality;
+
+  if (dominantMood === 'professional' && rhythm === 'comfortable') return 'professional';
+  if (dominantMood === 'energetic') return 'bold';
+  if (dominantMood === 'sophisticated') return 'elegant';
+  if (rhythm === 'luxurious') return 'luxury';
+  if (rhythm === 'tight') return 'minimal';
+  return 'friendly';
+}
+
+function determineBrandEnergy(colorPsychology: any, tokens: DesignTokens): BrandPersonality['energy'] {
+  const hasVibrantColors = tokens.colors.primary.some(color => {
+    const parsed = parse(color);
+    if (!parsed) return false;
+
+    // Convert to HSL if needed
+    let hslColor = parsed;
+    if (!('s' in parsed)) {
+      hslColor = parse(formatHex(parsed));
+    }
+
+    return hslColor && 's' in hslColor && hslColor.s > 0.6;
+  });
+
+  if (colorPsychology.dominantMood === 'sophisticated') return 'sophisticated';
+  if (hasVibrantColors || colorPsychology.dominantMood === 'energetic') return 'energetic';
+  if (colorPsychology.dominantMood === 'professional') return 'calm';
+  return 'dynamic';
+}
+
+function determineTrustLevel(tokens: DesignTokens, nodes: ComputedStyleNode[]): BrandPersonality['trustLevel'] {
+  // Analyze design conservatism vs innovation
+  const hasRoundedCorners = tokens.borderRadius.some(r => parseInt(r) > 8);
+  const hasComplexShadows = tokens.boxShadow.length > 2;
+  const colorCount = tokens.colors.primary.length + tokens.colors.neutral.length;
+
+  if (colorCount <= 4 && !hasRoundedCorners && !hasComplexShadows) return 'conservative';
+  if (colorCount > 8 || hasComplexShadows) return 'innovative';
+  if (hasRoundedCorners) return 'modern';
+  return 'modern';
+}
+
+function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
+  const allColors = [...tokens.colors.primary, ...tokens.colors.neutral];
+  const parsedColors = allColors.map(c => parse(c)).filter(Boolean);
+
+  if (!parsedColors.length) {
+    return {
+      paletteType: 'monochromatic',
+      harmonyScore: 0.5,
+      dominantHue: 0,
+      saturationRange: { min: 0, max: 0, avg: 0 },
+      lightnessRange: { min: 0, max: 0, avg: 0 }
+    };
+  }
+
+  // Convert to HSL and analyze
+  const hslColors = parsedColors.map(color => {
+    if (color && 'h' in color) return color;
+    const hexColor = formatHex(color);
+    const hslColor = parse(hexColor);
+    return hslColor && typeof hslColor === 'object' && 'h' in hslColor ? hslColor : null;
+  }).filter(Boolean);
+
+  const hues = hslColors.map(c => c.h || 0);
+  const saturations = hslColors.map(c => c.s || 0);
+  const lightnesses = hslColors.map(c => c.l || 0);
+
+  const dominantHue = hues.reduce((a, b) => a + b, 0) / hues.length;
+
+  // Determine palette type based on hue distribution
+  const hueRange = Math.max(...hues) - Math.min(...hues);
+  let paletteType: ColorHarmonyAnalysis['paletteType'] = 'monochromatic';
+
+  if (hueRange < 30) paletteType = 'monochromatic';
+  else if (hueRange < 60) paletteType = 'analogous';
+  else if (hues.length >= 3 && hueRange > 180) paletteType = 'triadic';
+  else if (hueRange > 120) paletteType = 'complementary';
+  else paletteType = 'complex';
+
+  // Calculate harmony score based on consistency and balance
+  const saturationVariance = Math.max(...saturations) - Math.min(...saturations);
+  const lightnessVariance = Math.max(...lightnesses) - Math.min(...lightnesses);
+  const harmonyScore = Math.max(0, 1 - (saturationVariance + lightnessVariance) / 2);
+
+  return {
+    paletteType,
+    harmonyScore,
+    dominantHue,
+    saturationRange: {
+      min: Math.min(...saturations),
+      max: Math.max(...saturations),
+      avg: saturations.reduce((a, b) => a + b, 0) / saturations.length
+    },
+    lightnessRange: {
+      min: Math.min(...lightnesses),
+      max: Math.max(...lightnesses),
+      avg: lightnesses.reduce((a, b) => a + b, 0) / lightnesses.length
+    }
+  };
+}
+
+function calculateBrandCoherence(tokens: DesignTokens, nodes: ComputedStyleNode[]): BrandCoherenceScore {
+  const colorHarmony = analyzeColorHarmony(tokens);
+  const spacingConsistency = analyzeSpacingConsistency(tokens.spacing);
+  const typographyCoherence = analyzeTypographyCoherence(tokens.typography);
+
+  const overallCoherence = (colorHarmony.harmonyScore + spacingConsistency + typographyCoherence) / 3;
+
+  return {
+    colorHarmony: colorHarmony.harmonyScore,
+    spacingConsistency,
+    typographyCoherence,
+    overallCoherence,
+    reasoning: `Color harmony: ${colorHarmony.paletteType} (${Math.round(colorHarmony.harmonyScore * 100)}%), spacing consistency: ${Math.round(spacingConsistency * 100)}%, typography coherence: ${Math.round(typographyCoherence * 100)}%`
+  };
+}
+
+function analyzeSpacingConsistency(spacing: number[]): number {
+  if (spacing.length < 2) return 1;
+
+  // Check if spacing follows systematic patterns (4px, 8px grid, etc.)
+  const systematicPattern = spacing.every(s => s % 4 === 0) || spacing.every(s => s % 8 === 0);
+  const uniqueValues = new Set(spacing).size;
+
+  // Penalize too many unique values or no systematic pattern
+  let consistency = 1;
+  if (!systematicPattern) consistency -= 0.3;
+  if (uniqueValues > 8) consistency -= 0.2;
+
+  return Math.max(0, consistency);
+}
+
+function analyzeTypographyCoherence(typography: DesignTokens['typography']): number {
+  // Simple heuristic: fewer font families = more coherent
+  const fontFamilyCount = typography.fontFamilies.length;
+  const fontSizeRange = Math.max(...typography.fontSizes) - Math.min(...typography.fontSizes);
+
+  let coherence = 1;
+  if (fontFamilyCount > 3) coherence -= 0.3;
+  if (fontSizeRange > 32) coherence -= 0.2; // Very wide range of sizes
+
+  return Math.max(0.3, coherence);
+}
+
+function analyzeDesignSystem(tokens: DesignTokens, nodes: ComputedStyleNode[]): DesignSystemAnalysis {
+  const colorConsistency = Math.min(1, tokens.colors.primary.length / 8); // Optimal 4-8 colors
+  const spacingConsistency = analyzeSpacingConsistency(tokens.spacing);
+  const typographyConsistency = analyzeTypographyCoherence(tokens.typography);
+
+  const overallConsistency = (colorConsistency + spacingConsistency + typographyConsistency) / 3;
+
+  // Determine maturity level
+  let maturityLevel: DesignSystemAnalysis['maturityLevel'] = 'basic';
+  if (overallConsistency > 0.8 && tokens.colors.primary.length >= 4) maturityLevel = 'sophisticated';
+  else if (overallConsistency > 0.6) maturityLevel = 'mature';
+  else if (overallConsistency > 0.4) maturityLevel = 'developing';
+
+  // Pattern complexity
+  const totalTokens = tokens.colors.primary.length + tokens.colors.neutral.length +
+                     tokens.spacing.length + tokens.borderRadius.length + tokens.boxShadow.length;
+  let patternComplexity: DesignSystemAnalysis['patternComplexity'] = 'simple';
+  if (totalTokens > 20) patternComplexity = 'complex';
+  else if (totalTokens > 10) patternComplexity = 'moderate';
+
+  return {
+    maturityLevel,
+    consistency: {
+      colors: colorConsistency,
+      spacing: spacingConsistency,
+      typography: typographyConsistency,
+      overall: overallConsistency
+    },
+    patternComplexity,
+    systematicApproach: spacingConsistency > 0.7 && typographyConsistency > 0.6
+  };
+}
+
 function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): StyleReport {
   let totalPairs = 0;
   let aaPassing = 0;
@@ -291,8 +739,13 @@ function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): 
   const allColors = [...tokens.colors.primary, ...tokens.colors.neutral];
   const paletteRecall = allColors.length >= 3 ? (allColors.length >= 6 ? 1.0 : 0.75) : 0.5;
 
+  // Calculate real token coverage
+  const realTokenMetrics = calculateRealTokenMetrics(nodes, tokens);
+  const brandPersonality = analyzeBrandPersonality(tokens, nodes);
+  const designSystemAnalysis = analyzeDesignSystem(tokens, nodes);
+
   return {
-    tokenCoverage: 0.95, // Placeholder - would calculate actual coverage
+    tokenCoverage: realTokenMetrics.actualCoverage.coveragePercentage / 100,
     paletteRecall,
     contrastResults: {
       totalPairs,
@@ -301,6 +754,9 @@ function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): 
       failures,
     },
     spacingDistribution,
+    brandPersonality,
+    designSystemAnalysis,
+    realTokenMetrics,
   };
 }
 
