@@ -36,6 +36,9 @@ export interface AdaptiveIntent {
   reasoning: string;
 }
 
+// Legacy SectionType for backward compatibility
+export type SectionType = 'gallery' | 'summary' | 'price_cta' | 'amenities' | 'reviews' | 'trust_signals' | 'hero' | 'features' | 'testimonials' | 'faq' | 'contact' | 'avatar' | 'bio' | 'experience' | 'portfolio' | 'social_links';
+
 // Legacy interface for backward compatibility
 export interface Intent {
   page_type: string;

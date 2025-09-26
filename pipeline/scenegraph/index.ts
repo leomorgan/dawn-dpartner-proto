@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { parseHTML } from 'linkedom';
-import type { ComputedStyleNode } from '../capture';
+import type { ComputedStyleNode, CaptureMetadata } from '../capture';
 
 export interface SceneNode {
   id: string;
@@ -44,13 +44,15 @@ export async function buildSceneGraph(runId: string, artifactDir?: string): Prom
   const runDir = join(baseDir, runId);
   const rawDir = join(runDir, 'raw');
 
-  // Read DOM and computed styles
-  const [htmlContent, stylesContent] = await Promise.all([
+  // Read DOM, computed styles, and metadata
+  const [htmlContent, stylesContent, metaContent] = await Promise.all([
     readFile(join(rawDir, 'dom.html'), 'utf8'),
     readFile(join(rawDir, 'computed_styles.json'), 'utf8'),
+    readFile(join(rawDir, 'meta.json'), 'utf8'),
   ]);
 
   const computedNodes: ComputedStyleNode[] = JSON.parse(stylesContent);
+  const metadata: CaptureMetadata = JSON.parse(metaContent);
   const { document } = parseHTML(htmlContent);
 
   // Build style lookup map
@@ -61,7 +63,7 @@ export async function buildSceneGraph(runId: string, artifactDir?: string): Prom
 
   // Process DOM tree and build scene graph
   const originalNodeCount = computedNodes.length;
-  const root = processElement(document.body, styleMap, 0);
+  const root = processElement(document.body, styleMap, metadata, 0);
 
   // Calculate metrics
   const totalNodes = countNodes(root);
@@ -84,8 +86,8 @@ export async function buildSceneGraph(runId: string, artifactDir?: string): Prom
   };
 }
 
-function processElement(element: Element, styleMap: Map<string, ComputedStyleNode>, depth: number): SceneNode {
-  const elementRect = getBoundingRect(element, styleMap);
+function processElement(element: Element, styleMap: Map<string, ComputedStyleNode>, metadata: CaptureMetadata, depth: number): SceneNode {
+  const elementRect = getBoundingRect(element, styleMap, metadata);
 
   // If element has no meaningful size, skip it
   if (!elementRect || elementRect.w <= 0 || elementRect.h <= 0) {
@@ -100,7 +102,7 @@ function processElement(element: Element, styleMap: Map<string, ComputedStyleNod
   // Process children
   const children: SceneNode[] = [];
   for (const child of Array.from(element.children)) {
-    const childNode = processElement(child, styleMap, depth + 1);
+    const childNode = processElement(child, styleMap, metadata, depth + 1);
     if (!isPlaceholder(childNode)) {
       children.push(childNode);
     }
@@ -134,7 +136,7 @@ function processElement(element: Element, styleMap: Map<string, ComputedStyleNod
   };
 }
 
-function getBoundingRect(element: Element, styleMap: Map<string, ComputedStyleNode>): { x: number; y: number; w: number; h: number } | null {
+function getBoundingRect(element: Element, styleMap: Map<string, ComputedStyleNode>, metadata: CaptureMetadata): { x: number; y: number; w: number; h: number } | null {
   // Find corresponding computed style node
   const nodeId = findNodeId(element, styleMap);
   if (nodeId) {
@@ -144,26 +146,36 @@ function getBoundingRect(element: Element, styleMap: Map<string, ComputedStyleNo
     }
   }
 
-  // Fallback: create reasonable default bounds for semantic elements
+  // Fallback: create adaptive default bounds based on viewport and semantic role
+  const { viewport } = metadata;
+  const viewportWidth = viewport.width;
+  const viewportHeight = viewport.height;
   const tag = element.tagName.toLowerCase();
+
   if (['body', 'html', 'main'].includes(tag)) {
-    return { x: 0, y: 0, w: 1280, h: 800 };
+    return { x: 0, y: 0, w: viewportWidth, h: viewportHeight };
   }
 
   if (['header', 'nav'].includes(tag)) {
-    return { x: 0, y: 0, w: 1280, h: 100 };
+    // Header/nav typically spans full width, height is ~8-12% of viewport
+    return { x: 0, y: 0, w: viewportWidth, h: Math.round(viewportHeight * 0.1) };
   }
 
   if (['footer'].includes(tag)) {
-    return { x: 0, y: 700, w: 1280, h: 100 };
+    // Footer spans full width, positioned at bottom, height is ~8-10% of viewport
+    const footerHeight = Math.round(viewportHeight * 0.08);
+    return { x: 0, y: viewportHeight - footerHeight, w: viewportWidth, h: footerHeight };
   }
 
   if (['section'].includes(tag)) {
-    return { x: 0, y: 100, w: 1280, h: 400 };
+    // Section spans full width, height is ~30-50% of viewport depending on content
+    return { x: 0, y: Math.round(viewportHeight * 0.1), w: viewportWidth, h: Math.round(viewportHeight * 0.4) };
   }
 
-  // Default fallback for any element
-  return { x: 0, y: 0, w: 200, h: 50 };
+  // Default fallback for any element - small but proportional to viewport
+  const defaultWidth = Math.min(200, Math.round(viewportWidth * 0.15));
+  const defaultHeight = Math.min(50, Math.round(viewportHeight * 0.06));
+  return { x: 0, y: 0, w: defaultWidth, h: defaultHeight };
 }
 
 function findNodeId(element: Element, styleMap: Map<string, ComputedStyleNode>): string | null {
@@ -228,16 +240,16 @@ function determineNodeType(element: Element): SceneNode['type'] {
   return 'container';
 }
 
-function determineRole(element: Element, rect: { x: number; y: number; w: number; h: number }, depth: number): string {
+function determineRole(element: Element, rect: { x: number; y: number; w: number; h: number }, depth: number, allElements?: Element[]): string {
   const tag = element.tagName.toLowerCase();
   const className = (element.className && typeof element.className === 'string' ? element.className.toLowerCase() : '') || '';
 
-  // Explicit role attribute
+  // Explicit role attribute (highest priority)
   if (element.hasAttribute('role')) {
     return element.getAttribute('role')!;
   }
 
-  // Semantic elements
+  // Semantic HTML elements (second priority)
   if (tag === 'header') return 'Header';
   if (tag === 'nav') return 'Navigation';
   if (tag === 'main') return 'Main';
@@ -246,34 +258,158 @@ function determineRole(element: Element, rect: { x: number; y: number; w: number
   if (tag === 'aside') return 'Sidebar';
   if (tag === 'footer') return 'Footer';
 
-  // Heuristic-based role detection
-  if (depth <= 1 && rect.y < 100) {
-    return 'Header';
-  }
+  // Content-based intelligent role detection (replaces hardcoded position assumptions)
+  const role = analyzeSemanticRole(element, rect, depth, className, allElements);
+  if (role !== 'Unknown') return role;
 
-  if (depth <= 2 && rect.w > 800 && rect.h > 300) {
-    return 'Hero';
-  }
-
-  if (className.includes('card') || (rect.w < 400 && rect.h > 200)) {
-    return 'Card';
-  }
-
-  if (className.includes('nav') || className.includes('menu')) {
-    return 'Navigation';
-  }
-
-  if (depth <= 1 && rect.y > 520) { // 720 - 200 for footer detection
-    return 'Footer';
-  }
-
-  // Default roles
+  // Element type-based roles (fallback)
   if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'Heading';
   if (tag === 'p') return 'Text';
   if (tag === 'button') return 'Button';
   if (tag === 'a') return 'Link';
 
   return 'Container';
+}
+
+// Intelligent semantic role analysis - replaces hardcoded position assumptions
+function analyzeSemanticRole(element: Element, rect: { x: number; y: number; w: number; h: number }, depth: number, className: string, allElements?: Element[]): string {
+
+  // Analyze content and context instead of fixed positions
+  const contentAnalysis = analyzeElementContent(element);
+  const layoutContext = analyzeLayoutContext(rect, allElements || []);
+  const classNameAnalysis = analyzeClassNameSemantics(className);
+
+  // Navigation detection - look for nav patterns, not position
+  if (classNameAnalysis.isNavigation || contentAnalysis.hasNavigationPatterns) {
+    return 'Navigation';
+  }
+
+  // Header detection - look for header content patterns, not y < 100
+  if (contentAnalysis.hasHeaderPatterns && layoutContext.isInTopRegion && depth <= 2) {
+    return 'Header';
+  }
+
+  // Footer detection - look for footer content patterns, not y > 520
+  if (contentAnalysis.hasFooterPatterns && layoutContext.isInBottomRegion && depth <= 2) {
+    return 'Footer';
+  }
+
+  // Hero detection - look for prominent content area with hero characteristics
+  if (contentAnalysis.hasHeroPatterns && rect.w > 600 && rect.h > 200 && depth <= 3) {
+    return 'Hero';
+  }
+
+  // Card detection - look for card patterns in content and styling
+  if (contentAnalysis.hasCardPatterns || classNameAnalysis.isCard) {
+    return 'Card';
+  }
+
+  // Sidebar detection - narrow tall content with supplementary info
+  if (layoutContext.hasLayoutCharacteristics.sidebar && contentAnalysis.hasSecondaryContent) {
+    return 'Sidebar';
+  }
+
+  return 'Unknown';
+}
+
+function analyzeElementContent(element: Element) {
+  const textContent = element.textContent?.toLowerCase() || '';
+  const childElements = Array.from(element.children);
+
+  // Navigation patterns
+  const hasNavigationPatterns =
+    textContent.includes('menu') ||
+    textContent.includes('home') ||
+    (childElements.some(child => child.tagName.toLowerCase() === 'a') && childElements.length >= 2);
+
+  // Header patterns - look for site titles, logos, primary navigation
+  const hasHeaderPatterns =
+    element.querySelector('h1') ||
+    element.querySelector('[class*="logo"]') ||
+    element.querySelector('img[alt*="logo" i]') ||
+    (hasNavigationPatterns && element.querySelector('h1, h2, [class*="title"], [class*="brand"]'));
+
+  // Footer patterns - look for footer-specific content
+  const hasFooterPatterns =
+    textContent.includes('copyright') ||
+    textContent.includes('©') ||
+    textContent.includes('privacy') ||
+    textContent.includes('terms') ||
+    textContent.includes('contact us') ||
+    element.querySelectorAll('a').length >= 5; // Many links typical in footers
+
+  // Hero patterns - large text, call-to-action, prominent messaging
+  const hasHeroPatterns =
+    element.querySelector('h1') ||
+    element.querySelector('[class*="hero"]') ||
+    element.querySelector('[class*="banner"]') ||
+    element.querySelector('button, [class*="cta"], [class*="call-to-action"]');
+
+  // Card patterns - structured content in contained unit
+  const hasCardPatterns =
+    (element.querySelector('h2, h3') && element.querySelector('p')) ||
+    (element.querySelector('img') && element.querySelector('h2, h3')) ||
+    element.querySelector('[class*="price"]');
+
+  // Secondary content patterns
+  const hasSecondaryContent =
+    element.querySelector('[class*="widget"]') ||
+    element.querySelector('[class*="sidebar"]') ||
+    textContent.includes('related') ||
+    textContent.includes('recent');
+
+  return {
+    hasNavigationPatterns,
+    hasHeaderPatterns,
+    hasFooterPatterns,
+    hasHeroPatterns,
+    hasCardPatterns,
+    hasSecondaryContent
+  };
+}
+
+function analyzeLayoutContext(rect: { x: number; y: number; w: number; h: number }, allElements: Element[]) {
+  // Determine layout position relative to page structure, not hardcoded pixels
+  const pageHeight = allElements.length > 0 ? Math.max(...allElements.map(el => {
+    try {
+      const elRect = el.getBoundingClientRect?.();
+      return elRect ? elRect.bottom : 0;
+    } catch {
+      return 0;
+    }
+  })) : 800; // fallback
+
+  const relativePosition = rect.y / Math.max(pageHeight, 1);
+
+  const isInTopRegion = relativePosition < 0.2; // Top 20% of page
+  const isInBottomRegion = relativePosition > 0.8; // Bottom 20% of page
+
+  const hasLayoutCharacteristics = {
+    sidebar: rect.w < 300 && rect.h > 400, // Narrow and tall
+    fullWidth: rect.w > (pageHeight * 0.8), // Spans most of page width
+    prominent: rect.w > 600 && rect.h > 300, // Large area
+  };
+
+  return {
+    isInTopRegion,
+    isInBottomRegion,
+    hasLayoutCharacteristics
+  };
+}
+
+function analyzeClassNameSemantics(className: string) {
+  const isNavigation =
+    className.includes('nav') ||
+    className.includes('menu') ||
+    className.includes('navigation');
+
+  const isCard =
+    className.includes('card') ||
+    className.includes('item') ||
+    className.includes('product') ||
+    className.includes('post');
+
+  return { isNavigation, isCard };
 }
 
 function shouldCollapseWrapper(element: Element, children: SceneNode[], rect: { x: number; y: number; w: number; h: number }): boolean {
@@ -359,7 +495,7 @@ function snapToGrid(rect: { x: number; y: number; w: number; h: number }): { x: 
 }
 
 function generateNodeId(): string {
-  return `scene_${Math.random().toString(36).substr(2, 8)}`;
+  return `scene_${Math.random().toString(36).substring(2, 10)}`;
 }
 
 function createPlaceholderNode(): SceneNode {
