@@ -50,7 +50,7 @@ export interface CaptureMetadata {
 }
 
 export async function capture(url: string, outputDir?: string, runId?: string): Promise<CaptureResult> {
-  const actualRunId = runId || generateRunId();
+  const actualRunId = runId || generateRunId(url);
   const baseDir = outputDir || join(process.cwd(), 'artifacts');
   const artifactDir = join(baseDir, actualRunId);
   const rawDir = join(artifactDir, 'raw');
@@ -192,8 +192,27 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
   }
 }
 
-function generateRunId(): string {
+function generateRunId(url?: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const uuid = uuidv4().slice(0, 8);
+
+  if (url) {
+    const urlSuffix = createUrlSuffix(url);
+    return `${timestamp}_${uuid}_${urlSuffix}`;
+  }
+
   return `${timestamp}_${uuid}`;
+}
+
+function createUrlSuffix(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    // Extract hostname and remove 'www.' if present
+    const hostname = urlObj.hostname.replace(/^www\./, '');
+    // Convert to safe directory name: replace dots and special chars with dashes
+    return hostname.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+  } catch {
+    // Fallback for invalid URLs
+    return url.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().substring(0, 20);
+  }
 }

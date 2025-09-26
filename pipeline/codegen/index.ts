@@ -487,10 +487,71 @@ export default ${componentName};`;
 async function generateSectionJSX(section: StyledSection, context: ContentGenerationContext): Promise<string> {
   const sectionName = toPascalCase(section.section);
   const styleProps = generateInlineStyles(section.styles);
-  const content = await generateDynamicSectionContent(context);
+  let content = await generateDynamicSectionContent(context);
+
+  // Clean up the generated content to ensure it's valid JSX
+  // Remove markdown code blocks if present
+  if (content.startsWith('```jsx') && content.endsWith('```')) {
+    content = content.slice(6, -3).trim();
+  } else if (content.startsWith('```') && content.endsWith('```')) {
+    content = content.slice(3, -3).trim();
+  }
+
+  // Remove any component definitions that should not be inline
+  // Extract only the JSX content without component wrapper functions
+  const lines = content.split('\n');
+  let jsxContent = '';
+  let inJSXReturn = false;
+  let braceCount = 0;
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    // Skip component function definitions
+    if (trimmedLine.startsWith('const ') || trimmedLine.startsWith('function ') ||
+        trimmedLine.startsWith('export default') || trimmedLine.startsWith('export const')) {
+      continue;
+    }
+
+    // Start capturing after return statement
+    if (trimmedLine.includes('return (') || (inJSXReturn && trimmedLine.includes('('))) {
+      inJSXReturn = true;
+      continue;
+    }
+
+    // Stop capturing at closing function brace
+    if (inJSXReturn && trimmedLine === '};') {
+      break;
+    }
+
+    // Track JSX content
+    if (inJSXReturn || trimmedLine.startsWith('<')) {
+      inJSXReturn = true;
+      // Count braces to handle JSX properly
+      braceCount += (line.match(/\{/g) || []).length;
+      braceCount -= (line.match(/\}/g) || []).length;
+
+      jsxContent += line + '\n';
+
+      // If we're back to 0 braces and hit a closing tag, we're done
+      if (braceCount === 0 && trimmedLine.endsWith('>') && !trimmedLine.startsWith('<')) {
+        break;
+      }
+    }
+  }
+
+  // If we couldn't extract clean JSX, use the entire content but remove function wrappers
+  if (!jsxContent.trim()) {
+    jsxContent = content
+      .replace(/^const\s+\w+\s*=\s*\(\)\s*=>\s*\{/, '')
+      .replace(/^\s*return\s*\(/, '')
+      .replace(/\);\s*\};\s*$/, '')
+      .replace(/export\s+default\s+\w+;\s*$/, '')
+      .trim();
+  }
 
   return `<section className="${section.className}"${styleProps}>
-      ${content.trim().split('\n').map(line => `      ${line}`).join('\n')}
+      ${jsxContent.trim().split('\n').map(line => `      ${line}`).join('\n')}
     </section>`;
 }
 

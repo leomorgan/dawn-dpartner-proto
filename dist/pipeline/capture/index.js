@@ -6,7 +6,7 @@ const promises_1 = require("fs/promises");
 const path_1 = require("path");
 const uuid_1 = require("uuid");
 async function capture(url, outputDir, runId) {
-    const actualRunId = runId || generateRunId();
+    const actualRunId = runId || generateRunId(url);
     const baseDir = outputDir || (0, path_1.join)(process.cwd(), 'artifacts');
     const artifactDir = (0, path_1.join)(baseDir, actualRunId);
     const rawDir = (0, path_1.join)(artifactDir, 'raw');
@@ -121,9 +121,26 @@ async function capture(url, outputDir, runId) {
         }
     }
 }
-function generateRunId() {
+function generateRunId(url) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const uuid = (0, uuid_1.v4)().slice(0, 8);
+    if (url) {
+        const urlSuffix = createUrlSuffix(url);
+        return `${timestamp}_${uuid}_${urlSuffix}`;
+    }
     return `${timestamp}_${uuid}`;
+}
+function createUrlSuffix(url) {
+    try {
+        const urlObj = new URL(url);
+        // Extract hostname and remove 'www.' if present
+        const hostname = urlObj.hostname.replace(/^www\./, '');
+        // Convert to safe directory name: replace dots and special chars with dashes
+        return hostname.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    }
+    catch {
+        // Fallback for invalid URLs
+        return url.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().substring(0, 20);
+    }
 }
 //# sourceMappingURL=index.js.map

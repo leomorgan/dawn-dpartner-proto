@@ -68,9 +68,23 @@ export class PipelineOrchestrator {
     this.onStepUpdate = onStepUpdate;
   }
 
+  private createUrlSuffix(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      // Extract hostname and remove 'www.' if present
+      const hostname = urlObj.hostname.replace(/^www\./, '');
+      // Convert to safe directory name: replace dots and special chars with dashes
+      return hostname.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    } catch {
+      // Fallback for invalid URLs
+      return url.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase().substring(0, 20);
+    }
+  }
+
   async execute(url: string, prompt: string): Promise<PipelineResult> {
     const startTime = new Date().toISOString();
-    const runId = `${new Date().toISOString().replace(/[:.]/g, '-').replace('Z', 'Z')}_${Math.random().toString(36).substr(2, 8)}`;
+    const urlSuffix = this.createUrlSuffix(url);
+    const runId = `${new Date().toISOString().replace(/[:.]/g, '-').replace('Z', 'Z')}_${Math.random().toString(36).substr(2, 8)}_${urlSuffix}`;
 
     const result: PipelineResult = {
       runId,
