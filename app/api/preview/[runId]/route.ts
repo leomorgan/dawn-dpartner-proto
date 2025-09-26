@@ -19,6 +19,7 @@ export async function GET(
 
     const baseDir = join(process.cwd(), 'artifacts');
     const runDir = join(baseDir, runId);
+    const previewPath = join(runDir, 'preview.html');
 
     // Check if run directory exists
     if (!existsSync(runDir)) {
@@ -28,14 +29,26 @@ export async function GET(
       }, { status: 404 });
     }
 
-    // Try to load the main generated component
+    // First, try to serve the pre-generated preview.html if it exists
+    if (existsSync(previewPath)) {
+      const htmlContent = await readFile(previewPath, 'utf-8');
+
+      return new NextResponse(htmlContent, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html',
+        },
+      });
+    }
+
+    // Fallback to the old method if preview.html doesn't exist
     const componentsDir = join(runDir, 'components');
     const cssPath = join(runDir, 'styles.css');
 
     if (!existsSync(componentsDir)) {
       return NextResponse.json({
         success: false,
-        error: 'No components found for this run'
+        error: 'No components found for this run. Run codegen to generate preview.html'
       }, { status: 404 });
     }
 

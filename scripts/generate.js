@@ -69,8 +69,14 @@ async function main() {
 
     // Stage 6: Styling & Accessibility Applier
     console.log('💅 Stage 6: Styling & Accessibility...');
-    const stylingResult = await applyStyling(runId, outputDir || 'artifacts');
-    console.log(`   ✅ Applied ${stylingResult.components.length} styled components`);
+    let stylingResult;
+    try {
+      stylingResult = await applyStyling(runId, outputDir || 'artifacts');
+      console.log(`   ✅ Applied ${stylingResult.components ? stylingResult.components.length : stylingResult.componentPlan?.semanticComponents?.length || 0} styled components`);
+    } catch (error) {
+      console.error(`   ❌ Error in styling stage:`, error.message);
+      throw error;
+    }
 
     // Stage 7: Component Code Generator
     console.log('⚛️  Stage 7: Component Code Generator...');

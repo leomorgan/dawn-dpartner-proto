@@ -2,7 +2,9 @@ import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import type { AdaptiveLayout, AdaptiveLayoutArea, AdaptiveLayoutStack } from '../layout';
 import type { DesignTokens } from '../tokens';
+import type { AdaptiveIntent } from '../intent';
 
+// Legacy interfaces for backward compatibility
 export interface StyledComponent {
   id: string;
   element: 'div' | 'section' | 'header' | 'main' | 'aside';
@@ -39,160 +41,199 @@ export interface StyledSection {
   content?: string;
 }
 
+// New structure for individual semantic components
+export interface SemanticComponent {
+  id: string;
+  componentName: string;
+  semanticType: string;
+  element: 'section' | 'div' | 'article' | 'aside' | 'header' | 'main';
+  className: string;
+  styles: {
+    gridColumn?: string;
+    minHeight?: string;
+    backgroundColor?: string;
+    borderRadius?: string;
+    boxShadow?: string;
+    padding?: string;
+    display?: string;
+    flexDirection?: string;
+    gap?: string;
+  };
+  layoutRole: {
+    stackId: string;
+    position: number;
+    cols: number;
+    responsive?: any;
+  };
+}
+
+// Layout orchestrator that composes semantic components
+export interface LayoutOrchestrator {
+  id: string;
+  componentName: string;
+  stacks: {
+    id: string;
+    direction: 'row' | 'column';
+    gap: number;
+    componentIds: string[];
+    className: string;
+    styles: any;
+  }[];
+}
+
+// Component generation plan with individual components + orchestrator
+export interface ComponentGenerationPlan {
+  semanticComponents: SemanticComponent[];
+  layoutOrchestrator: LayoutOrchestrator;
+  designSystem: {
+    tokens: DesignTokens;
+    cssVariables: string;
+  };
+}
+
 export interface StylingResult {
   runId: string;
-  components: StyledComponent[];
+  componentPlan: ComponentGenerationPlan;
   css: string;
   tailwindClasses: string[];
 }
 
-const SECTION_ELEMENTS: Record<string, { tag: 'section' | 'header' | 'main' | 'aside'; baseClass: string }> = {
-  // Detail page sections
-  gallery: { tag: 'section', baseClass: 'gallery-section' },
-  summary: { tag: 'section', baseClass: 'summary-section' },
-  price_cta: { tag: 'aside', baseClass: 'price-cta' },
-  amenities: { tag: 'section', baseClass: 'amenities-section' },
-  reviews: { tag: 'section', baseClass: 'reviews-section' },
-  trust_signals: { tag: 'section', baseClass: 'trust-signals' },
+// Convert semantic type to component name
+function toComponentName(semanticType: string, sectionId: string): string {
+  // Generate meaningful component names based on semantic type
+  const semanticMap: Record<string, string> = {
+    'overview': 'Overview',
+    'details': 'Details',
+    'services': 'Services',
+    'alerts': 'Notifications',
+    'preferences': 'Settings',
+    'gallery': 'Gallery',
+    'summary': 'Summary',
+    'price_cta': 'PricingAction',
+    'amenities': 'Amenities',
+    'reviews': 'Reviews',
+    'trust_signals': 'TrustIndicators',
+    'hero': 'Hero',
+    'features': 'Features',
+    'testimonials': 'Testimonials',
+    'faq': 'FAQ',
+    'contact': 'Contact',
+    'data-table': 'DataTable',
+    'chart': 'Chart',
+    'form': 'Form',
+    'support': 'Support'
+  };
 
-  // Generic sections
-  hero: { tag: 'header', baseClass: 'hero-section' },
-  features: { tag: 'section', baseClass: 'features-section' },
-  testimonials: { tag: 'section', baseClass: 'testimonials-section' },
-  faq: { tag: 'section', baseClass: 'faq-section' },
-  contact: { tag: 'section', baseClass: 'contact-section' },
+  const baseName = semanticMap[semanticType] ||
+                   semanticType
+                     .replace(/[\s-]+/g, '_')  // Replace spaces and hyphens with underscores
+                     .split('_')
+                     .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                     .join('');
 
-  // Profile sections
-  avatar: { tag: 'section', baseClass: 'avatar-section' },
-  bio: { tag: 'section', baseClass: 'bio-section' },
-  experience: { tag: 'section', baseClass: 'experience-section' },
-  portfolio: { tag: 'main', baseClass: 'portfolio-section' },
-  social_links: { tag: 'section', baseClass: 'social-links' },
-};
-
-function convertAdaptiveLayoutToComponents(adaptiveLayout: AdaptiveLayout, tokens: DesignTokens): StyledComponent[] {
-  return adaptiveLayout.stacks.map(stack => convertAdaptiveStackToComponent(stack, adaptiveLayout, tokens));
+  return baseName + 'Section';
 }
 
-function convertAdaptiveStackToComponent(
-  stack: AdaptiveLayoutStack,
+// Extract all semantic sections as individual components
+function extractSemanticComponents(
   layout: AdaptiveLayout,
-  tokens: DesignTokens
-): StyledComponent {
-  const containerClass = generateAdaptiveContainerClass(stack);
-  const styles = generateAdaptiveStackStyles(stack, tokens);
+  tokens: DesignTokens,
+  intent?: AdaptiveIntent
+): SemanticComponent[] {
+  const components: SemanticComponent[] = [];
 
-  return {
-    id: `${stack.id}_container`,
-    element: 'div',
-    className: containerClass,
-    styles,
-    children: stack.areas.map(area => {
+  layout.stacks.forEach(stack => {
+    stack.areas.forEach((area, index) => {
       if ('sectionId' in area) {
-        return convertAdaptiveAreaToSection(area, layout, tokens);
-      } else {
-        return convertAdaptiveStackToComponent(area as AdaptiveLayoutStack, layout, tokens);
+        const componentName = toComponentName(area.semanticType, area.sectionId);
+        const sectionConfig = layout.sections[area.sectionId];
+
+        components.push({
+          id: area.sectionId,
+          componentName,
+          semanticType: area.semanticType,
+          element: getSemanticElement(area.semanticType),
+          className: generateComponentClass(area.semanticType, area.sectionId),
+          styles: {
+            gridColumn: generateGridColumn(area.cols, layout.grid.columns),
+            minHeight: sectionConfig?.minHeight ? `${sectionConfig.minHeight}px` : undefined,
+            backgroundColor: selectComponentBackground(area.semanticType, tokens),
+            borderRadius: selectBorderRadius(tokens),
+            boxShadow: selectBoxShadow(area.semanticType, tokens),
+            padding: selectComponentPadding(area.semanticType, tokens),
+          },
+          layoutRole: {
+            stackId: stack.id,
+            position: index,
+            cols: area.cols,
+            responsive: layout.responsiveStrategy
+          }
+        });
       }
-    }),
-  };
+    });
+  });
+
+  return components;
 }
 
-export async function applyStyling(runId: string, artifactDir?: string): Promise<StylingResult> {
-  const baseDir = artifactDir || join(process.cwd(), 'artifacts');
-  const runDir = join(baseDir, runId);
-
-  // Read layout and design tokens
-  const [layoutContent, tokensContent] = await Promise.all([
-    readFile(join(runDir, 'adaptive_layout.json'), 'utf8'),
-    readFile(join(runDir, 'design_tokens.json'), 'utf8'),
-  ]);
-
-  const adaptiveLayout: AdaptiveLayout = JSON.parse(layoutContent);
-  const tokens: DesignTokens = JSON.parse(tokensContent);
-
-  // Convert adaptive layout to styled components
-  const components = convertAdaptiveLayoutToComponents(adaptiveLayout, tokens);
-
-  // Generate CSS and Tailwind classes
-  const css = generateCSS(components, tokens);
-  const tailwindClasses = extractTailwindClasses(components);
-
-  // Save styled components
-  await writeFile(join(runDir, 'styled_components.json'), JSON.stringify(components, null, 2));
-  await writeFile(join(runDir, 'styles.css'), css);
-
-  return {
-    runId,
-    components,
-    css,
-    tailwindClasses,
-  };
-}
-
-function convertAdaptiveAreaToSection(
-  area: AdaptiveLayoutArea,
+// Create layout orchestrator that composes all components
+function createLayoutOrchestrator(
   layout: AdaptiveLayout,
+  components: SemanticComponent[],
   tokens: DesignTokens
-): StyledSection {
-  const sectionClass = generateSectionClass(area.semanticType);
-  const gridColumn = generateGridColumn(area.cols, layout.grid.columns);
+): LayoutOrchestrator {
+  const stacks = layout.stacks.map(stack => {
+    const stackComponents = components.filter(c => c.layoutRole.stackId === stack.id);
+
+    return {
+      id: stack.id,
+      direction: stack.direction,
+      gap: stack.gap,
+      componentIds: stackComponents.map(c => c.id),
+      className: generateStackClass(stack),
+      styles: {
+        display: 'flex',
+        flexDirection: stack.direction,
+        gap: `${stack.gap}px`,
+        justifyContent: mapJustifyContent(stack.justify),
+        alignItems: mapAlignItems(stack.align)
+      }
+    };
+  });
 
   return {
-    id: `${area.sectionId}_area`,
-    section: area.semanticType,
-    element: 'section',
-    className: sectionClass,
-    styles: {
-      gridColumn,
-      minHeight: area.minHeight ? `${area.minHeight}px` : undefined,
-      backgroundColor: selectSectionBackground(area.semanticType, tokens),
-      borderRadius: selectBorderRadius(tokens),
-      boxShadow: selectBoxShadow(area.semanticType, tokens),
-      padding: selectSectionPadding(area.semanticType, tokens),
-    },
-    content: area.content,
+    id: 'page-layout',
+    componentName: 'PageLayout',
+    stacks
   };
 }
 
-function generateAdaptiveContainerClass(stack: AdaptiveLayoutStack): string {
-  const direction = stack.direction === 'row' ? 'flex-row' : 'flex-col';
-  const justify = stack.justify ? `justify-${stack.justify}` : '';
-  const align = stack.align ? `items-${stack.align}` : '';
-  const gap = `gap-${Math.floor(stack.gap / 4)}`; // Convert to Tailwind gap scale
-  const stackId = stack.id ? stack.id.replace(/_/g, '-') : 'stack';
-
-  return ['flex', direction, justify, align, gap, stackId]
-    .filter(Boolean)
-    .join(' ');
-}
-
-function generateSectionClass(section: string): string {
-  if (!section) {
-    console.warn(`⚠️  Section is undefined, using default styling`);
-    return 'section section-default';
-  }
-  const config = SECTION_ELEMENTS[section];
-  if (!config) {
-    console.warn(`⚠️  Unknown section type: ${section}, using default styling`);
-    return `section section-${section.replace(/_/g, '-')}`;
-  }
-  return `${config.baseClass} section-${section.replace(/_/g, '-')}`;
-}
-
-function generateAdaptiveStackStyles(stack: AdaptiveLayoutStack, tokens: DesignTokens): StyledComponent['styles'] {
-  const gapValue = tokens.spacing.includes(stack.gap)
-    ? `${stack.gap}px`
-    : `${tokens.spacing.find(s => Math.abs(s - stack.gap) <= 8) || stack.gap}px`;
-
-  return {
-    display: 'flex',
-    flexDirection: stack.direction,
-    justifyContent: mapJustifyContent(stack.justify),
-    alignItems: mapAlignItems(stack.align),
-    gap: gapValue,
+// Get appropriate semantic HTML element
+function getSemanticElement(semanticType: string): SemanticComponent['element'] {
+  const elementMap: Record<string, SemanticComponent['element']> = {
+    'hero': 'header',
+    'overview': 'section',
+    'details': 'main',
+    'services': 'section',
+    'alerts': 'aside',
+    'preferences': 'aside',
+    'gallery': 'article',
+    'features': 'section',
+    'testimonials': 'section',
+    'contact': 'section'
   };
+
+  return elementMap[semanticType] || 'section';
 }
 
+// Generate component-specific classes
+function generateComponentClass(semanticType: string, sectionId: string): string {
+  const baseClass = `component-${semanticType.replace(/[\s_]+/g, '-').toLowerCase()}`;
+  const idClass = `${sectionId.replace(/[\s_]+/g, '-').toLowerCase()}-section`;
+  return `${baseClass} ${idClass}`;
+}
+
+// Generate grid column specification
 function generateGridColumn(cols: number, totalColumns: number): string {
   if (cols >= totalColumns) {
     return '1 / -1'; // Full width
@@ -200,47 +241,61 @@ function generateGridColumn(cols: number, totalColumns: number): string {
   return `span ${cols}`;
 }
 
-function selectSectionBackground(section: string, tokens: DesignTokens): string | undefined {
-  // Hero sections get primary background
-  if (section === 'hero') {
-    return tokens.colors.primary[0];
+// Generate stack classes
+function generateStackClass(stack: AdaptiveLayoutStack): string {
+  const direction = stack.direction === 'row' ? 'flex-row' : 'flex-col';
+  const justify = stack.justify ? `justify-${stack.justify}` : '';
+  const align = stack.align ? `items-${stack.align}` : '';
+  const gap = `gap-${Math.floor(stack.gap / 4)}`;
+  const stackId = stack.id.replace(/_/g, '-');
+
+  return ['flex', direction, justify, align, gap, stackId]
+    .filter(Boolean)
+    .join(' ');
+}
+
+// Select background color based on semantic type
+function selectComponentBackground(semanticType: string, tokens: DesignTokens): string {
+  if (semanticType === 'hero' || semanticType === 'overview') {
+    return tokens.colors.primary[0] || tokens.colors.semantic.background;
   }
 
-  // Price/CTA sections get accent background
-  if (section === 'price_cta') {
-    return tokens.colors.primary[1] || tokens.colors.primary[0];
+  if (semanticType === 'alerts' || semanticType === 'price_cta') {
+    return tokens.colors.primary[1] || tokens.colors.neutral[0] || tokens.colors.semantic.background;
   }
 
-  // Most sections get neutral background
   return tokens.colors.semantic.background;
 }
 
+// Select border radius from tokens
 function selectBorderRadius(tokens: DesignTokens): string | undefined {
-  // Use medium border radius for most components
   const radius = tokens.borderRadius.find(r => r !== '0px' && r !== '0') || tokens.borderRadius[1];
   return radius;
 }
 
-function selectBoxShadow(section: string, tokens: DesignTokens): string | undefined {
-  // Elevated sections get shadows
-  const elevatedSections: string[] = ['price_cta', 'trust_signals', 'hero'];
+// Select box shadow based on semantic type
+function selectBoxShadow(semanticType: string, tokens: DesignTokens): string | undefined {
+  const elevatedTypes = ['price_cta', 'alerts', 'hero', 'trust_signals'];
 
-  if (elevatedSections.includes(section)) {
+  if (elevatedTypes.includes(semanticType)) {
     return tokens.boxShadow.find(s => s !== 'none') || 'none';
   }
 
   return 'none';
 }
 
-function selectSectionPadding(section: string, tokens: DesignTokens): string {
-  // Larger padding for hero sections, standard for others
-  const paddingValue = section === 'hero'
+// Select padding based on semantic type
+function selectComponentPadding(semanticType: string, tokens: DesignTokens): string {
+  const largePaddingTypes = ['hero', 'overview', 'features'];
+
+  const paddingValue = largePaddingTypes.includes(semanticType)
     ? tokens.spacing.find(s => s >= 32) || 32
-    : tokens.spacing.find(s => s >= 16 && s <= 24) || 24;
+    : tokens.spacing.find(s => s >= 16 && s <= 24) || 16;
 
   return `${paddingValue}px`;
 }
 
+// Map justify content values
 function mapJustifyContent(justify?: AdaptiveLayoutStack['justify']): string | undefined {
   const mapping = {
     start: 'flex-start',
@@ -253,6 +308,7 @@ function mapJustifyContent(justify?: AdaptiveLayoutStack['justify']): string | u
   return justify ? mapping[justify] : undefined;
 }
 
+// Map align items values
 function mapAlignItems(align?: AdaptiveLayoutStack['align']): string | undefined {
   const mapping = {
     start: 'flex-start',
@@ -264,10 +320,12 @@ function mapAlignItems(align?: AdaptiveLayoutStack['align']): string | undefined
   return align ? mapping[align] : undefined;
 }
 
-function generateCSS(components: StyledComponent[], tokens: DesignTokens): string {
+// Generate CSS for all components
+function generateCSS(plan: ComponentGenerationPlan): string {
   let css = '/* Generated styles from design tokens */\n\n';
+  const tokens = plan.designSystem.tokens;
 
-  // Add CSS custom properties for design tokens
+  // Add CSS custom properties
   css += ':root {\n';
 
   // Colors
@@ -293,9 +351,7 @@ function generateCSS(components: StyledComponent[], tokens: DesignTokens): strin
   css += '}\n\n';
 
   // Add component styles
-  const cssRules = new Set<string>();
-
-  function addComponentCSS(component: StyledComponent | StyledSection) {
+  plan.semanticComponents.forEach(component => {
     const selector = `.${component.className.split(' ')[0]}`;
     const rules: string[] = [];
 
@@ -307,38 +363,136 @@ function generateCSS(components: StyledComponent[], tokens: DesignTokens): strin
     });
 
     if (rules.length > 0) {
-      cssRules.add(`${selector} {\n${rules.join('\n')}\n}\n`);
+      css += `${selector} {\n${rules.join('\n')}\n}\n\n`;
+    }
+  });
+
+  // Add orchestrator styles
+  plan.layoutOrchestrator.stacks.forEach(stack => {
+    if (!stack.className) return; // Skip if no className
+    const selector = `.${stack.className.split(' ')[0]}`;
+    const rules: string[] = [];
+
+    if (stack.styles) {
+      Object.entries(stack.styles).forEach(([prop, value]) => {
+        if (value) {
+          const cssProperty = prop.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+          rules.push(`  ${cssProperty}: ${value};`);
+        }
+      });
     }
 
-    if ('children' in component && component.children) {
-      component.children.forEach(child => addComponentCSS(child));
+    if (rules.length > 0) {
+      css += `${selector} {\n${rules.join('\n')}\n}\n\n`;
     }
-  }
-
-  components.forEach(component => addComponentCSS(component));
-
-  css += Array.from(cssRules).join('\n');
+  });
 
   return css;
 }
 
-function extractTailwindClasses(components: StyledComponent[]): string[] {
+// Extract Tailwind classes
+function extractTailwindClasses(plan: ComponentGenerationPlan): string[] {
   const classes = new Set<string>();
 
-  function collectClasses(component: StyledComponent | StyledSection) {
-    component.className.split(' ').forEach(cls => {
-      if (cls.startsWith('flex') || cls.startsWith('gap-') || cls.startsWith('justify-') ||
-          cls.startsWith('items-') || cls.startsWith('grid') || cls.startsWith('col-')) {
+  // From components
+  plan.semanticComponents.forEach(component => {
+    component.className.split(' ').forEach(cls => classes.add(cls));
+  });
+
+  // From orchestrator
+  plan.layoutOrchestrator.stacks.forEach(stack => {
+    stack.className.split(' ').forEach(cls => {
+      if (cls.startsWith('flex') || cls.startsWith('gap-') ||
+          cls.startsWith('justify-') || cls.startsWith('items-')) {
         classes.add(cls);
       }
     });
-
-    if ('children' in component && component.children) {
-      component.children.forEach(child => collectClasses(child));
-    }
-  }
-
-  components.forEach(component => collectClasses(component));
+  });
 
   return Array.from(classes).sort();
+}
+
+// Main export function
+export async function applyStyling(runId: string, artifactDir?: string): Promise<StylingResult> {
+  const baseDir = artifactDir || join(process.cwd(), 'artifacts');
+  const runDir = join(baseDir, runId);
+
+  // Read layout, design tokens, and intent
+  const [layoutContent, tokensContent, intentContent] = await Promise.all([
+    readFile(join(runDir, 'adaptive_layout.json'), 'utf8'),
+    readFile(join(runDir, 'design_tokens.json'), 'utf8'),
+    readFile(join(runDir, 'adaptive_intent.json'), 'utf8').catch(() => null)
+  ]);
+
+  const adaptiveLayout: AdaptiveLayout = JSON.parse(layoutContent);
+  const tokens: DesignTokens = JSON.parse(tokensContent);
+  const intent: AdaptiveIntent | null = intentContent ? JSON.parse(intentContent) : null;
+
+  // Extract individual semantic components
+  const semanticComponents = extractSemanticComponents(adaptiveLayout, tokens, intent || undefined);
+
+  // Create layout orchestrator
+  const layoutOrchestrator = createLayoutOrchestrator(adaptiveLayout, semanticComponents, tokens);
+
+  // Build component generation plan
+  const componentPlan: ComponentGenerationPlan = {
+    semanticComponents,
+    layoutOrchestrator,
+    designSystem: {
+      tokens,
+      cssVariables: generateCSSVariables(tokens)
+    }
+  };
+
+  // Generate CSS and extract Tailwind classes
+  const css = generateCSS(componentPlan);
+  const tailwindClasses = extractTailwindClasses(componentPlan);
+
+  // Save the component plan (instead of styled_components.json)
+  await writeFile(
+    join(runDir, 'component_plan.json'),
+    JSON.stringify(componentPlan, null, 2)
+  );
+
+  // Keep styled_components.json for backward compatibility but with new structure
+  await writeFile(
+    join(runDir, 'styled_components.json'),
+    JSON.stringify(semanticComponents, null, 2)
+  );
+
+  await writeFile(join(runDir, 'styles.css'), css);
+
+  return {
+    runId,
+    componentPlan,
+    css,
+    tailwindClasses
+  };
+}
+
+// Helper function to generate CSS variables
+function generateCSSVariables(tokens: DesignTokens): string {
+  let vars = '';
+
+  if (tokens?.colors?.primary?.length) {
+    tokens.colors.primary.forEach((color, i) => {
+      vars += `--color-primary-${i + 1}: ${color}; `;
+    });
+  }
+
+  if (tokens?.colors?.neutral?.length) {
+    tokens.colors.neutral.forEach((color, i) => {
+      vars += `--color-neutral-${i + 1}: ${color}; `;
+    });
+  }
+
+  if (tokens?.colors?.semantic?.text) {
+    vars += `--color-text: ${tokens.colors.semantic.text}; `;
+  }
+
+  if (tokens?.colors?.semantic?.background) {
+    vars += `--color-background: ${tokens.colors.semantic.background}; `;
+  }
+
+  return vars.trim();
 }

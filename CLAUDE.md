@@ -94,7 +94,6 @@ TAILWIND_SAFELIST=text-xl,text-2xl,text-3xl,bg-brand-500,bg-brand-600,rounded-r0
 ## Key Technical Details
 
 ### Component Set
-Opinionated, minimal set: `Button`, `Text`, `Image`, `Input`, `Navbar`, `Hero`, `Card`, `CardList`, `CTABox`, `KeyValueList`, `Footer`, `Gallery`, `ReviewList`
 
 ### Browser Automation
 - Playwright with Chromium
@@ -168,8 +167,7 @@ This is an **MVP tech demo** with a core focus on **crafted design output qualit
 - **Simple over scalable** - direct implementations over complex architectures
 - **Demo-ready over production-ready** - optimize for showcasing design generation capabilities
 - **Deterministic behavior** - consistent results for reliable demos
-
-
-Test changes as you go! Code should work when completed.
+- **Test changes as you go!** Code should work when completed.
+- **NEVER HARDCODE VALUES or use FALLBACKS or MOCKS.**
 
 **Success Criteria**: Code running is baseline; the true measure is whether generated designs look like they were created by a skilled designer who understood the source brand.
