@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { applyStyling } = require('../pipeline/styling');
+const { applyStyling } = require('../dist/pipeline/styling');
 
 async function main() {
   const args = process.argv.slice(2);

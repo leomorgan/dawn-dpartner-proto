@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Load environment variables
+require('dotenv').config({ path: '.env.local' });
+
 const { parseIntent } = require('../dist/pipeline/intent');
 
 async function main() {

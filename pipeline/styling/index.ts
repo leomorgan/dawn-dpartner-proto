@@ -1,8 +1,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import type { Layout, LayoutArea, LayoutStack } from '../layout';
+import type { AdaptiveLayout, AdaptiveLayoutArea, AdaptiveLayoutStack } from '../layout';
 import type { DesignTokens } from '../tokens';
-import type { SectionType } from '../intent';
 
 export interface StyledComponent {
   id: string;
@@ -26,7 +25,7 @@ export interface StyledComponent {
 
 export interface StyledSection {
   id: string;
-  section: SectionType;
+  section: string;
   element: 'section';
   className: string;
   styles: {
@@ -47,7 +46,7 @@ export interface StylingResult {
   tailwindClasses: string[];
 }
 
-const SECTION_ELEMENTS: Record<SectionType, { tag: 'section' | 'header' | 'main' | 'aside'; baseClass: string }> = {
+const SECTION_ELEMENTS: Record<string, { tag: 'section' | 'header' | 'main' | 'aside'; baseClass: string }> = {
   // Detail page sections
   gallery: { tag: 'section', baseClass: 'gallery-section' },
   summary: { tag: 'section', baseClass: 'summary-section' },
@@ -71,21 +70,48 @@ const SECTION_ELEMENTS: Record<SectionType, { tag: 'section' | 'header' | 'main'
   social_links: { tag: 'section', baseClass: 'social-links' },
 };
 
+function convertAdaptiveLayoutToComponents(adaptiveLayout: AdaptiveLayout, tokens: DesignTokens): StyledComponent[] {
+  return adaptiveLayout.stacks.map(stack => convertAdaptiveStackToComponent(stack, adaptiveLayout, tokens));
+}
+
+function convertAdaptiveStackToComponent(
+  stack: AdaptiveLayoutStack,
+  layout: AdaptiveLayout,
+  tokens: DesignTokens
+): StyledComponent {
+  const containerClass = generateAdaptiveContainerClass(stack);
+  const styles = generateAdaptiveStackStyles(stack, tokens);
+
+  return {
+    id: `${stack.id}_container`,
+    element: 'div',
+    className: containerClass,
+    styles,
+    children: stack.areas.map(area => {
+      if ('sectionId' in area) {
+        return convertAdaptiveAreaToSection(area, layout, tokens);
+      } else {
+        return convertAdaptiveStackToComponent(area as AdaptiveLayoutStack, layout, tokens);
+      }
+    }),
+  };
+}
+
 export async function applyStyling(runId: string, artifactDir?: string): Promise<StylingResult> {
   const baseDir = artifactDir || join(process.cwd(), 'artifacts');
   const runDir = join(baseDir, runId);
 
   // Read layout and design tokens
   const [layoutContent, tokensContent] = await Promise.all([
-    readFile(join(runDir, 'layout.json'), 'utf8'),
+    readFile(join(runDir, 'adaptive_layout.json'), 'utf8'),
     readFile(join(runDir, 'design_tokens.json'), 'utf8'),
   ]);
 
-  const layout: Layout = JSON.parse(layoutContent);
+  const adaptiveLayout: AdaptiveLayout = JSON.parse(layoutContent);
   const tokens: DesignTokens = JSON.parse(tokensContent);
 
-  // Convert layout to styled components
-  const components = convertLayoutToComponents(layout, tokens);
+  // Convert adaptive layout to styled components
+  const components = convertAdaptiveLayoutToComponents(adaptiveLayout, tokens);
 
   // Generate CSS and Tailwind classes
   const css = generateCSS(components, tokens);
@@ -103,78 +129,57 @@ export async function applyStyling(runId: string, artifactDir?: string): Promise
   };
 }
 
-function convertLayoutToComponents(layout: Layout, tokens: DesignTokens): StyledComponent[] {
-  return layout.stacks.map(stack => convertStackToComponent(stack, layout, tokens));
-}
-
-function convertStackToComponent(
-  stack: LayoutStack,
-  layout: Layout,
-  tokens: DesignTokens
-): StyledComponent {
-  const containerClass = generateContainerClass(stack);
-  const styles = generateStackStyles(stack, tokens);
-
-  const component: StyledComponent = {
-    id: stack.id,
-    element: 'div',
-    className: containerClass,
-    styles,
-    children: stack.areas.map(area => {
-      if ('section' in area) {
-        return convertAreaToSection(area, layout, tokens);
-      } else {
-        return convertStackToComponent(area, layout, tokens);
-      }
-    })
-  };
-
-  return component;
-}
-
-function convertAreaToSection(
-  area: LayoutArea,
-  layout: Layout,
+function convertAdaptiveAreaToSection(
+  area: AdaptiveLayoutArea,
+  layout: AdaptiveLayout,
   tokens: DesignTokens
 ): StyledSection {
-  const sectionConfig = SECTION_ELEMENTS[area.section];
-  const sectionClass = generateSectionClass(area.section);
+  const sectionClass = generateSectionClass(area.semanticType);
   const gridColumn = generateGridColumn(area.cols, layout.grid.columns);
 
   return {
-    id: `${area.section}_area`,
-    section: area.section,
+    id: `${area.sectionId}_area`,
+    section: area.semanticType,
     element: 'section',
     className: sectionClass,
     styles: {
       gridColumn,
       minHeight: area.minHeight ? `${area.minHeight}px` : undefined,
-      backgroundColor: selectSectionBackground(area.section, tokens),
+      backgroundColor: selectSectionBackground(area.semanticType, tokens),
       borderRadius: selectBorderRadius(tokens),
-      boxShadow: selectBoxShadow(area.section, tokens),
-      padding: selectSectionPadding(area.section, tokens),
+      boxShadow: selectBoxShadow(area.semanticType, tokens),
+      padding: selectSectionPadding(area.semanticType, tokens),
     },
     content: area.content,
   };
 }
 
-function generateContainerClass(stack: LayoutStack): string {
+function generateAdaptiveContainerClass(stack: AdaptiveLayoutStack): string {
   const direction = stack.direction === 'row' ? 'flex-row' : 'flex-col';
   const justify = stack.justify ? `justify-${stack.justify}` : '';
   const align = stack.align ? `items-${stack.align}` : '';
   const gap = `gap-${Math.floor(stack.gap / 4)}`; // Convert to Tailwind gap scale
+  const stackId = stack.id ? stack.id.replace(/_/g, '-') : 'stack';
 
-  return ['flex', direction, justify, align, gap, stack.id.replace(/_/g, '-')]
+  return ['flex', direction, justify, align, gap, stackId]
     .filter(Boolean)
     .join(' ');
 }
 
-function generateSectionClass(section: SectionType): string {
+function generateSectionClass(section: string): string {
+  if (!section) {
+    console.warn(`⚠️  Section is undefined, using default styling`);
+    return 'section section-default';
+  }
   const config = SECTION_ELEMENTS[section];
+  if (!config) {
+    console.warn(`⚠️  Unknown section type: ${section}, using default styling`);
+    return `section section-${section.replace(/_/g, '-')}`;
+  }
   return `${config.baseClass} section-${section.replace(/_/g, '-')}`;
 }
 
-function generateStackStyles(stack: LayoutStack, tokens: DesignTokens): StyledComponent['styles'] {
+function generateAdaptiveStackStyles(stack: AdaptiveLayoutStack, tokens: DesignTokens): StyledComponent['styles'] {
   const gapValue = tokens.spacing.includes(stack.gap)
     ? `${stack.gap}px`
     : `${tokens.spacing.find(s => Math.abs(s - stack.gap) <= 8) || stack.gap}px`;
@@ -195,7 +200,7 @@ function generateGridColumn(cols: number, totalColumns: number): string {
   return `span ${cols}`;
 }
 
-function selectSectionBackground(section: SectionType, tokens: DesignTokens): string | undefined {
+function selectSectionBackground(section: string, tokens: DesignTokens): string | undefined {
   // Hero sections get primary background
   if (section === 'hero') {
     return tokens.colors.primary[0];
@@ -216,9 +221,9 @@ function selectBorderRadius(tokens: DesignTokens): string | undefined {
   return radius;
 }
 
-function selectBoxShadow(section: SectionType, tokens: DesignTokens): string | undefined {
+function selectBoxShadow(section: string, tokens: DesignTokens): string | undefined {
   // Elevated sections get shadows
-  const elevatedSections: SectionType[] = ['price_cta', 'trust_signals', 'hero'];
+  const elevatedSections: string[] = ['price_cta', 'trust_signals', 'hero'];
 
   if (elevatedSections.includes(section)) {
     return tokens.boxShadow.find(s => s !== 'none') || 'none';
@@ -227,7 +232,7 @@ function selectBoxShadow(section: SectionType, tokens: DesignTokens): string | u
   return 'none';
 }
 
-function selectSectionPadding(section: SectionType, tokens: DesignTokens): string {
+function selectSectionPadding(section: string, tokens: DesignTokens): string {
   // Larger padding for hero sections, standard for others
   const paddingValue = section === 'hero'
     ? tokens.spacing.find(s => s >= 32) || 32
@@ -236,25 +241,25 @@ function selectSectionPadding(section: SectionType, tokens: DesignTokens): strin
   return `${paddingValue}px`;
 }
 
-function mapJustifyContent(justify?: LayoutStack['justify']): string | undefined {
+function mapJustifyContent(justify?: AdaptiveLayoutStack['justify']): string | undefined {
   const mapping = {
     start: 'flex-start',
     center: 'center',
     end: 'flex-end',
     between: 'space-between',
     around: 'space-around',
-  };
+  } as const;
 
   return justify ? mapping[justify] : undefined;
 }
 
-function mapAlignItems(align?: LayoutStack['align']): string | undefined {
+function mapAlignItems(align?: AdaptiveLayoutStack['align']): string | undefined {
   const mapping = {
     start: 'flex-start',
     center: 'center',
     end: 'flex-end',
     stretch: 'stretch',
-  };
+  } as const;
 
   return align ? mapping[align] : undefined;
 }

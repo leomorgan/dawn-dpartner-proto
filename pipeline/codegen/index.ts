@@ -3,7 +3,7 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { OpenAI } from 'openai';
 import type { StyledComponent, StyledSection } from '../styling';
-import type { SectionType, Intent } from '../intent';
+import type { AdaptiveIntent } from '../intent';
 import type { DesignTokens } from '../tokens';
 
 export interface GeneratedComponent {
@@ -23,8 +23,8 @@ export interface CodegenResult {
 
 interface ContentGenerationContext {
   designTokens: DesignTokens;
-  intent: Intent;
-  sectionType: SectionType;
+  intent: AdaptiveIntent;
+  sectionType: string;
 }
 
 interface BrandPersonality {
@@ -42,7 +42,7 @@ interface PatternVariation {
 }
 
 interface ComponentPattern {
-  sectionType: SectionType;
+  sectionType: string;
   variations: PatternVariation[];
   brandAdaptations: Record<string, string>;
 }
@@ -54,10 +54,10 @@ async function loadDesignTokens(runId: string, artifactDir?: string): Promise<De
   return JSON.parse(tokensContent);
 }
 
-async function loadIntent(runId: string, artifactDir?: string): Promise<Intent> {
+async function loadIntent(runId: string, artifactDir?: string): Promise<AdaptiveIntent> {
   const baseDir = artifactDir || join(process.cwd(), 'artifacts');
   const runDir = join(baseDir, runId);
-  const intentContent = await readFile(join(runDir, 'intent.json'), 'utf8');
+  const intentContent = await readFile(join(runDir, 'adaptive_intent.json'), 'utf8');
   return JSON.parse(intentContent);
 }
 
@@ -217,7 +217,7 @@ function analyzeBrandPersonality(tokens: DesignTokens): BrandPersonality {
   return { tone, energy, trustLevel };
 }
 
-function selectOptimalPattern(sectionType: SectionType, brandPersonality: BrandPersonality): PatternVariation {
+function selectOptimalPattern(sectionType: string, brandPersonality: BrandPersonality): PatternVariation {
   // Find pattern for this section type
   const sectionPattern = COMPONENT_PATTERNS.find(p => p.sectionType === sectionType);
   if (!sectionPattern) {
@@ -242,10 +242,10 @@ function selectOptimalPattern(sectionType: SectionType, brandPersonality: BrandP
 }
 
 function generateIntelligentPrompt(
-  sectionType: SectionType,
+  sectionType: string,
   pattern: PatternVariation,
   brandPersonality: BrandPersonality,
-  intent: Intent,
+  intent: AdaptiveIntent,
   colors: any
 ): string {
   const sectionPattern = COMPONENT_PATTERNS.find(p => p.sectionType === sectionType);
@@ -271,7 +271,7 @@ BRAND COLORS:
 - Text: ${colors.text}
 - Background: ${colors.background}
 
-ENTITY CONTEXT: ${intent.primary_entity}
+ENTITY CONTEXT: ${intent.primaryEntity}
 BRAND ENERGY: ${brandPersonality.energy}
 TRUST LEVEL: ${brandPersonality.trustLevel}
 
@@ -288,91 +288,6 @@ Return ONLY the JSX component code, no explanation.`;
   return basePrompt;
 }
 
-function generateSophisticatedFallback(
-  sectionType: SectionType,
-  pattern: PatternVariation,
-  brandPersonality: BrandPersonality,
-  colors: any,
-  intent: Intent
-): string {
-  // Generate sophisticated fallback components that still reflect brand personality
-  const brandClass = brandPersonality.tone === 'minimal' ? 'space-y-4' :
-                     brandPersonality.tone === 'playful' ? 'space-y-6' :
-                     'space-y-5';
-
-  const fallbackTemplates: Partial<Record<SectionType, string>> = {
-    hero: `<div className="py-16 px-6 text-center ${brandClass}">
-      <h1 className="text-4xl font-bold text-[${colors.text}] mb-4">
-        ${brandPersonality.tone === 'luxury' ? 'Experience Premium' :
-          brandPersonality.tone === 'playful' ? 'Welcome to Something Amazing' :
-          brandPersonality.tone === 'professional' ? 'Professional Excellence' :
-          'Discover Quality'} ${intent.primary_entity}
-      </h1>
-      <p className="text-lg text-[${colors.neutral}] max-w-2xl mx-auto mb-8">
-        ${pattern.contentStrategy === 'benefit-driven' ? 'Experience the benefits that set us apart' :
-          pattern.contentStrategy === 'feature-focused' ? 'Comprehensive features designed for your needs' :
-          pattern.contentStrategy === 'story-driven' ? 'Join thousands who have discovered the difference' :
-          'Proven results you can trust'}
-      </p>
-      <button className="bg-[${colors.accent}] text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-opacity">
-        ${brandPersonality.tone === 'professional' ? 'Get Started' :
-          brandPersonality.tone === 'playful' ? 'Let\'s Go!' :
-          'Explore Now'}
-      </button>
-    </div>`,
-
-    gallery: `<div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-6">
-      ${Array(6).fill(0).map((_, i) =>
-        `<div className="aspect-square bg-gradient-to-br from-[${colors.primary}] to-[${colors.accent}] rounded-lg opacity-20 flex items-center justify-center">
-          <span className="text-[${colors.text}] font-medium">${i + 1}</span>
-        </div>`
-      ).join('')}
-    </div>`,
-
-    features: `<div className="py-12 px-6">
-      <h2 className="text-3xl font-bold text-[${colors.text}] text-center mb-12">
-        ${pattern.contentStrategy === 'benefit-driven' ? 'Why Choose Us' :
-          pattern.contentStrategy === 'feature-focused' ? 'Powerful Features' :
-          pattern.contentStrategy === 'story-driven' ? 'Your Success Story Starts Here' :
-          'Proven Excellence'}
-      </h2>
-      <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        ${Array(3).fill(0).map((_, i) => {
-          const features = ['Quality', 'Innovation', 'Support'];
-          const descriptions = [
-            brandPersonality.tone === 'luxury' ? 'Uncompromising excellence' : 'Superior quality standards',
-            brandPersonality.tone === 'playful' ? 'Creative solutions that wow' : 'Cutting-edge innovation',
-            brandPersonality.tone === 'friendly' ? 'Always here to help' : 'Professional support team'
-          ];
-          return `<div className="text-center ${brandClass}">
-            <div className="w-16 h-16 bg-[${colors.accent}] rounded-lg mx-auto mb-4 flex items-center justify-center">
-              <span className="text-white font-bold text-xl">${i + 1}</span>
-            </div>
-            <h3 className="text-xl font-semibold text-[${colors.text}] mb-2">${features[i]}</h3>
-            <p className="text-[${colors.neutral}]">${descriptions[i]}</p>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>`
-  };
-
-  // Default fallback for sections not in templates
-  const defaultFallback = `<div className="p-8 ${brandClass} border-l-4 border-[${colors.accent}]">
-    <h2 className="text-2xl font-semibold text-[${colors.text}] mb-4">
-      ${sectionType.charAt(0).toUpperCase() + sectionType.slice(1)} Section
-    </h2>
-    <p className="text-[${colors.neutral}] mb-4">
-      ${pattern.approach} for your ${intent.primary_entity}.
-    </p>
-    <div className="inline-block bg-[${colors.primary}] text-white px-4 py-2 rounded">
-      ${brandPersonality.tone === 'professional' ? 'Learn More' :
-        brandPersonality.tone === 'playful' ? 'Check It Out' :
-        'Discover More'}
-    </div>
-  </div>`;
-
-  return fallbackTemplates[sectionType] || defaultFallback;
-}
 
 function getBrandColors(tokens: DesignTokens) {
   return {
@@ -405,7 +320,7 @@ async function generateDynamicSectionContent(context: ContentGenerationContext):
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const systemPrompt = `You are an expert UI developer generating sophisticated React JSX components for a ${intent.page_type} page about ${intent.primary_entity}.
+  const systemPrompt = `You are an expert UI developer generating sophisticated React JSX components for a ${intent.pageType} page about ${intent.primaryEntity}.
 
 Generate professional, design-grade components that reflect brand personality and follow modern design principles.
 
@@ -463,11 +378,7 @@ Return ONLY the JSX component code, no explanation.`;
     return content;
   } catch (error) {
     console.error('❌ Error generating intelligent content for', sectionType, ':', error);
-
-    // Sophisticated fallback based on selected pattern
-    const sophisticatedFallback = generateSophisticatedFallback(sectionType, selectedPattern, brandPersonality, colors, intent);
-    console.log(`🔄 Using sophisticated ${selectedPattern.name} fallback pattern`);
-    return sophisticatedFallback;
+    throw error;
   }
 }
 

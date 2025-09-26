@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { generateCanvas } = require('../pipeline/canvas');
+const { generateCanvas } = require('../dist/pipeline/canvas');
 
 async function main() {
   const args = process.argv.slice(2);

@@ -242,7 +242,7 @@ function determineNodeType(element: Element): SceneNode['type'] {
 
 function determineRole(element: Element, rect: { x: number; y: number; w: number; h: number }, depth: number, allElements?: Element[]): string {
   const tag = element.tagName.toLowerCase();
-  const className = (element.className && typeof element.className === 'string' ? element.className.toLowerCase() : '') || '';
+  const className = (element.className ? String(element.className).toLowerCase() : '') || '';
 
   // Explicit role attribute (highest priority)
   if (element.hasAttribute('role')) {

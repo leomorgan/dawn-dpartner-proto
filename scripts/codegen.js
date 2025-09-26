@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { generateCode } = require('../pipeline/codegen');
+const { generateCode } = require('../dist/pipeline/codegen');
 
 async function main() {
   const args = process.argv.slice(2);

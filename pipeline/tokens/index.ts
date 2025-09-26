@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { parse, formatHex, differenceEuclidean } from 'culori';
+import { parse, formatHex, differenceEuclidean, converter } from 'culori';
 
 // Simple WCAG contrast calculation
 function calculateContrast(color1: any, color2: any): number {
@@ -322,18 +322,28 @@ function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: DesignTok
 
   for (const node of nodes) {
     if (node.styles.color) {
-      const color = formatHex(parse(node.styles.color) || '#000000');
-      allColorsUsed.add(color);
+      const parsedColor = parse(node.styles.color);
+      if (parsedColor) {
+        const color = formatHex(parsedColor);
+        if (color) {
+          allColorsUsed.add(color);
 
-      // Mark as critical if it's text on visible element with significant area
-      if (node.textContent && node.textContent.trim() &&
-          node.boundingBox && node.boundingBox.width * node.boundingBox.height > 100) {
-        criticalColors.add(color);
+          // Mark as critical if it's text on visible element with significant area
+          if (node.textContent && node.textContent.trim() &&
+              node.bbox && node.bbox.w * node.bbox.h > 100) {
+            criticalColors.add(color);
+          }
+        }
       }
     }
     if (node.styles.backgroundColor && node.styles.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-      const bgColor = formatHex(parse(node.styles.backgroundColor) || '#ffffff');
-      allColorsUsed.add(bgColor);
+      const parsedBgColor = parse(node.styles.backgroundColor);
+      if (parsedBgColor) {
+        const bgColor = formatHex(parsedBgColor);
+        if (bgColor) {
+          allColorsUsed.add(bgColor);
+        }
+      }
     }
   }
 
@@ -348,14 +358,18 @@ function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: DesignTok
   let captured = 0;
   const missedCritical: string[] = [];
 
-  for (const color of allColorsUsed) {
+  for (const color of Array.from(allColorsUsed)) {
     let found = false;
-    for (const extractedColor of extractedColors) {
+    for (const extractedColor of Array.from(extractedColors)) {
       // Check if colors are similar (within reasonable threshold)
-      const distance = differenceEuclidean(color, extractedColor);
-      if (distance < 0.1) { // Similar colors
-        found = true;
-        break;
+      const parsedColor1 = parse(color);
+      const parsedColor2 = parse(extractedColor);
+      if (parsedColor1 && parsedColor2) {
+        const distance = differenceEuclidean()(parsedColor1, parsedColor2);
+        if (distance < 0.1) { // Similar colors
+          found = true;
+          break;
+        }
       }
     }
     if (found) captured++;
@@ -427,7 +441,9 @@ function analyzeColorPsychology(colors: any[]) {
       let hslColor = color;
       if (!('h' in color)) {
         const hexColor = formatHex(color);
-        hslColor = parse(hexColor);
+        if (hexColor) {
+          hslColor = parse(hexColor);
+        }
       }
 
       if (hslColor && typeof hslColor === 'object' && 'h' in hslColor) {
@@ -538,10 +554,16 @@ function determineBrandEnergy(colorPsychology: any, tokens: DesignTokens): Brand
     // Convert to HSL if needed
     let hslColor = parsed;
     if (!('s' in parsed)) {
-      hslColor = parse(formatHex(parsed));
+      const hexColor = formatHex(parsed);
+      if (hexColor) {
+        const parsedHsl = parse(hexColor);
+        if (parsedHsl) {
+          hslColor = parsedHsl;
+        }
+      }
     }
 
-    return hslColor && 's' in hslColor && hslColor.s > 0.6;
+    return hslColor && 's' in hslColor && (hslColor.s || 0) > 0.6;
   });
 
   if (colorPsychology.dominantMood === 'sophisticated') return 'sophisticated';
@@ -580,13 +602,16 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
   const hslColors = parsedColors.map(color => {
     if (color && 'h' in color) return color;
     const hexColor = formatHex(color);
-    const hslColor = parse(hexColor);
-    return hslColor && typeof hslColor === 'object' && 'h' in hslColor ? hslColor : null;
+    if (hexColor) {
+      const hslColor = parse(hexColor);
+      return hslColor && typeof hslColor === 'object' && 'h' in hslColor ? hslColor : null;
+    }
+    return null;
   }).filter(Boolean);
 
-  const hues = hslColors.map(c => c.h || 0);
-  const saturations = hslColors.map(c => c.s || 0);
-  const lightnesses = hslColors.map(c => c.l || 0);
+  const hues = hslColors.map(c => c ? (c.h || 0) : 0);
+  const saturations = hslColors.map(c => c && 's' in c ? (c.s || 0) : 0);
+  const lightnesses = hslColors.map(c => c && 'l' in c ? (c.l || 0) : 0);
 
   const dominantHue = hues.reduce((a, b) => a + b, 0) / hues.length;
 

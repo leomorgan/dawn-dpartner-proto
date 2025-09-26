@@ -36,23 +36,10 @@ export interface AdaptiveIntent {
   reasoning: string;
 }
 
-// Legacy SectionType for backward compatibility
-export type SectionType = 'gallery' | 'summary' | 'price_cta' | 'amenities' | 'reviews' | 'trust_signals' | 'hero' | 'features' | 'testimonials' | 'faq' | 'contact' | 'avatar' | 'bio' | 'experience' | 'portfolio' | 'social_links';
-
-// Legacy interface for backward compatibility
-export interface Intent {
-  page_type: string;
-  primary_entity: string;
-  required_sections: string[];
-  priority_order: string[];
-  confidence: number;
-  reasoning: string;
-}
 
 export interface IntentParseResult {
   runId: string;
   adaptiveIntent: AdaptiveIntent;
-  legacyIntent: Intent; // For backward compatibility
   provider: 'openai' | 'anthropic';
 }
 
@@ -163,19 +150,12 @@ export async function parseIntent(
       throw new Error(`Unsupported intent provider: ${intentProvider}. Must be 'openai' or 'anthropic'.`);
   }
 
-  // Create legacy intent for backward compatibility
-  const legacyIntent = adaptToLegacyIntent(adaptiveIntent);
-
-  // Save both formats
-  await Promise.all([
-    writeFile(join(runDir, 'adaptive_intent.json'), JSON.stringify(adaptiveIntent, null, 2)),
-    writeFile(join(runDir, 'intent.json'), JSON.stringify(legacyIntent, null, 2))
-  ]);
+  // Save adaptive intent
+  await writeFile(join(runDir, 'adaptive_intent.json'), JSON.stringify(adaptiveIntent, null, 2));
 
   return {
     runId,
     adaptiveIntent,
-    legacyIntent,
     provider: intentProvider as any,
   };
 }
@@ -345,47 +325,6 @@ function validateAdaptiveIntent(intent: AdaptiveIntent): AdaptiveIntent {
   return intent;
 }
 
-function adaptToLegacyIntent(adaptiveIntent: AdaptiveIntent): Intent {
-  // Map discovered sections to legacy section types
-  const sectionMapping: Record<string, string> = {
-    'hero': 'hero',
-    'gallery': 'gallery',
-    'summary': 'summary',
-    'features': 'features',
-    'pricing': 'price_cta',
-    'reviews': 'reviews',
-    'testimonials': 'testimonials',
-    'contact': 'contact',
-    'faq': 'faq',
-    'amenities': 'amenities',
-    'trust-signals': 'trust_signals',
-    'profile': 'avatar',
-    'bio': 'bio',
-    'experience': 'experience',
-    'portfolio': 'portfolio',
-    'social': 'social_links'
-  };
-
-  const mappedSections = adaptiveIntent.discoveredSections
-    .map(section => sectionMapping[section.semanticType] || section.semanticType)
-    .filter(section => section);
-
-  // Sort by visual importance
-  const priorityOrder = adaptiveIntent.discoveredSections
-    .sort((a, b) => b.visualImportance - a.visualImportance)
-    .map(section => sectionMapping[section.semanticType] || section.semanticType)
-    .filter(section => section);
-
-  return {
-    page_type: adaptiveIntent.pageType === 'detail' || adaptiveIntent.pageType === 'list' || adaptiveIntent.pageType === 'profile'
-      ? adaptiveIntent.pageType : 'detail',
-    primary_entity: adaptiveIntent.primaryEntity,
-    required_sections: mappedSections,
-    priority_order: priorityOrder,
-    confidence: adaptiveIntent.confidence,
-    reasoning: adaptiveIntent.reasoning
-  };
-}
 
 function analyzeLayoutPatterns(scenegraph: SceneGraph): string {
   const patterns = [];

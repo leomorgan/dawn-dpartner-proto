@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
-const { synthesizeLayout } = require('../pipeline/layout');
+// Load environment variables
+require('dotenv').config({ path: '.env.local' });
+
+const { synthesizeLayout } = require('../dist/pipeline/layout');
 
 async function main() {
   const args = process.argv.slice(2);
