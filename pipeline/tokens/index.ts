@@ -69,6 +69,10 @@ export interface DesignTokens {
       padding: string;
       fontSize: number;
       fontWeight: number;
+      display: string;
+      alignItems: string;
+      justifyContent: string;
+      textAlign: string;
     }>;
   };
   interactions: {         // Interactive element styles
@@ -248,6 +252,10 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     padding: string;
     fontSize: number;
     fontWeight: number;
+    display: string;
+    alignItems: string;
+    justifyContent: string;
+    textAlign: string;
   }> = [];
 
   // Interaction states
@@ -312,12 +320,11 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       fontSizes.set(fontSize, (fontSizes.get(fontSize) || 0) + 1);
     }
 
-    // For now, use common font weights since we don't have actual fontWeight data
-    // This is a limitation of the current capture - we could enhance it later
-    const commonWeights = [400, 500, 600, 700];
-    commonWeights.forEach(weight => {
-      fontWeights.set(weight, (fontWeights.get(weight) || 0) + 1);
-    });
+    // Extract actual font weights from captured data
+    const fontWeight = parseInt(node.styles.fontWeight) || 400;
+    if (!isNaN(fontWeight)) {
+      fontWeights.set(fontWeight, (fontWeights.get(fontWeight) || 0) + 1);
+    }
 
     const lineHeight = parseFloat(node.styles.lineHeight);
     if (!isNaN(lineHeight) && lineHeight > 0) {
@@ -371,7 +378,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     }
 
     const fontSize = parseFloat(node.styles.fontSize) || 16;
-    const fontWeight = 400; // Default since we don't capture actual font weight
+    const fontWeight = parseInt(node.styles.fontWeight) || 400;
 
     return {
       type,
@@ -381,7 +388,11 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       borderRadius: node.styles.borderRadius || '4px',
       padding: node.styles.padding || '8px 16px',
       fontSize,
-      fontWeight
+      fontWeight,
+      display: node.styles.display || 'inline-block',
+      alignItems: node.styles.alignItems || 'center',
+      justifyContent: node.styles.justifyContent || 'center',
+      textAlign: node.styles.textAlign || 'center'
     };
   }
 

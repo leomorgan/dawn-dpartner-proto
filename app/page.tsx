@@ -2,6 +2,36 @@
 
 import { useState, useCallback } from 'react';
 import { PipelineResult, PipelineStep } from '../pipeline/orchestration';
+
+// Define the CTA result type
+interface CTAResult {
+  runId: string;
+  url: string;
+  template: {
+    html: string;
+    componentCode: string;
+    appliedStyles: any;
+    cssVariables: string;
+    templateType: string;
+    safeColors: any;
+  };
+  tokens: any;
+  selectedTemplate: string;
+  preview: string;
+  metadata: {
+    templateName: string;
+    templateDescription: string;
+    totalDuration: number;
+  };
+}
+
+// Union type for both result types
+type GenerationResult = PipelineResult | CTAResult;
+
+// Type guard to check if result is a PipelineResult
+function isPipelineResult(result: GenerationResult): result is PipelineResult {
+  return 'steps' in result && Array.isArray((result as PipelineResult).steps);
+}
 import { PipelineInput } from '@/components/pipeline-input';
 import { PipelineStage } from '@/components/pipeline-stage';
 import { Separator } from '@/components/ui/separator';
@@ -10,33 +40,25 @@ import { Separator } from '@/components/ui/separator';
 
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<PipelineResult | null>(null);
-  const [currentStep, setCurrentStep] = useState<PipelineStep | null>(null);
+  const [result, setResult] = useState<GenerationResult | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
 
-  const handleStepUpdate = useCallback((step: PipelineStep) => {
-    setCurrentStep(step);
-    if (result) {
-      const updatedSteps = result.steps.map(s => s.id === step.id ? step : s);
-      setResult({ ...result, steps: updatedSteps });
-    }
-  }, [result]);
-
-  const handleGenerate = async (url: string, prompt: string) => {
+  const handleGenerate = async (url: string, prompt: string, mode: 'full' | 'cta' = 'full') => {
     setIsGenerating(true);
     setResult(null);
-    setCurrentStep(null);
 
     try {
-      const response = await fetch('/api/generate', {
+      const endpoint = mode === 'cta' ? '/api/generate-cta' : '/api/generate';
+      const body = mode === 'cta'
+        ? { url: url.trim() }
+        : { url: url.trim(), prompt: prompt.trim(), enableDebug: true };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          url: url.trim(),
-          prompt: prompt.trim(),
-          enableDebug: true
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -56,7 +78,6 @@ export default function Home() {
       alert(`Generation failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsGenerating(false);
-      setCurrentStep(null);
     }
   };
 
@@ -65,55 +86,365 @@ export default function Home() {
       <div className="max-w-5xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-mono font-bold">AI Design Partner</h1>
-          <p className="text-sm text-muted-foreground font-mono">
-            Generate React components from website analysis → 8-stage pipeline
-          </p>
+          <h1 className="text-2xl font-mono font-bold">Dawn: Design Partner Test Site</h1>
         </div>
-
-        <Separator />
 
         {/* Input */}
         <PipelineInput onGenerate={handleGenerate} isGenerating={isGenerating} />
 
-        {/* Pipeline Progress */}
+        {/* Results Display */}
         {result && (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-mono font-semibold">Pipeline Execution</h2>
+              <h2 className="text-lg font-mono font-semibold">
+                {isPipelineResult(result) ? 'Pipeline Execution' : 'CTA Generation'}
+              </h2>
               <div className="text-sm text-muted-foreground font-mono">
                 Run ID: {result.runId}
               </div>
             </div>
 
-            <div className="space-y-3">
-              {result.steps.map((step, index) => (
-                <PipelineStage
-                  key={step.id}
-                  step={step}
-                  index={index}
-                  artifacts={result.artifacts[step.id as keyof typeof result.artifacts]}
-                />
-              ))}
-            </div>
+            {isPipelineResult(result) ? (
+              // Pipeline Result UI
+              <>
+                <div className="space-y-3">
+                  {result.steps.map((step, index) => (
+                    <PipelineStage
+                      key={step.id}
+                      step={step}
+                      index={index}
+                      artifacts={result.artifacts[step.id as keyof typeof result.artifacts]}
+                    />
+                  ))}
+                </div>
 
-            {/* Final Actions */}
-            {result.status === 'completed' && (
-              <div className="flex gap-3 pt-4">
+                {/* Pipeline Final Actions */}
+                {result.status === 'completed' && (
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={() => window.open(`/preview/${result.runId}`, '_blank')}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded font-mono text-sm hover:bg-primary/90 transition-colors"
+                    >
+                      Preview Components
+                    </button>
+                    <button
+                      onClick={() => window.open(`/api/download/${result.runId}`, '_blank')}
+                      className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-sm hover:bg-secondary/80 transition-colors"
+                    >
+                      Download ZIP
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              // CTA Result UI
+              <>
+                {/* Generated CTA Component - FIRST */}
+                <div className="p-6 border-2 border-dashed border-muted-foreground/30 rounded-lg bg-background">
+                  <div className="mb-4">
+                    <h3 className="font-mono font-semibold text-sm text-muted-foreground">✨ Generated Component</h3>
+                  </div>
+                  {/* Render the component inline here */}
+                  <div dangerouslySetInnerHTML={{ __html: result.template?.html || '' }} />
+                </div>
+
+                {/* Captured Page Screenshot */}
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                  <h3 className="font-mono font-semibold text-sm">📸 Captured Page</h3>
+                  <div className="flex justify-center">
+                    <img
+                      src={`/api/artifact/${result.runId}/raw/page.png`}
+                      alt="Captured webpage screenshot"
+                      className="max-w-sm max-h-64 object-contain border rounded shadow-sm bg-white cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => setShowImageModal(true)}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <div className="text-xs text-muted-foreground text-center">
+                    Source: <span className="font-mono">{result.url}</span> • Click to zoom
+                  </div>
+                </div>
+
+                <div className="space-y-6 p-6 border rounded-lg bg-muted/50">
+                  <h3 className="font-mono font-semibold text-lg">Design Analysis & Extracted Tokens</h3>
+
+                  {/* Brand Personality Analysis */}
+                  {result.tokens?.brandPersonality && (
+                    <div className="space-y-3 p-4 bg-background rounded border">
+                      <h4 className="font-mono font-medium text-sm flex items-center gap-2">
+                        🎨 Brand Personality
+                        <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
+                          {Math.round(result.tokens.brandPersonality.confidence * 100)}% confidence
+                        </span>
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Tone:</span> <span className="font-medium capitalize">{result.tokens.brandPersonality.tone}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Energy:</span> <span className="font-medium capitalize">{result.tokens.brandPersonality.energy}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Trust Level:</span> <span className="font-medium capitalize">{result.tokens.brandPersonality.trustLevel}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Color Mood:</span> <span className="font-medium capitalize">{result.tokens.brandPersonality.colorPsychology.dominantMood}</span>
+                        </div>
+                      </div>
+                      <div className="pt-2">
+                        <span className="text-muted-foreground text-xs">Brand Adjectives:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {result.tokens.brandPersonality.colorPsychology.brandAdjectives.map((adj: string, i: number) => (
+                            <span key={i} className="text-xs px-2 py-1 bg-secondary/50 text-secondary-foreground rounded capitalize">
+                              {adj}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Design System Analysis */}
+                  {result.tokens?.designSystemAnalysis && (
+                    <div className="space-y-3 p-4 bg-background rounded border">
+                      <h4 className="font-mono font-medium text-sm">📐 Design System Maturity</h4>
+                      <div className="grid grid-cols-2 gap-4 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Maturity:</span> <span className="font-medium capitalize">{result.tokens.designSystemAnalysis.maturityLevel}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Complexity:</span> <span className="font-medium capitalize">{result.tokens.designSystemAnalysis.patternComplexity}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Systematic:</span> <span className="font-medium">{result.tokens.designSystemAnalysis.systematicApproach ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Overall Consistency:</span> <span className="font-medium">{Math.round(result.tokens.designSystemAnalysis.consistency.overall * 100)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enhanced Color Palette */}
+                  <div className="space-y-3">
+                    <h4 className="font-mono font-medium text-sm">🎨 Color Palette</h4>
+
+                    {/* Semantic Colors */}
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-medium text-muted-foreground">Semantic Colors</h5>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {Object.entries(result.template.safeColors).map(([key, color]) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <div
+                              className="w-4 h-4 rounded border shadow-sm"
+                              style={{ backgroundColor: color as string }}
+                            />
+                            <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                            <span className="font-mono">{color as string}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Primary & Neutral Palettes */}
+                    {result.tokens.colors && (
+                      <>
+                        <div className="space-y-2">
+                          <h5 className="text-xs font-medium text-muted-foreground">Primary Palette</h5>
+                          <div className="flex gap-1">
+                            {result.tokens.colors.primary.map((color: string, i: number) => (
+                              <div key={i} className="flex flex-col items-center gap-1">
+                                <div
+                                  className="w-8 h-8 rounded border shadow-sm"
+                                  style={{ backgroundColor: color }}
+                                />
+                                <span className="text-xs font-mono">{color}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <h5 className="text-xs font-medium text-muted-foreground">Neutral Palette</h5>
+                          <div className="flex gap-1">
+                            {result.tokens.colors.neutral.map((color: string, i: number) => (
+                              <div key={i} className="flex flex-col items-center gap-1">
+                                <div
+                                  className="w-8 h-8 rounded border shadow-sm"
+                                  style={{ backgroundColor: color }}
+                                />
+                                <span className="text-xs font-mono">{color}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Button Variants */}
+                  {result.tokens.buttons?.variants?.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="font-mono font-medium text-sm">🔘 Button Variants Detected</h4>
+                      <div className="space-y-3">
+                        {result.tokens.buttons.variants.map((button: any, i: number) => (
+                          <div key={i} className="p-3 bg-background rounded border space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm capitalize">{button.type} Button</span>
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-4 h-4 rounded border"
+                                  style={{ backgroundColor: button.backgroundColor }}
+                                />
+                                <span className="text-xs font-mono">{button.backgroundColor}</span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div><span className="text-muted-foreground">Text Color:</span> {button.color}</div>
+                              <div><span className="text-muted-foreground">Font Size:</span> {button.fontSize}px</div>
+                              <div><span className="text-muted-foreground">Font Weight:</span> {button.fontWeight}</div>
+                              <div><span className="text-muted-foreground">Border Radius:</span> {button.borderRadius}</div>
+                              <div><span className="text-muted-foreground">Padding:</span> {button.padding}</div>
+                              <div><span className="text-muted-foreground">Display:</span> {button.display}</div>
+                              <div><span className="text-muted-foreground">Alignment:</span> {button.alignItems} / {button.justifyContent}</div>
+                              <div><span className="text-muted-foreground">Text Align:</span> {button.textAlign}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enhanced Typography */}
+                  {result.tokens.typography && (
+                    <div className="space-y-3">
+                      <h4 className="font-mono font-medium text-sm">📝 Typography System</h4>
+                      <div className="grid grid-cols-1 gap-3 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Font Families:</span>
+                          <div className="mt-1 space-y-1">
+                            {result.tokens.typography.fontFamilies?.map((font: string, i: number) => (
+                              <div key={i} className="px-2 py-1 bg-background rounded border font-mono text-xs">
+                                {font}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Font Sizes:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {result.tokens.typography.fontSizes?.map((size: number, i: number) => (
+                              <span key={i} className="px-2 py-1 bg-background rounded border text-xs font-mono">
+                                {size}px
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Font Weights:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {result.tokens.typography.fontWeights?.map((weight: number, i: number) => (
+                              <span key={i} className="px-2 py-1 bg-background rounded border text-xs font-mono">
+                                {weight}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enhanced Spacing System */}
+                  <div className="space-y-3">
+                    <h4 className="font-mono font-medium text-sm">📏 Spacing System</h4>
+                    <div className="space-y-2">
+                      <div className="text-xs">
+                        <span className="text-muted-foreground">Template Spacing:</span>
+                        <div className="grid grid-cols-3 gap-2 mt-1">
+                          <div className="p-2 bg-background rounded border text-center">
+                            <div className="text-muted-foreground">Container</div>
+                            <div className="font-mono">{result.template.appliedStyles.spacing.container}</div>
+                          </div>
+                          <div className="p-2 bg-background rounded border text-center">
+                            <div className="text-muted-foreground">Section</div>
+                            <div className="font-mono">{result.template.appliedStyles.spacing.section}</div>
+                          </div>
+                          <div className="p-2 bg-background rounded border text-center">
+                            <div className="text-muted-foreground">Element</div>
+                            <div className="font-mono">{result.template.appliedStyles.spacing.element}</div>
+                          </div>
+                        </div>
+                      </div>
+                      {result.tokens.spacing && (
+                        <div className="text-xs">
+                          <span className="text-muted-foreground">Detected Scale:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {result.tokens.spacing.map((space: number, i: number) => (
+                              <span key={i} className="px-2 py-1 bg-background rounded border font-mono">
+                                {space}px
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Applied Styling Decisions */}
+                  <div className="space-y-3 p-4 bg-background rounded border">
+                    <h4 className="font-mono font-medium text-sm">⚙️ Applied Styling Decisions</h4>
+                    <div className="text-xs space-y-2">
+                      <div>
+                        <span className="text-muted-foreground">Template Type:</span> <span className="font-medium capitalize">{result.template.templateType}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Button Display:</span> <span className="font-mono">{result.template.appliedStyles.button?.display || 'inline-flex'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Button Alignment:</span> <span className="font-mono">{result.template.appliedStyles.button?.alignItems || 'center'} / {result.template.appliedStyles.button?.justifyContent || 'center'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Text Centering:</span> <span className="font-mono">{result.template.appliedStyles.button?.textAlign || 'center'} + line-height: 1</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Image Modal */}
+        {showImageModal && result && !isPipelineResult(result) && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-background rounded-lg max-w-4xl max-h-[90vh] overflow-auto">
+              <div className="p-4 border-b flex justify-between items-center">
+                <h3 className="font-mono font-semibold">Captured Page</h3>
                 <button
-                  onClick={() => window.open(`/preview/${result.runId}`, '_blank')}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded font-mono text-sm hover:bg-primary/90 transition-colors"
+                  onClick={() => setShowImageModal(false)}
+                  className="text-muted-foreground hover:text-foreground"
                 >
-                  Preview Components
-                </button>
-                <button
-                  onClick={() => window.open(`/api/download/${result.runId}`, '_blank')}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-sm hover:bg-secondary/80 transition-colors"
-                >
-                  Download ZIP
+                  ✕
                 </button>
               </div>
-            )}
+              <div className="p-4">
+                <img
+                  src={`/api/artifact/${result.runId}/raw/page.png`}
+                  alt="Captured webpage screenshot"
+                  className="w-full h-auto border rounded shadow-sm bg-white"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
+                <div className="mt-2 text-sm text-muted-foreground text-center">
+                  Source: <span className="font-mono">{result.url}</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

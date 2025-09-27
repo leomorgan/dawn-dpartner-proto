@@ -101,49 +101,19 @@ TAILWIND_SAFELIST=text-xl,text-2xl,text-3xl,bg-brand-500,bg-brand-600,rounded-r0
 - Uses `waitUntil:'networkidle'` for deferred hydration
 - Captures only visible nodes (bbox.w/h > 0)
 
-### Design Token Extraction
-- Colors weighted by element area coverage
-- Spacing snapped to 8px grid (≤6 steps)
-- Clusters radii/shadows to ≤3 levels
-- WCAG AA contrast validation (≥4.5:1)
+## Specialized Subagents
 
-### Layout System
-- Rule-based (not ML) Flexbox heuristics
-- 12-column desktop grid (1200-1280px)
-- Supports page types: detail/list/profile
-- Pre-baked patterns with parameterized areas
+When working on this codebase, invoke specialized subagents for complex tasks:
 
-### Code Generation
-- EJS/Handlebars templates
-- AST cleanup via ts-morph/Babel
-- ESLint + TypeScript validation
-- Deterministic class names (no string concatenation)
+- **ui-layout-planner**: For UI layout planning, grid systems, and responsive design for component generation
+- **react-tailwind-builder**: For building React components with Tailwind CSS for the AI Design Partner's generated component system
+- **playwright-automation-expert**: For Playwright browser automation, web scraping, and DOM extraction for design capture
+- **nextjs-developer**: For Next.js 14 app router architecture and React components for the AI Design Partner demo
+- **testing-specialist**: For testing strategy focusing on unit tests, integration tests, and end-to-end validation
+- **design-systems-expert**: For design token extraction, color science, and systematic design language creation
+- **ai-llm-engineer**: For LLM integration, prompt engineering, and AI-powered intent parsing for design generation
 
-### Canvas System
-- React + Konva for interactive manipulation
-- Select/drag/resize with 8px snap
-- Custom SVG serializer
-- Canvas-only edits (don't regenerate code)
-
-## Performance Targets & Acceptance Criteria
-
-### Performance
-- P95 capture < 1.2s on fixtures
-- P95 total pipeline < 3s on dev machine
-- Intent parsing < 300ms (mocked), < 1s (live)
-
-### Quality Standards
-- **Capture**: ≥95% visible node coverage
-- **Tokens**: Palette recall ≥75%, spacing ≤6 steps, body text AA pass ≥95%
-- **Scenegraph**: Wrapper reduction ≥40%, IoU ≥0.8 vs reference
-- **Intent**: ≥95% accuracy on canonical prompt set
-- **Layout**: 100% constraint satisfaction on fixtures
-- **Styling**: Token coverage ≥95%, 0 critical AA failures
-- **Codegen**: ESLint/TS clean, visual diff ≤0.5%
-- **Canvas**: Round-trip parity ≥95%, 100% export success
-
-### Debug UI Access
-Navigate through pipeline stages via tabs: **Capture → Tokens → Scenegraph → Intent → Layout → Styled → Code → Canvas → Metrics**
+Use these agents for non-trivial tasks in their respective domains to ensure expert-level implementation.
 
 ## Development Guidelines
 
@@ -153,6 +123,10 @@ Navigate through pipeline stages via tabs: **Capture → Tokens → Scenegraph �
 - **Prefer removal over addition** when refactoring - simplify rather than extend
 - **TypeScript must be lint-clean** - fix all ESLint errors, no workarounds or ignores
 - **No linting suppressions** - address the root cause rather than suppressing warnings
+- **Test changes as you go!** Code should work when completed, without fallbacks or mocks.
+- **NEVER HARDCODE VALUES or use FALLBACKS or MOCKS.**
+- **Use the most simple implementation possible.**
+- **ALWAYS FOLLOW A DRY APPROACH.**
 
 ### MVP Philosophy
 This is an **MVP tech demo** with a core focus on **crafted design output quality**:
@@ -167,7 +141,5 @@ This is an **MVP tech demo** with a core focus on **crafted design output qualit
 - **Simple over scalable** - direct implementations over complex architectures
 - **Demo-ready over production-ready** - optimize for showcasing design generation capabilities
 - **Deterministic behavior** - consistent results for reliable demos
-- **Test changes as you go!** Code should work when completed.
-- **NEVER HARDCODE VALUES or use FALLBACKS or MOCKS.**
 
 **Success Criteria**: Code running is baseline; the true measure is whether generated designs look like they were created by a skilled designer who understood the source brand.
