@@ -99,21 +99,15 @@ function analyzeBrandPersonality(tokens: DesignTokens): BrandPersonality {
 
 function getBrandColors(tokens: DesignTokens) {
   return {
-    primary: tokens.colors.primary[0] || '#000000',
-    accent: tokens.colors.semantic?.accent ||
-           tokens.colors.contextual?.buttons?.[0] ||
-           tokens.colors.neutral.find(c => c.includes('#ff') || c.includes('#0') || c.includes('#3')) ||
-           tokens.colors.primary[2] || '#ff385c',
-    cta: tokens.colors.semantic?.cta ||
-         tokens.colors.contextual?.buttons?.[0] ||
-         tokens.colors.primary[1] || '#ff385c',
-    text: tokens.colors.semantic.text || tokens.colors.primary[0] || '#000000',
-    background: tokens.colors.semantic.background || '#ffffff',
-    muted: tokens.colors.semantic?.muted || tokens.colors.neutral[0] || '#666666',
-    link: tokens.colors.contextual?.links?.[0] || tokens.colors.primary[1] || '#0066cc',
-    neutral: tokens.colors.neutral[0] || '#666666',
-    light: tokens.colors.contextual?.backgrounds?.find(c => c === '#ffffff' || c === '#f7f7f7') ||
-           tokens.colors.primary.find(c => c === '#ffffff' || c === '#f7f7f7') || '#f7f7f7',
+    primary: tokens.colors.primary[0],
+    accent: tokens.colors.semantic?.accent || tokens.colors.primary[2],
+    cta: tokens.colors.semantic?.cta || tokens.colors.primary[1],
+    text: tokens.colors.semantic.text,
+    background: tokens.colors.semantic.background,
+    muted: tokens.colors.semantic?.muted || tokens.colors.neutral[0],
+    link: tokens.colors.contextual?.links?.[0] || tokens.colors.primary[1],
+    neutral: tokens.colors.neutral[0],
+    light: tokens.colors.contextual?.backgrounds?.[0] || tokens.colors.semantic.background,
     // Button variants
     buttonPrimary: tokens.colors.contextual?.buttons?.[0] || tokens.colors.semantic?.cta || tokens.colors.primary[0],
     buttonSecondary: tokens.colors.contextual?.buttons?.[1] || tokens.colors.neutral[0] || tokens.colors.semantic.background,

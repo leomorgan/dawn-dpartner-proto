@@ -288,33 +288,163 @@ export default function Home() {
                   {/* Button Variants */}
                   {result.tokens.buttons?.variants?.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="font-mono font-medium text-sm">🔘 Button Variants Detected</h4>
-                      <div className="space-y-3">
-                        {result.tokens.buttons.variants.map((button: any, i: number) => (
-                          <div key={i} className="p-3 bg-background rounded border space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium text-sm capitalize">{button.type} Button</span>
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-4 h-4 rounded border"
-                                  style={{ backgroundColor: button.backgroundColor }}
-                                />
-                                <span className="text-xs font-mono">{button.backgroundColor}</span>
+                      <h4 className="font-mono font-medium text-sm">🔘 Button Variants (Ordered by Count)</h4>
+
+                      {/* Solid/Non-Ghost Buttons */}
+                      {result.tokens.buttons.variants.filter((button: any) => button.type !== 'ghost').length > 0 && (
+                        <div className="space-y-4">
+                          {result.tokens.buttons.variants.filter((button: any) => button.type !== 'ghost').map((button: any, i: number) => {
+                            // Check if this is the selected button for generation
+                            const isSelected = i === 0; // First non-ghost button is selected
+
+                            return (
+                              <div key={i} className="p-4 bg-background rounded border space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs px-1 py-1 bg-accent/20 text-accent rounded font-mono">
+                                      #{i + 1}
+                                    </span>
+                                    <span className="font-medium text-sm capitalize">{button.type} Button</span>
+                                    <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
+                                      {button.count} detected
+                                    </span>
+                                    {isSelected && (
+                                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded font-medium">
+                                        ⭐ Used in Generation
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-4 h-4 rounded border"
+                                      style={{
+                                        backgroundColor: button.backgroundColor,
+                                      }}
+                                    />
+                                    <span className="text-xs font-mono">{button.backgroundColor}</span>
+                                  </div>
+                                </div>
+
+                                {/* Rendered Button Example */}
+                                <div className="flex justify-center py-3">
+                                  <div className="relative">
+                                    <button
+                                      className="font-mono text-sm"
+                                      style={{
+                                        backgroundColor: button.backgroundColor,
+                                        color: button.color,
+                                        padding: button.padding,
+                                        fontSize: `${button.fontSize}px`,
+                                        fontWeight: button.fontWeight,
+                                        borderRadius: button.borderRadius,
+                                        border: button.borderColor ? `1px solid ${button.borderColor}` : 'none',
+                                        display: button.display,
+                                        alignItems: button.alignItems,
+                                        justifyContent: button.justifyContent,
+                                        textAlign: button.textAlign,
+                                        lineHeight: 1,
+                                        cursor: 'default'
+                                      }}
+                                    >
+                                      {button.type === 'primary' ? 'Primary Action' :
+                                       button.type === 'secondary' ? 'Secondary' :
+                                       button.type === 'outline' ? 'Outline Button' :
+                                       'Ghost Button'}
+                                    </button>
+                                    {isSelected && (
+                                      <span className="absolute -top-2 -right-2 text-green-600 text-lg">*</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div><span className="text-muted-foreground">Text Color:</span> {button.color}</div>
+                                  <div><span className="text-muted-foreground">Font Size:</span> {button.fontSize}px</div>
+                                  <div><span className="text-muted-foreground">Font Weight:</span> {button.fontWeight}</div>
+                                  <div><span className="text-muted-foreground">Border Radius:</span> {button.borderRadius}</div>
+                                  <div><span className="text-muted-foreground">Padding:</span> {button.padding}</div>
+                                  <div><span className="text-muted-foreground">Display:</span> {button.display}</div>
+                                  <div><span className="text-muted-foreground">Alignment:</span> {button.alignItems} / {button.justifyContent}</div>
+                                  <div><span className="text-muted-foreground">Text Align:</span> {button.textAlign}</div>
+                                </div>
                               </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Transparent Buttons Accordion */}
+                      {result.tokens.buttons.variants.filter((button: any) => button.type === 'ghost').length > 0 && (
+                        <details className="group">
+                          <summary className="cursor-pointer list-none">
+                            <div className="flex items-center gap-2 p-3 bg-muted/30 rounded border">
+                              <span className="text-sm font-mono font-medium">
+                                👻 Transparent Buttons ({result.tokens.buttons.variants.filter((button: any) => button.type === 'ghost').length})
+                              </span>
+                              <span className="text-xs text-muted-foreground ml-auto group-open:rotate-180 transition-transform">
+                                ▼
+                              </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div><span className="text-muted-foreground">Text Color:</span> {button.color}</div>
-                              <div><span className="text-muted-foreground">Font Size:</span> {button.fontSize}px</div>
-                              <div><span className="text-muted-foreground">Font Weight:</span> {button.fontWeight}</div>
-                              <div><span className="text-muted-foreground">Border Radius:</span> {button.borderRadius}</div>
-                              <div><span className="text-muted-foreground">Padding:</span> {button.padding}</div>
-                              <div><span className="text-muted-foreground">Display:</span> {button.display}</div>
-                              <div><span className="text-muted-foreground">Alignment:</span> {button.alignItems} / {button.justifyContent}</div>
-                              <div><span className="text-muted-foreground">Text Align:</span> {button.textAlign}</div>
-                            </div>
+                          </summary>
+                          <div className="mt-3 space-y-4">
+                            {result.tokens.buttons.variants.filter((button: any) => button.type === 'ghost').map((button: any, i: number) => (
+                              <div key={i} className="p-4 bg-background rounded border space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
+                                      {button.count} detected
+                                    </span>
+                                    <span className="text-xs px-2 py-1 bg-muted/50 text-muted-foreground rounded">
+                                      Transparent
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-4 h-4 rounded border-2 border-dashed border-muted-foreground/50"
+                                    />
+                                    <span className="text-xs font-mono">transparent</span>
+                                  </div>
+                                </div>
+
+                                {/* Rendered Button Example */}
+                                <div className="flex justify-center py-3">
+                                  <button
+                                    className="font-mono text-sm"
+                                    style={{
+                                      backgroundColor: 'transparent',
+                                      color: button.color,
+                                      padding: button.padding,
+                                      fontSize: `${button.fontSize}px`,
+                                      fontWeight: button.fontWeight,
+                                      borderRadius: button.borderRadius,
+                                      border: `1px solid ${button.color}`,
+                                      display: button.display,
+                                      alignItems: button.alignItems,
+                                      justifyContent: button.justifyContent,
+                                      textAlign: button.textAlign,
+                                      lineHeight: 1,
+                                      cursor: 'default'
+                                    }}
+                                  >
+                                    Ghost Button
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                  <div><span className="text-muted-foreground">Text Color:</span> {button.color}</div>
+                                  <div><span className="text-muted-foreground">Font Size:</span> {button.fontSize}px</div>
+                                  <div><span className="text-muted-foreground">Font Weight:</span> {button.fontWeight}</div>
+                                  <div><span className="text-muted-foreground">Border Radius:</span> {button.borderRadius}</div>
+                                  <div><span className="text-muted-foreground">Padding:</span> {button.padding}</div>
+                                  <div><span className="text-muted-foreground">Display:</span> {button.display}</div>
+                                  <div><span className="text-muted-foreground">Alignment:</span> {button.alignItems} / {button.justifyContent}</div>
+                                  <div><span className="text-muted-foreground">Text Align:</span> {button.textAlign}</div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </details>
+                      )}
                     </div>
                   )}
 

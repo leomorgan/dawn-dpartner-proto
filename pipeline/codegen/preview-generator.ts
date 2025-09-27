@@ -87,29 +87,29 @@ export async function generatePreviewHTML(
         extend: {
           colors: {
             brand: {
-              100: '${designTokens?.colors?.primary?.[0] || '#000000'}',
-              200: '${designTokens?.colors?.primary?.[1] || '#333333'}',
-              300: '${designTokens?.colors?.primary?.[2] || '#666666'}',
-              400: '${designTokens?.colors?.primary?.[3] || '#999999'}',
+              100: '${designTokens?.colors?.primary?.[0]}',
+              200: '${designTokens?.colors?.primary?.[1]}',
+              300: '${designTokens?.colors?.primary?.[2]}',
+              400: '${designTokens?.colors?.primary?.[3]}',
             },
             semantic: {
-              text: '${designTokens?.colors?.semantic?.text || '#000000'}',
-              background: '${designTokens?.colors?.semantic?.background || '#ffffff'}',
-              cta: '${designTokens?.colors?.semantic?.cta || '#0066cc'}',
-              accent: '${designTokens?.colors?.semantic?.accent || '#ff6b6b'}',
-              muted: '${designTokens?.colors?.semantic?.muted || '#666666'}',
+              text: '${designTokens?.colors?.semantic?.text}',
+              background: '${designTokens?.colors?.semantic?.background}',
+              cta: '${designTokens?.colors?.semantic?.cta}',
+              accent: '${designTokens?.colors?.semantic?.accent}',
+              muted: '${designTokens?.colors?.semantic?.muted}',
             },
             ${designTokens?.colors?.contextual?.buttons?.length ? `
             button: {
-              100: '${designTokens.colors.contextual.buttons[0] || '#0066cc'}',
-              200: '${designTokens.colors.contextual.buttons[1] || '#4788ff'}',
-              300: '${designTokens.colors.contextual.buttons[2] || '#82b1ff'}',
+              100: '${designTokens.colors.contextual.buttons[0]}',
+              200: '${designTokens.colors.contextual.buttons[1]}',
+              300: '${designTokens.colors.contextual.buttons[2]}',
             },` : ''}
             ${designTokens?.colors?.contextual?.links?.length ? `
             link: {
-              100: '${designTokens.colors.contextual.links[0] || '#0066cc'}',
-              200: '${designTokens.colors.contextual.links[1] || '#4788ff'}',
-              300: '${designTokens.colors.contextual.links[2] || '#82b1ff'}',
+              100: '${designTokens.colors.contextual.links[0]}',
+              200: '${designTokens.colors.contextual.links[1]}',
+              300: '${designTokens.colors.contextual.links[2]}',
             },` : ''}
           },
           spacing: {
@@ -178,11 +178,11 @@ function generateCSSVariables(tokens: any): string {
 
   // Enhanced semantic colors
   if (tokens?.colors?.semantic) {
-    vars.push(`--color-text: ${tokens.colors.semantic.text || '#000000'};`);
-    vars.push(`--color-background: ${tokens.colors.semantic.background || '#ffffff'};`);
-    vars.push(`--color-cta: ${tokens.colors.semantic.cta || '#0066cc'};`);
-    vars.push(`--color-accent: ${tokens.colors.semantic.accent || '#ff6b6b'};`);
-    vars.push(`--color-muted: ${tokens.colors.semantic.muted || '#666666'};`);
+    vars.push(`--color-text: ${tokens.colors.semantic.text};`);
+    vars.push(`--color-background: ${tokens.colors.semantic.background};`);
+    vars.push(`--color-cta: ${tokens.colors.semantic.cta};`);
+    vars.push(`--color-accent: ${tokens.colors.semantic.accent};`);
+    vars.push(`--color-muted: ${tokens.colors.semantic.muted};`);
   }
 
   // Contextual colors

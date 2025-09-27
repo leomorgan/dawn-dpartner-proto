@@ -73,6 +73,13 @@ export interface DesignTokens {
       alignItems: string;
       justifyContent: string;
       textAlign: string;
+      count: number;
+      prominence: {
+        score: number;
+        avgSize: number;
+        avgPosition: number;
+        totalVisibility: number;
+      };
     }>;
   };
   interactions: {         // Interactive element styles
@@ -242,8 +249,8 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
   const radiusValues = new Map<string, number>();
   const shadowValues = new Map<string, number>();
 
-  // Button analysis
-  const buttonVariants: Array<{
+  // Button analysis - collect all detected buttons with prominence data
+  const allButtonVariants: Array<{
     type: 'primary' | 'secondary' | 'outline' | 'ghost';
     backgroundColor: string;
     color: string;
@@ -256,6 +263,8 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     alignItems: string;
     justifyContent: string;
     textAlign: string;
+    area: number;
+    yPosition: number;
   }> = [];
 
   // Interaction states
@@ -287,7 +296,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     const classes = node.className?.toLowerCase() || '';
     const role = node.role || '';
 
-    // Detect buttons and CTAs
+    // Detect buttons and CTAs with stricter criteria
     const isButton = tagName === 'button' ||
                     role === 'button' ||
                     classes.includes('btn') ||
@@ -297,13 +306,16 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     const isLink = tagName === 'a' || classes.includes('link');
 
     if (isButton && bgColor) {
-      const hex = formatHex(bgColor);
-      buttonColors.set(hex, (buttonColors.get(hex) || 0) + 1);
+      // Only collect colors from non-transparent buttons for semantic color extraction
+      if (bgColor.alpha === undefined || bgColor.alpha >= 0.1) {
+        const hex = formatHex(bgColor);
+        buttonColors.set(hex, (buttonColors.get(hex) || 0) + 1);
+      }
 
-      // Analyze button variant
-      const variant = analyzeButtonVariant(node);
+      // Analyze button variant (this handles transparency separately)
+      const variant = analyzeButtonVariant(node, area);
       if (variant) {
-        buttonVariants.push(variant);
+        allButtonVariants.push(variant);
       }
     }
 
@@ -351,15 +363,25 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       shadowValues.set(node.styles.boxShadow, (shadowValues.get(node.styles.boxShadow) || 0) + 1);
     }
 
-    // Add default focus outline colors (since we don't capture them currently)
-    const defaultFocusColors = ['#0066cc', '#005ce6'];
-    defaultFocusColors.forEach(color => {
-      focusOutlines.set(color, (focusOutlines.get(color) || 0) + 1);
-    });
   }
 
   // Helper function to analyze button variants
-  function analyzeButtonVariant(node: ComputedStyleNode) {
+  function analyzeButtonVariant(node: ComputedStyleNode, area: number): {
+    type: 'primary' | 'secondary' | 'outline' | 'ghost';
+    backgroundColor: string;
+    color: string;
+    borderColor?: string;
+    borderRadius: string;
+    padding: string;
+    fontSize: number;
+    fontWeight: number;
+    display: string;
+    alignItems: string;
+    justifyContent: string;
+    textAlign: string;
+    area: number;
+    yPosition: number;
+  } | null {
     const bgColor = parse(node.styles.backgroundColor);
     const textColor = parse(node.styles.color);
 
@@ -368,14 +390,43 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     const bgHex = formatHex(bgColor);
     const textHex = formatHex(textColor);
 
-    // Determine button type based on styling
-    let type: 'primary' | 'secondary' | 'outline' | 'ghost' = 'primary';
-
-    if (bgColor.alpha === 0 || bgHex === '#00000000' || bgHex === '#ffffff') {
-      type = 'secondary';
-    } else if (bgHex.toLowerCase().includes('f')) {
-      type = 'secondary';
+    // Skip buttons with invalid colors
+    if (!bgHex || !textHex) {
+      return null;
     }
+
+    // Handle transparent backgrounds properly
+    if (bgColor.alpha !== undefined && bgColor.alpha < 0.1) {
+      // For transparent buttons, use a special identifier
+      const finalBgHex = '#transparent';
+      return {
+        type: 'ghost', // Transparent buttons are usually ghost/outline style
+        backgroundColor: finalBgHex,
+        color: textHex,
+        borderColor: undefined,
+        borderRadius: node.styles.borderRadius || '4px',
+        padding: node.styles.padding || '8px 16px',
+        fontSize: parseFloat(node.styles.fontSize) || 16,
+        fontWeight: parseInt(node.styles.fontWeight) || 400,
+        display: node.styles.display || 'inline-block',
+        alignItems: node.styles.alignItems || 'center',
+        justifyContent: node.styles.justifyContent || 'center',
+        textAlign: node.styles.textAlign || 'center',
+        area,
+        yPosition: node.bbox.y
+      };
+    }
+
+    // Determine button type based on styling
+    // Check if button is transparent or very light
+    const transparentCheck = bgColor.alpha === 0;
+    const isVeryLight = 'l' in bgColor && bgColor.l > 0.9;
+
+    const type: 'primary' | 'secondary' | 'outline' | 'ghost' = 
+      transparentCheck ? 'ghost' :
+      isVeryLight ? 'secondary' :
+      bgHex.toLowerCase().includes('f') ? 'secondary' :
+      'primary';
 
     const fontSize = parseFloat(node.styles.fontSize) || 16;
     const fontWeight = parseInt(node.styles.fontWeight) || 400;
@@ -392,7 +443,9 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       display: node.styles.display || 'inline-block',
       alignItems: node.styles.alignItems || 'center',
       justifyContent: node.styles.justifyContent || 'center',
-      textAlign: node.styles.textAlign || 'center'
+      textAlign: node.styles.textAlign || 'center',
+      area,
+      yPosition: node.bbox.y
     };
   }
 
@@ -406,12 +459,13 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
   const primaryColors = topColors.slice(0, 4);
   const neutralColors = topColors.slice(4);
 
-  // Find most common text and background colors
+  // Helper function to generate smart fallback colors
+  // Find most common text and background colors from captured data
   const mostCommonText = Array.from(textColors.entries())
-    .sort(([, countA], [, countB]) => countB - countA)[0]?.[0] || '#000000';
+    .sort(([, countA], [, countB]) => countB - countA)[0]?.[0];
 
   const mostCommonBg = Array.from(bgColors.entries())
-    .sort(([, countA], [, countB]) => countB - countA)[0]?.[0] || '#ffffff';
+    .sort(([, countA], [, countB]) => countB - countA)[0]?.[0];
 
   // Extract typography tokens
   const topFontFamilies = Array.from(fontFamilies.entries())
@@ -464,10 +518,13 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     .slice(0, 3)
     .map(([color]) => color);
 
-  // Identify semantic colors
-  const ctaColor = topButtonColors[0] || primaryColors[0] || '#ff385c';
-  const accentColor = primaryColors.find(c => c !== mostCommonText && c !== mostCommonBg) || primaryColors[1] || '#635bff';
-  const mutedColor = neutralColors[0] || '#6a6a6a';
+  // Use captured colors directly without fallbacks
+
+  // Identify semantic colors - no hardcoded values
+  const validCtaColors = topButtonColors.filter(color => color && color !== mostCommonText && color !== mostCommonBg && color !== 'rgba(0, 0, 0, 0)');
+  const ctaColor = validCtaColors[0] || primaryColors[0];
+  const accentColor = primaryColors.find(c => c !== mostCommonText && c !== mostCommonBg) || primaryColors[1];
+  const mutedColor = neutralColors[0];
 
   // Extract focus styles
   const topFocusOutlines = Array.from(focusOutlines.entries())
@@ -493,6 +550,65 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     .sort(([, countA], [, countB]) => countB - countA)
     .slice(0, 3)
     .map(([shadow]) => shadow);
+
+  // Deduplicate button variants and add counts with prominence scoring
+  const buttonVariantMap = new Map<string, any>();
+
+  for (const variant of allButtonVariants) {
+    // Create a unique key based on all styling properties
+    const key = `${variant.type}-${variant.backgroundColor}-${variant.color}-${variant.borderRadius}-${variant.padding}-${variant.fontSize}-${variant.fontWeight}-${variant.display}-${variant.alignItems}-${variant.justifyContent}-${variant.textAlign}`;
+
+    if (buttonVariantMap.has(key)) {
+      // Update existing variant with new data
+      const existing = buttonVariantMap.get(key);
+      existing.count++;
+      existing.areas.push(variant.area);
+      existing.yPositions.push(variant.yPosition);
+    } else {
+      // Add new variant with initial data
+      buttonVariantMap.set(key, {
+        ...variant,
+        count: 1,
+        areas: [variant.area],
+        yPositions: [variant.yPosition]
+      });
+    }
+  }
+
+  // Calculate prominence scores and clean up temporary data
+  const buttonVariants = Array.from(buttonVariantMap.values()).map(variant => {
+    const avgSize = variant.areas.reduce((a: number, b: number) => a + b, 0) / variant.areas.length;
+    const avgPosition = variant.yPositions.reduce((a: number, b: number) => a + b, 0) / variant.yPositions.length;
+    const totalVisibility = variant.areas.reduce((a: number, b: number) => a + b, 0);
+
+    // Calculate prominence score (higher = more prominent)
+    // Factors: larger size, higher on page (lower Y), more instances, total visibility
+    const sizeScore = Math.min(avgSize / 1000, 10); // Normalize size (max 10 points)
+    const positionScore = Math.max(0, 10 - (avgPosition / 1000)); // Higher on page = higher score
+    const countScore = Math.min(variant.count * 2, 10); // More instances = higher score (max 10)
+    const visibilityScore = Math.min(totalVisibility / 5000, 10); // Total area visibility
+
+    const prominenceScore = sizeScore + positionScore + countScore + visibilityScore;
+
+    // Clean up temporary arrays and add prominence data
+    const { areas, yPositions, ...cleanVariant } = variant;
+    return {
+      ...cleanVariant,
+      prominence: {
+        score: Math.round(prominenceScore * 10) / 10, // Round to 1 decimal
+        avgSize: Math.round(avgSize),
+        avgPosition: Math.round(avgPosition),
+        totalVisibility: Math.round(totalVisibility)
+      }
+    };
+  }).sort((a, b) => {
+    // Ghost buttons go to the end regardless of count
+    if (a.type === 'ghost' && b.type !== 'ghost') return 1;
+    if (b.type === 'ghost' && a.type !== 'ghost') return -1;
+
+    // For non-ghost buttons, sort by count (highest first)
+    return b.count - a.count;
+  });
 
   return {
     colors: {
@@ -1011,7 +1127,7 @@ function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): 
 }
 
 function findBetterColor(foreground: any, background: any, palette: string[]): string {
-  let bestColor = formatHex(foreground) || '#000000';
+  let bestColor = formatHex(foreground) || palette[0];
   let bestContrast = calculateContrast(foreground, background);
 
   for (const colorHex of palette) {

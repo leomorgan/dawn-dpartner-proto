@@ -43,6 +43,7 @@ export interface StyleMapping {
     alignItems: string;
     justifyContent: string;
     textAlign: string;
+    lineHeight: string;
   };
 }
 
@@ -54,6 +55,8 @@ export interface SafeColors {
   accent: string;
   ctaPrimary: string;
   ctaSecondary: string;
+  ctaPrimaryText: string;
+  ctaSecondaryText: string;
   muted: string;
 }
 
@@ -103,23 +106,73 @@ export function selectTemplate(): TemplateVariant {
   return cardTemplate;
 }
 
+function findButtonTextColor(backgroundColor: string, tokens: DesignTokens): string {
+  // Find the best text color by looking at existing button combinations
+  for (const variant of tokens.buttons.variants) {
+    if (variant.backgroundColor === backgroundColor) {
+      return variant.color;
+    }
+  }
+
+  // If no exact match, find a button with similar background
+  const bgBrightness = getBrightness(backgroundColor);
+  for (const variant of tokens.buttons.variants) {
+    const variantBrightness = getBrightness(variant.backgroundColor);
+    if (Math.abs(bgBrightness - variantBrightness) < 0.3) {
+      return variant.color;
+    }
+  }
+
+  // Fallback to contrast-compliant color
+  const textColor = ensureContrastCompliance(tokens.colors.semantic.text, backgroundColor, tokens);
+  return textColor !== tokens.colors.semantic.text ? textColor : '#000000';
+}
+
+function getBrightness(color: string): number {
+  // Convert hex to RGB and calculate relative luminance
+  try {
+    const rgb = parseInt(color.slice(1), 16);
+    const r = ((rgb >> 16) & 0xff) / 255;
+    const g = ((rgb >> 8) & 0xff) / 255;
+    const b = ((rgb >> 0) & 0xff) / 255;
+
+    // Calculate relative luminance
+    const sRGB = [r, g, b].map(c => {
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+
+    return 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
+  } catch {
+    return 0.5; // Fallback
+  }
+}
+
 export function validateAndSelectColors(tokens: DesignTokens): SafeColors {
+  // 1. Use the most common button style for primary
+  const mostCommonButton = tokens.buttons.variants.find(b => b.type !== 'ghost') || tokens.buttons.variants[0];
+
+  // 2. Find secondary background color (use semantic secondary or neutral)
+  const secondaryBg = tokens.colors.contextual?.buttons?.[1] || tokens.colors.neutral[0];
+
+  // 3. Find appropriate text colors for both buttons
+  const primaryTextColor = mostCommonButton?.color || findButtonTextColor(mostCommonButton?.backgroundColor || tokens.colors.semantic.cta, tokens);
+  const secondaryTextColor = findButtonTextColor(secondaryBg, tokens);
+
   const safeColors: SafeColors = {
-    primary: tokens.colors.primary[0] || '#000000',
-    secondary: tokens.colors.neutral[0] || '#666666',
-    background: tokens.colors.semantic.background || '#ffffff',
-    text: tokens.colors.semantic.text || '#000000',
-    accent: tokens.colors.semantic.accent || tokens.colors.primary[1] || '#0066cc',
-    ctaPrimary: tokens.colors.semantic.cta || tokens.colors.primary[0] || '#ff385c',
-    ctaSecondary: tokens.colors.contextual?.buttons?.[1] || tokens.colors.neutral[0] || '#f7f7f7',
-    muted: tokens.colors.semantic.muted || tokens.colors.neutral[0] || '#666666'
+    primary: tokens.colors.primary[0],
+    secondary: secondaryBg,
+    background: tokens.colors.semantic.background,
+    text: tokens.colors.semantic.text,
+    accent: tokens.colors.semantic.accent,
+    ctaPrimary: mostCommonButton?.backgroundColor || tokens.colors.semantic.cta,
+    ctaSecondary: secondaryBg,
+    ctaPrimaryText: primaryTextColor,
+    ctaSecondaryText: secondaryTextColor,
+    muted: tokens.colors.semantic.muted
   };
 
   // Validate contrast for each color pair
   safeColors.text = ensureContrastCompliance(safeColors.text, safeColors.background, tokens);
-  safeColors.ctaPrimary = ensureContrastCompliance('#ffffff', safeColors.ctaPrimary, tokens) === '#ffffff'
-    ? safeColors.ctaPrimary
-    : safeColors.ctaPrimary;
 
   return safeColors;
 }
@@ -172,6 +225,51 @@ function calculateContrast(color1: string, color2: string): number {
   }
 }
 
+function normalizePadding(padding: string): string {
+  // Convert asymmetric padding to symmetric for better centering
+  const parts = padding.trim().split(/\s+/);
+
+  if (parts.length === 1) {
+    // Single value: already symmetric
+    return padding;
+  } else if (parts.length === 2) {
+    // Two values: vertical horizontal - already symmetric
+    return padding;
+  } else if (parts.length === 4) {
+    // Four values: top right bottom left - make symmetric
+    const [top, right, bottom, left] = parts;
+    const verticalPadding = Math.max(parseInt(top), parseInt(bottom));
+    const horizontalPadding = Math.max(parseInt(right), parseInt(left));
+    return `${verticalPadding}px ${horizontalPadding}px`;
+  }
+
+  return padding;
+}
+
+function normalizeDisplay(display: string): string {
+  // Ensure display supports flexbox alignment
+  if (display === 'block' || display === 'inline-block') {
+    return 'inline-flex';
+  }
+  return display.includes('flex') ? display : 'inline-flex';
+}
+
+function normalizeAlignment(alignment: string): string {
+  // Ensure proper centering values
+  if (alignment === 'start' || alignment === 'left') {
+    return 'center';
+  }
+  return alignment;
+}
+
+function normalizeLineHeight(lineHeight: string | number | undefined): string {
+  // Ensure readable line-height for buttons (not too tight)
+  if (!lineHeight || lineHeight === '1' || lineHeight === 1) {
+    return '1.2';
+  }
+  return lineHeight.toString();
+}
+
 export function applyTemplateStyles(
   template: TemplateVariant,
   safeColors: SafeColors,
@@ -184,16 +282,17 @@ export function applyTemplateStyles(
   };
 
   // Extract button-specific styles from detected button variants
-  const primaryButton = tokens.buttons.variants.find(b => b.type === 'primary') || tokens.buttons.variants[0];
+  // Use the most frequently detected non-ghost button (since they're sorted by count, ghost buttons last)
+  const primaryButton = tokens.buttons.variants.find(b => b.type !== 'ghost') || tokens.buttons.variants[0];
   const buttonBorderRadius = primaryButton?.borderRadius || tokens.borderRadius[0] || '4px';
-  const buttonPadding = primaryButton?.padding || '8px 16px';
+  const buttonPadding = normalizePadding(primaryButton?.padding || '8px 16px');
   const buttonFontSize = primaryButton?.fontSize ? `${primaryButton.fontSize}px` : '16px';
   const buttonFontWeight = primaryButton?.fontWeight?.toString() || '500';
   const buttonBorder = primaryButton?.borderColor ? `1px solid ${primaryButton.borderColor}` : 'none';
-  const buttonDisplay = primaryButton?.display || 'inline-flex';
-  const buttonAlignItems = primaryButton?.alignItems || 'center';
-  const buttonJustifyContent = primaryButton?.justifyContent || 'center';
-  const buttonTextAlign = primaryButton?.textAlign || 'center';
+  const buttonDisplay = normalizeDisplay(primaryButton?.display || 'inline-flex');
+  const buttonAlignItems = normalizeAlignment(primaryButton?.alignItems || 'center');
+  const buttonJustifyContent = normalizeAlignment(primaryButton?.justifyContent || 'center');
+  const buttonTextAlign = normalizeAlignment(primaryButton?.textAlign || 'center');
 
   return {
     primary: safeColors.ctaPrimary,
@@ -215,12 +314,13 @@ export function applyTemplateStyles(
       display: buttonDisplay,
       alignItems: buttonAlignItems,
       justifyContent: buttonJustifyContent,
-      textAlign: buttonTextAlign
+      textAlign: buttonTextAlign,
+      lineHeight: normalizeLineHeight(undefined)
     }
   };
 }
 
-export function generateTemplateHTML(styles: StyleMapping): string {
+export function generateTemplateHTML(styles: StyleMapping, safeColors: SafeColors): string {
   return `
     <div
       style="
@@ -252,7 +352,7 @@ export function generateTemplateHTML(styles: StyleMapping): string {
       ">
         <button style="
           background-color: ${styles.secondary};
-          color: ${styles.text};
+          color: ${safeColors.ctaSecondaryText};
           padding: ${styles.button?.padding || '8px 16px'};
           font-size: ${styles.button?.fontSize || '16px'};
           font-weight: ${styles.button?.fontWeight || '500'};
@@ -264,13 +364,13 @@ export function generateTemplateHTML(styles: StyleMapping): string {
           align-items: ${styles.button?.alignItems || 'center'};
           justify-content: ${styles.button?.justifyContent || 'center'};
           text-align: ${styles.button?.textAlign || 'center'};
-          line-height: 1;
+          line-height: ${styles.button?.lineHeight || '1.2'};
         ">
           Cancel
         </button>
         <button style="
           background-color: ${styles.primary};
-          color: white;
+          color: ${safeColors.ctaPrimaryText};
           padding: ${styles.button?.padding || '8px 16px'};
           font-size: ${styles.button?.fontSize || '16px'};
           font-weight: ${styles.button?.fontWeight || '500'};
@@ -280,9 +380,11 @@ export function generateTemplateHTML(styles: StyleMapping): string {
           transition: opacity 0.2s;
           display: ${styles.button?.display || 'inline-flex'};
           align-items: ${styles.button?.alignItems || 'center'};
-          justify-content: ${styles.button?.justifyContent || 'center'};
-          text-align: ${styles.button?.textAlign || 'center'};
-          line-height: 1;
+          /* justify-content: ${styles.button?.justifyContent || 'center'}; */
+          justify-content: center;
+          /* text-align: ${styles.button?.textAlign || 'center'}; */
+          text-align: center;
+          line-height: ${styles.button?.lineHeight || '1.2'};
         ">
           Accept
         </button>
@@ -348,7 +450,7 @@ export async function applyTokensToTemplate(
   const appliedStyles = applyTemplateStyles(template, safeColors, tokens);
 
   // Generate HTML for inline rendering
-  const html = generateTemplateHTML(appliedStyles);
+  const html = generateTemplateHTML(appliedStyles, safeColors);
   const componentCode = html; // Same content for now
 
   // Generate CSS variables from tokens
