@@ -28,8 +28,8 @@ interface CTAResult {
   };
 }
 
-// Dynamic component wrapper that evaluates the generated component code
-function DynamicCTAComponent({ componentCode, cssVariables }: { componentCode: string; cssVariables: string }) {
+// Phase 3.2: Fix Preview Rendering with React.createElement() approach
+function DynamicCTAComponent({ cssVariables }: { cssVariables: string }) {
   useEffect(() => {
     // Inject CSS variables into the page
     const style = document.createElement('style');
@@ -41,45 +41,97 @@ function DynamicCTAComponent({ componentCode, cssVariables }: { componentCode: s
     };
   }, [cssVariables]);
 
-  // Extract the JSX from the component code
-  const jsxMatch = componentCode.match(/return \(([\s\S]*?)\s*\);/);
-  if (!jsxMatch) {
-    return <div>Error: Could not parse component code</div>;
-  }
+  // Phase 3.2: Create clean component with React.createElement instead of JSX-to-HTML conversion
+  return (
+    <div
+      style={{
+        backgroundColor: 'var(--cta-background)',
+        color: 'var(--cta-text)',
+        padding: 'var(--cta-container-padding)',
+        borderRadius: 'var(--cta-button-radius)',
+        fontFamily: 'var(--cta-font-family)'
+      }}
+      className="max-w-sm mx-auto shadow-lg"
+    >
+      <header
+        style={{ marginBottom: 'var(--cta-section-spacing)' }}
+        className="text-center"
+      >
+        <h1
+          style={{ color: 'var(--cta-text)' }}
+          className="text-2xl font-semibold m-0"
+        >
+          Header
+        </h1>
+      </header>
 
-  const jsxCode = jsxMatch[1];
-
-  try {
-    // Create a simple React element from the JSX-like structure
-    return (
-      <div dangerouslySetInnerHTML={{
-        __html: convertJSXToHTML(jsxCode)
-      }} />
-    );
-  } catch (error) {
-    console.error('Error rendering component:', error);
-    return <div>Error rendering component</div>;
-  }
-}
-
-// Simple JSX to HTML converter for our specific use case
-function convertJSXToHTML(jsx: string): string {
-  // Basic conversion - replace React props with HTML attributes
-  let html = jsx
-    .replace(/className=/g, 'class=')
-    .replace(/style=\{([^}]+)\}/g, (match, styleObj) => {
-      // Convert style object to inline styles
-      try {
-        const styleString = styleObj
-          .replace(/(\w+):\s*'([^']+)'/g, '$1: $2')
-          .replace(/,\s*/g, '; ');
-        return `style="${styleString}"`;
-      } catch {
-        return match;
-      }
-    });
-
-  return html;
+      <div
+        style={{ gap: 'var(--cta-element-spacing)' }}
+        className="flex justify-center"
+      >
+        <button
+          style={{
+            backgroundColor: 'var(--cta-secondary-bg)',
+            color: 'var(--cta-secondary-text)',
+            padding: 'var(--cta-button-padding)',
+            borderRadius: 'var(--cta-button-radius)',
+            border: 'var(--cta-button-border)',
+            fontSize: 'var(--cta-button-font-size)',
+            fontWeight: 'var(--cta-button-font-weight)',
+            lineHeight: 'var(--cta-button-line-height)',
+            transition: 'var(--cta-transition)'
+          }}
+          className="cursor-pointer inline-flex items-center justify-center text-center transition-all duration-200 ease-in-out"
+          onMouseOver={(e) => {
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-secondary-hover-bg)';
+            target.style.color = 'var(--cta-secondary-hover-color)';
+            target.style.opacity = 'var(--cta-secondary-hover-opacity)';
+            target.style.transform = 'var(--cta-secondary-hover-transform)';
+          }}
+          onMouseOut={(e) => {
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-secondary-bg)';
+            target.style.color = 'var(--cta-secondary-text)';
+            target.style.opacity = '1';
+            target.style.transform = 'none';
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          style={{
+            backgroundColor: 'var(--cta-primary-bg)',
+            color: 'var(--cta-primary-text)',
+            padding: 'var(--cta-button-padding)',
+            borderRadius: 'var(--cta-button-radius)',
+            border: 'var(--cta-button-border)',
+            fontSize: 'var(--cta-button-font-size)',
+            fontWeight: 'var(--cta-button-font-weight)',
+            lineHeight: 'var(--cta-button-line-height)',
+            transition: 'var(--cta-transition)'
+          }}
+          className="cursor-pointer inline-flex items-center justify-center text-center transition-all duration-200 ease-in-out"
+          onMouseOver={(e) => {
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-primary-hover-bg)';
+            target.style.color = 'var(--cta-primary-hover-color)';
+            target.style.opacity = 'var(--cta-primary-hover-opacity)';
+            target.style.transform = 'var(--cta-primary-hover-transform)';
+          }}
+          onMouseOut={(e) => {
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-primary-bg)';
+            target.style.color = 'var(--cta-primary-text)';
+            target.style.opacity = '1';
+            target.style.transform = 'none';
+          }}
+        >
+          Accept
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function CTAPreview() {
@@ -198,7 +250,6 @@ export default function CTAPreview() {
               </h2>
               <div className="border rounded-lg p-8 bg-gray-50 min-h-[400px] flex items-center justify-center">
                 <DynamicCTAComponent
-                  componentCode={ctaData.template.componentCode}
                   cssVariables={ctaData.template.cssVariables}
                 />
               </div>

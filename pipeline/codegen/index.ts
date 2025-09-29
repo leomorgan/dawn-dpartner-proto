@@ -98,6 +98,13 @@ function analyzeBrandPersonality(tokens: DesignTokens): BrandPersonality {
 }
 
 function getBrandColors(tokens: DesignTokens) {
+  // Extract hover colors from button variants
+  const primaryButton = tokens.buttons?.variants?.find(b => b.type !== 'ghost') || tokens.buttons?.variants?.[0];
+  const primaryHover = primaryButton?.hover?.backgroundColor;
+
+  const secondaryButton = tokens.buttons?.variants?.find(b => b.type !== 'ghost' && b !== primaryButton) || tokens.buttons?.variants?.[1];
+  const secondaryHover = secondaryButton?.hover?.backgroundColor;
+
   return {
     primary: tokens.colors.primary[0],
     accent: tokens.colors.semantic?.accent || tokens.colors.primary[2],
@@ -111,6 +118,9 @@ function getBrandColors(tokens: DesignTokens) {
     // Button variants
     buttonPrimary: tokens.colors.contextual?.buttons?.[0] || tokens.colors.semantic?.cta || tokens.colors.primary[0],
     buttonSecondary: tokens.colors.contextual?.buttons?.[1] || tokens.colors.neutral[0] || tokens.colors.semantic.background,
+    // Button hover effects
+    buttonPrimaryHover: primaryHover,
+    buttonSecondaryHover: secondaryHover,
   };
 }
 
@@ -139,6 +149,7 @@ DESIGN TOKENS TO USE:
 - Background: ${colors.background}
 - Link color: ${colors.link}
 - Button colors: Primary ${colors.buttonPrimary}, Secondary ${colors.buttonSecondary}
+- Button hover colors: Primary hover ${colors.buttonPrimaryHover || 'none detected'}, Secondary hover ${colors.buttonSecondaryHover || 'none detected'}
 - Typography: Font family ${designTokens.typography.fontFamilies[0] || 'system-ui'}, weights ${designTokens.typography.fontWeights?.join(', ') || '400, 600, 700'}
 - Spacing scale: ${designTokens.spacing.join('px, ')}px
 - Border radius: ${designTokens.borderRadius.join(', ') || '8px, 12px, 16px'}
@@ -155,6 +166,7 @@ CRITICAL REQUIREMENTS:
 - Professional component structure with proper accessibility
 - Strategic use of brand colors for visual hierarchy
 - Valid, complete JSX that will compile
+- Use captured hover colors for buttons when available: ${colors.buttonPrimaryHover ? `hover:bg-[${colors.buttonPrimaryHover}] for primary buttons` : 'use default hover effects for primary buttons'}${colors.buttonSecondaryHover ? `, hover:bg-[${colors.buttonSecondaryHover}] for secondary buttons` : ', use default hover effects for secondary buttons'}
 
 Return ONLY the JSX content, no explanation, no markdown, no code blocks.`;
 

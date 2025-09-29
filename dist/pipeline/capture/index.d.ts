@@ -3,8 +3,42 @@ export interface CaptureResult {
     artifacts: {
         html: string;
         styles: ComputedStyleNode[];
+        cssRules: CSSRuleData[];
+        buttonHoverStates: ButtonHoverState[];
         screenshot: string;
         meta: CaptureMetadata;
+    };
+}
+export interface CSSRuleData {
+    selector: string;
+    styles: Record<string, string>;
+}
+export interface ButtonHoverState {
+    selector: string;
+    className: string;
+    normalStyles: {
+        backgroundColor: string;
+        color: string;
+        opacity: string;
+        transform: string;
+        borderColor: string;
+        boxShadow: string;
+        scale: string;
+        filter: string;
+        transition: string;
+        cursor: string;
+    };
+    hoverStyles: {
+        backgroundColor: string;
+        color: string;
+        opacity: string;
+        transform: string;
+        borderColor: string;
+        boxShadow: string;
+        scale: string;
+        filter: string;
+        transition: string;
+        cursor: string;
     };
 }
 export interface ComputedStyleNode {
@@ -21,11 +55,17 @@ export interface ComputedStyleNode {
         backgroundColor: string;
         fontFamily: string;
         fontSize: string;
+        fontWeight: string;
         lineHeight: string;
         borderRadius: string;
+        border: string;
         boxShadow: string;
         margin: string;
         padding: string;
+        display: string;
+        alignItems: string;
+        justifyContent: string;
+        textAlign: string;
     };
     role?: string;
     className?: string;

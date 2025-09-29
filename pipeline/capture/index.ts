@@ -8,8 +8,46 @@ export interface CaptureResult {
   artifacts: {
     html: string;
     styles: ComputedStyleNode[];
+    cssRules: CSSRuleData[];
+    buttonHoverStates: ButtonHoverState[];
     screenshot: string;
     meta: CaptureMetadata;
+  };
+}
+
+export interface CSSRuleData {
+  selector: string;
+  styles: Record<string, string>;
+}
+
+export interface ButtonHoverState {
+  selector: string;
+  className: string;
+  normalStyles: {
+    backgroundColor: string;
+    color: string;
+    opacity: string;
+    transform: string;
+    borderColor: string;
+    boxShadow: string;
+    // Phase 1.3: Enhanced properties for comprehensive hover capture
+    scale: string;
+    filter: string;
+    transition: string;
+    cursor: string;
+  };
+  hoverStyles: {
+    backgroundColor: string;
+    color: string;
+    opacity: string;
+    transform: string;
+    borderColor: string;
+    boxShadow: string;
+    // Phase 1.3: Enhanced properties for comprehensive hover capture
+    scale: string;
+    filter: string;
+    transition: string;
+    cursor: string;
   };
 }
 
@@ -267,6 +305,127 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
     // Extract HTML
     const html = await page.content();
 
+    // Extract all CSS rules for hover detection
+    const cssRules = await page.evaluate(() => {
+      const rules: any[] = [];
+
+      // Extract rules from all stylesheets
+      for (const stylesheet of Array.from(document.styleSheets)) {
+        try {
+          if (stylesheet.cssRules) {
+            for (const rule of Array.from(stylesheet.cssRules)) {
+              if (rule instanceof CSSStyleRule && rule.selectorText?.includes(':hover')) {
+                rules.push({
+                  selector: rule.selectorText,
+                  styles: Array.from(rule.style).reduce((acc: any, prop) => {
+                    acc[prop] = rule.style.getPropertyValue(prop);
+                    return acc;
+                  }, {})
+                });
+              }
+            }
+          }
+        } catch (e) {
+          // Skip cross-origin stylesheets
+          console.warn('Could not access stylesheet:', e);
+        }
+      }
+
+      return rules;
+    });
+
+    // Extract button hover states by using Playwright's hover functionality
+    console.log('🎯 Capturing button hover states...');
+    const buttonHoverStates: Array<{
+      selector: string;
+      className: string;
+      normalStyles: any;
+      hoverStyles: any;
+    }> = [];
+
+    // Get button elements for hover testing (including CTA-style anchor tags)
+    const buttonLocators = await page.locator('button, a[role="button"], input[type="button"], input[type="submit"], a[class*="button" i], a[class*="btn" i], a[class*="cta" i]').all();
+
+    // Time limit for hover capture (30 seconds max)
+    const hoverStartTime = Date.now();
+    const maxHoverTime = 30000; // 30 seconds
+
+    for (let i = 0; i < Math.min(buttonLocators.length, 25); i++) { // Limit to first 25 buttons
+      // Check time limit
+      if (Date.now() - hoverStartTime > maxHoverTime) {
+        console.log(`⏰ Hover capture time limit reached, stopping at button ${i + 1}`);
+        break;
+      }
+      const button = buttonLocators[i];
+
+      try {
+        // Check if button is visible
+        if (!(await button.isVisible())) continue;
+
+        // Phase 1.3: Enhanced hover state capture with more properties
+        const getAdvancedStyles = (el: Element) => {
+          const styles = getComputedStyle(el);
+          return {
+            backgroundColor: styles.backgroundColor,
+            color: styles.color,
+            opacity: styles.opacity,
+            transform: styles.transform,
+            borderColor: styles.borderColor,
+            boxShadow: styles.boxShadow,
+            // Phase 1.3: Add more properties for comprehensive capture
+            scale: styles.scale || 'none',
+            filter: styles.filter,
+            transition: styles.transition,
+            cursor: styles.cursor
+          };
+        };
+
+        // Get normal state
+        const normalStyles = await button.evaluate(getAdvancedStyles);
+
+        const className = await button.getAttribute('class') || '';
+
+        // Phase 1.3: Multi-state capture with proper timing
+        await button.hover({ timeout: 2000 });
+
+        // Phase 1.3: Multiple snapshots during transition for comprehensive capture
+        const snapshots = [];
+        for (const delay of [0, 150, 300]) {
+          await page.waitForTimeout(delay);
+          const snapshot = await button.evaluate(getAdvancedStyles);
+          snapshots.push(snapshot);
+        }
+
+        // Use the final snapshot as the hover state (most complete transition)
+        const hoverStyles = snapshots[snapshots.length - 1];
+
+        // Check if hover state is different
+        let hasChanges = false;
+        for (const prop in hoverStyles) {
+          if (hoverStyles[prop as keyof typeof hoverStyles] !== normalStyles[prop as keyof typeof normalStyles]) {
+            hasChanges = true;
+            break;
+          }
+        }
+
+        if (hasChanges) {
+          buttonHoverStates.push({
+            selector: 'button' + (className ? '.' + className.trim().split(/\s+/).join('.') : ''),
+            className,
+            normalStyles,
+            hoverStyles
+          });
+          console.log(`✅ Found hover effect for button ${i + 1}`);
+        }
+
+        // Move mouse away to reset hover state
+        await page.mouse.move(0, 0);
+
+      } catch (e) {
+        console.warn(`⚠️  Error capturing hover for button ${i + 1}:`, e);
+      }
+    }
+
     // Extract computed styles for visible elements
     const styles = await page.evaluate(() => {
       const nodes: ComputedStyleNode[] = [];
@@ -352,6 +511,8 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
     await Promise.all([
       writeFile(join(rawDir, 'dom.html'), html, 'utf8'),
       writeFile(join(rawDir, 'computed_styles.json'), JSON.stringify(styles, null, 2), 'utf8'),
+      writeFile(join(rawDir, 'css_rules.json'), JSON.stringify(cssRules, null, 2), 'utf8'),
+      writeFile(join(rawDir, 'button_hover_states.json'), JSON.stringify(buttonHoverStates, null, 2), 'utf8'),
       writeFile(join(rawDir, 'meta.json'), JSON.stringify(meta, null, 2), 'utf8'),
     ]);
 
@@ -360,6 +521,8 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
       artifacts: {
         html,
         styles,
+        cssRules,
+        buttonHoverStates,
         screenshot: screenshotPath,
         meta,
       },

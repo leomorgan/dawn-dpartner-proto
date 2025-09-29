@@ -80,6 +80,13 @@ export interface DesignTokens {
         avgPosition: number;
         totalVisibility: number;
       };
+      hover?: {
+        backgroundColor?: string;
+        color?: string;
+        opacity?: number;
+        transform?: string;
+        transition?: string;
+      };
     }>;
   };
   interactions: {         // Interactive element styles
@@ -193,8 +200,28 @@ export async function extractTokens(runId: string, artifactDir?: string): Promis
   const stylesContent = await readFile(stylesPath, 'utf8');
   const nodes: ComputedStyleNode[] = JSON.parse(stylesContent);
 
+  // Read CSS rules
+  const cssRulesPath = join(rawDir, 'css_rules.json');
+  let cssRules: any[] = [];
+  try {
+    const cssRulesContent = await readFile(cssRulesPath, 'utf8');
+    cssRules = JSON.parse(cssRulesContent);
+  } catch (error) {
+    console.warn('No CSS rules found or failed to read CSS rules:', error);
+  }
+
+  // Read button hover states
+  const buttonHoverStatesPath = join(rawDir, 'button_hover_states.json');
+  let buttonHoverStates: any[] = [];
+  try {
+    const buttonHoverStatesContent = await readFile(buttonHoverStatesPath, 'utf8');
+    buttonHoverStates = JSON.parse(buttonHoverStatesContent);
+  } catch (error) {
+    console.warn('No button hover states found or failed to read button hover states:', error);
+  }
+
   // Extract design tokens
-  const tokens = await analyzeStyles(nodes);
+  const tokens = await analyzeStyles(nodes, cssRules, buttonHoverStates);
 
   // Generate style report
   const report = generateStyleReport(nodes, tokens);
@@ -222,7 +249,7 @@ export async function extractTokens(runId: string, artifactDir?: string): Promis
   };
 }
 
-async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> {
+async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], buttonHoverStates: any[] = []): Promise<DesignTokens> {
   // Analyze colors weighted by element area
   const colorAreas = new Map<string, number>();
   const textColors = new Map<string, number>();
@@ -265,6 +292,13 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     textAlign: string;
     area: number;
     yPosition: number;
+    hover?: {
+      backgroundColor?: string;
+      color?: string;
+      opacity?: number;
+      transform?: string;
+      transition?: string;
+    };
   }> = [];
 
   // Interaction states
@@ -296,16 +330,30 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     const classes = node.className?.toLowerCase() || '';
     const role = node.role || '';
 
-    // Detect buttons and CTAs with stricter criteria
+    // Detect buttons and CTAs with stricter criteria - Phase 1.1: Improved Button Detection
     const isButton = tagName === 'button' ||
                     role === 'button' ||
                     classes.includes('btn') ||
                     classes.includes('button') ||
-                    classes.includes('cta');
+                    classes.includes('cta') ||
+                    classes.includes('ctabutton');
+
+    // Phase 1.1: Add area thresholds and content validation for better button detection
+    const hasValidArea = area >= 100 && area <= 10000; // Buttons typically 100px² to 10,000px²
+    const hasValidAspectRatio = (node.bbox.w / node.bbox.h) <= 10 && (node.bbox.h / node.bbox.w) <= 10; // No extreme ratios
+    const hasTextContent = node.textContent && node.textContent.trim().length > 0;
+
+    // Only consider it a button if it meets our validation criteria
+    const isValidButton = isButton && hasValidArea && hasValidAspectRatio && hasTextContent;
+
+    // Debug specific elements we're looking for
+    if (classes.includes('ctabutton') || classes.includes('homepagefrontdoor')) {
+      console.log(`[DEBUG] Found CTA element: tag=${tagName}, classes="${classes}", isButton=${isButton}, isValidButton=${isValidButton}, area=${area}`);
+    }
 
     const isLink = tagName === 'a' || classes.includes('link');
 
-    if (isButton && bgColor) {
+    if (isValidButton && bgColor) {
       // Only collect colors from non-transparent buttons for semantic color extraction
       if (bgColor.alpha === undefined || bgColor.alpha >= 0.1) {
         const hex = formatHex(bgColor);
@@ -366,6 +414,165 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
   }
 
   // Helper function to analyze button variants
+  function findHoverStyles(node: ComputedStyleNode, cssRules: any[], buttonHoverStates: any[]): {
+    backgroundColor?: string;
+    color?: string;
+    opacity?: number;
+    transform?: string;
+    transition?: string;
+  } | undefined {
+    if (!node.className) return undefined;
+
+    // First try to match using captured button hover states
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const hoverState of buttonHoverStates) {
+      // Match by class name similarity
+      if (node.className && hoverState.className) {
+        const nodeClasses = node.className.trim().split(/\s+/);
+        const stateClasses = hoverState.className.trim().split(/\s+/);
+
+        // Check if they share any classes
+        const sharedClasses = nodeClasses.filter(cls => stateClasses.includes(cls));
+
+
+        if (sharedClasses.length > 0) {
+          // Calculate match score (prefer background color changes and more shared classes)
+          let score = sharedClasses.length;
+          const hasBackgroundChange = hoverState.hoverStyles.backgroundColor !== hoverState.normalStyles.backgroundColor;
+
+          if (hasBackgroundChange) {
+            // Bonus points for background color changes (more visually significant)
+            score += 10;
+          }
+
+          // Extra bonus for exact class match (all classes match)
+          if (sharedClasses.length === nodeClasses.length && sharedClasses.length === stateClasses.length) {
+            score += 20;
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestMatch = hoverState;
+          }
+        }
+      }
+    }
+
+    // Use the best match if found
+    if (bestMatch) {
+      const hoverStyle: any = {};
+
+      // Compare normal vs hover styles to extract differences
+      if (bestMatch.hoverStyles.backgroundColor !== bestMatch.normalStyles.backgroundColor) {
+        // Convert RGB to hex
+        try {
+          const bgColor = parse(bestMatch.hoverStyles.backgroundColor);
+          hoverStyle.backgroundColor = bgColor ? formatHex(bgColor) : bestMatch.hoverStyles.backgroundColor;
+        } catch {
+          hoverStyle.backgroundColor = bestMatch.hoverStyles.backgroundColor;
+        }
+      }
+      if (bestMatch.hoverStyles.color !== bestMatch.normalStyles.color) {
+        // Convert RGB to hex
+        try {
+          const textColor = parse(bestMatch.hoverStyles.color);
+          hoverStyle.color = textColor ? formatHex(textColor) : bestMatch.hoverStyles.color;
+        } catch {
+          hoverStyle.color = bestMatch.hoverStyles.color;
+        }
+      }
+      if (bestMatch.hoverStyles.opacity !== bestMatch.normalStyles.opacity) {
+        hoverStyle.opacity = parseFloat(bestMatch.hoverStyles.opacity);
+      }
+      if (bestMatch.hoverStyles.transform !== bestMatch.normalStyles.transform) {
+        hoverStyle.transform = bestMatch.hoverStyles.transform;
+      }
+      if (bestMatch.hoverStyles.boxShadow !== bestMatch.normalStyles.boxShadow) {
+        hoverStyle.boxShadow = bestMatch.hoverStyles.boxShadow;
+      }
+
+      if (Object.keys(hoverStyle).length > 0) {
+        return hoverStyle;
+      }
+    }
+
+    // Fallback to CSS rules matching (original implementation)
+    const classList = node.className.split(/\s+/);
+
+    for (const rule of cssRules) {
+      // Try to match the hover rule to this element
+      let matches = false;
+
+      // Simple class-based matching
+      for (const className of classList) {
+        if (rule.selector.includes(`.${className}:hover`)) {
+          matches = true;
+          break;
+        }
+      }
+
+      // Tag-based matching
+      if (!matches && rule.selector.includes(`${node.tag}:hover`)) {
+        matches = true;
+      }
+
+      if (matches) {
+        const hoverStyle: any = {};
+
+        if (rule.styles['background-color']) {
+          hoverStyle.backgroundColor = rule.styles['background-color'];
+        }
+        if (rule.styles['color']) {
+          hoverStyle.color = rule.styles['color'];
+        }
+        if (rule.styles['opacity']) {
+          hoverStyle.opacity = parseFloat(rule.styles['opacity']);
+        }
+        if (rule.styles['transform']) {
+          hoverStyle.transform = rule.styles['transform'];
+        }
+        if (rule.styles['transition'] || rule.styles['transition-property']) {
+          hoverStyle.transition = rule.styles['transition'] || rule.styles['transition-property'];
+        }
+
+        return Object.keys(hoverStyle).length > 0 ? hoverStyle : undefined;
+      }
+    }
+
+    return undefined;
+  }
+
+  // Phase 1.2: Fix Zero Padding Issue - Add fallback logic for padding calculations
+  function fixZeroPadding(padding: string, node: ComputedStyleNode): string {
+    const parts = padding.trim().split(/\s+/);
+
+    // Check if all padding values are 0
+    const isZeroPadding = parts.every(part => {
+      const value = parseFloat(part);
+      return value === 0 || part === '0px' || part === '0';
+    });
+
+    if (isZeroPadding) {
+      // Calculate padding from button dimensions and text content
+      const buttonWidth = node.bbox.w;
+      const buttonHeight = node.bbox.h;
+
+      // Estimate padding based on button size
+      const verticalPadding = Math.max(12, Math.round(buttonHeight * 0.15));
+      const horizontalPadding = Math.max(24, Math.round(buttonWidth * 0.1));
+
+      // Ensure reasonable bounds
+      const finalVertical = Math.min(verticalPadding, 32);
+      const finalHorizontal = Math.min(horizontalPadding, 48);
+
+      return `${finalVertical}px ${finalHorizontal}px`;
+    }
+
+    return padding;
+  }
+
   function analyzeButtonVariant(node: ComputedStyleNode, area: number): {
     type: 'primary' | 'secondary' | 'outline' | 'ghost';
     backgroundColor: string;
@@ -381,6 +588,13 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     textAlign: string;
     area: number;
     yPosition: number;
+    hover?: {
+      backgroundColor?: string;
+      color?: string;
+      opacity?: number;
+      transform?: string;
+      transition?: string;
+    };
   } | null {
     const bgColor = parse(node.styles.backgroundColor);
     const textColor = parse(node.styles.color);
@@ -395,17 +609,23 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       return null;
     }
 
+    // Phase 1.2: Fix Zero Padding Issue - Add fallback logic for padding calculations
+    const extractedPadding = node.styles.padding || '8px 16px';
+    const validPadding = fixZeroPadding(extractedPadding, node);
+
     // Handle transparent backgrounds properly
     if (bgColor.alpha !== undefined && bgColor.alpha < 0.1) {
       // For transparent buttons, use a special identifier
       const finalBgHex = '#transparent';
+      const hoverStyles = findHoverStyles(node, cssRules, buttonHoverStates);
+
       return {
         type: 'ghost', // Transparent buttons are usually ghost/outline style
         backgroundColor: finalBgHex,
         color: textHex,
         borderColor: undefined,
         borderRadius: node.styles.borderRadius || '4px',
-        padding: node.styles.padding || '8px 16px',
+        padding: validPadding,
         fontSize: parseFloat(node.styles.fontSize) || 16,
         fontWeight: parseInt(node.styles.fontWeight) || 400,
         display: node.styles.display || 'inline-block',
@@ -413,7 +633,8 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
         justifyContent: node.styles.justifyContent || 'center',
         textAlign: node.styles.textAlign || 'center',
         area,
-        yPosition: node.bbox.y
+        yPosition: node.bbox.y,
+        hover: hoverStyles
       };
     }
 
@@ -431,13 +652,16 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
     const fontSize = parseFloat(node.styles.fontSize) || 16;
     const fontWeight = parseInt(node.styles.fontWeight) || 400;
 
+    // Detect hover styles
+    const hoverStyles = findHoverStyles(node, cssRules, buttonHoverStates);
+
     return {
       type,
       backgroundColor: bgHex,
       color: textHex,
       borderColor: undefined, // Not captured in current interface
       borderRadius: node.styles.borderRadius || '4px',
-      padding: node.styles.padding || '8px 16px',
+      padding: validPadding,
       fontSize,
       fontWeight,
       display: node.styles.display || 'inline-block',
@@ -445,7 +669,8 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       justifyContent: node.styles.justifyContent || 'center',
       textAlign: node.styles.textAlign || 'center',
       area,
-      yPosition: node.bbox.y
+      yPosition: node.bbox.y,
+      hover: hoverStyles
     };
   }
 
@@ -564,13 +789,19 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
       existing.count++;
       existing.areas.push(variant.area);
       existing.yPositions.push(variant.yPosition);
+      // Collect hover styles
+      if (variant.hover) {
+        if (!existing.hoverStyles) existing.hoverStyles = [];
+        existing.hoverStyles.push(variant.hover);
+      }
     } else {
       // Add new variant with initial data
       buttonVariantMap.set(key, {
         ...variant,
         count: 1,
         areas: [variant.area],
-        yPositions: [variant.yPosition]
+        yPositions: [variant.yPosition],
+        hoverStyles: variant.hover ? [variant.hover] : []
       });
     }
   }
@@ -590,10 +821,22 @@ async function analyzeStyles(nodes: ComputedStyleNode[]): Promise<DesignTokens> 
 
     const prominenceScore = sizeScore + positionScore + countScore + visibilityScore;
 
+    // Select the best hover style from collected hover styles
+    let finalHoverStyle = undefined;
+    if (variant.hoverStyles && variant.hoverStyles.length > 0) {
+      // If we have multiple hover styles, prefer the one with background color change over opacity change
+      const backgroundHover = variant.hoverStyles.find((h: any) => h.backgroundColor);
+      const opacityHover = variant.hoverStyles.find((h: any) => h.opacity);
+
+      // Prefer background color changes as they're more visually distinct
+      finalHoverStyle = backgroundHover || opacityHover || variant.hoverStyles[0];
+    }
+
     // Clean up temporary arrays and add prominence data
-    const { areas, yPositions, ...cleanVariant } = variant;
+    const { areas, yPositions, hoverStyles, ...cleanVariant } = variant;
     return {
       ...cleanVariant,
+      hover: finalHoverStyle,
       prominence: {
         score: Math.round(prominenceScore * 10) / 10, // Round to 1 decimal
         avgSize: Math.round(avgSize),

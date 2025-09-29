@@ -115,6 +115,26 @@ module.exports = {
     'bg-brand-500', 'bg-brand-600',
     'rounded-r0', 'rounded-r1', 'rounded-r2', 'rounded-r3',
     'shadow-s0', 'shadow-s1', 'shadow-s2',
+    // CTA Template base classes
+    'max-w-sm', 'mx-auto', 'shadow-lg',
+    'text-center', 'text-2xl', 'font-semibold', 'm-0',
+    'flex', 'justify-center',
+    'border', 'border-none',
+    'cursor-pointer', 'inline-flex', 'items-center', 'justify-center', 'text-center',
+    'transition-all', 'duration-200', 'ease-in-out',
+    'hover:opacity-80',
+    // Arbitrary value patterns for captured design tokens
+    { pattern: /bg-\[#[0-9a-fA-F]{6}\]/ },      // hex colors like bg-[#635bff]
+    { pattern: /text-\[#[0-9a-fA-F]{6}\]/ },    // hex text colors like text-[#ffffff]
+    { pattern: /border-\[#[0-9a-fA-F]{6}\]/ },  // hex border colors
+    { pattern: /hover:bg-\[#[0-9a-fA-F]{6}\]/ }, // hex hover colors
+    { pattern: /rounded-\[[0-9.]+px\]/ },       // border radius like rounded-[16.5px]
+    { pattern: /p-\[[0-9.]+px\]/ },             // padding like p-[24px]
+    { pattern: /mb-\[[0-9.]+px\]/ },            // margin bottom like mb-[16px]
+    { pattern: /gap-\[[0-9.]+px\]/ },           // gap like gap-[8px]
+    { pattern: /text-\[[0-9.]+px\]/ },          // font size like text-[15px]
+    { pattern: /font-\[[0-9]+\]/ },             // font weight like font-[425]
+    { pattern: /font-\[[\w-]+\]/ },             // font family like font-[sohne-var]
   ],
   plugins: [require("tailwindcss-animate")],
 };

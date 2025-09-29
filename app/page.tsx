@@ -14,6 +14,21 @@ interface CTAResult {
     cssVariables: string;
     templateType: string;
     safeColors: any;
+    buttonVariant?: {
+      type: 'primary' | 'secondary' | 'outline' | 'ghost';
+      backgroundColor: string;
+      color: string;
+      padding: string;
+      fontSize: number;
+      fontWeight: number;
+      hover?: {
+        backgroundColor?: string;
+        color?: string;
+        opacity?: number;
+        transform?: string;
+        transition?: string;
+      };
+    };
   };
   tokens: any;
   selectedTemplate: string;
@@ -35,6 +50,34 @@ function isPipelineResult(result: GenerationResult): result is PipelineResult {
 import { PipelineInput } from '@/components/pipeline-input';
 import { PipelineStage } from '@/components/pipeline-stage';
 import { Separator } from '@/components/ui/separator';
+
+// Component to safely render CTA templates with Tailwind classes
+function CTATemplateRenderer({ html }: { html: string }) {
+  // Parse the HTML and convert it to React elements
+  // For now, we'll use dangerouslySetInnerHTML but with better safety
+  // In a production app, you'd want to use a proper HTML parser like htmlparser2
+
+  // Clean the HTML to remove any script tags for security
+  const cleanHtml = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+
+  return (
+    <div
+      dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      className="cta-template-container"
+    />
+  );
+}
+
+// Hidden div to force Tailwind to include arbitrary value patterns used by generated templates
+function TailwindClassIncluder() {
+  return (
+    <div className="hidden">
+      {/* Common arbitrary value patterns to ensure they're included in CSS bundle */}
+      <div className="bg-[#635bff] text-[#ffffff] hover:bg-[#0a2540] font-[sohne-var] rounded-[16.5px] text-[15px] font-[425] py-[6px] px-[16px] p-[24px] gap-[8px] mb-[16px]" />
+      <div className="bg-[#425466] text-[#425466] bg-[#ffffff] bg-[#0a2540] border-[#635bff] border-[#0a2540] hover:bg-[#ffffff]" />
+    </div>
+  );
+}
 
 // Main page component - no artifact viewer needed anymore
 
@@ -144,8 +187,10 @@ export default function Home() {
                   <div className="mb-4">
                     <h3 className="font-mono font-semibold text-sm text-muted-foreground">✨ Generated Component</h3>
                   </div>
-                  {/* Render the component inline here */}
-                  <div dangerouslySetInnerHTML={{ __html: result.template?.html || '' }} />
+                  {/* Render the component with proper React and Tailwind classes */}
+                  <CTATemplateRenderer html={result.template?.html || ''} />
+                  {/* Hidden component to force Tailwind to include generated arbitrary classes */}
+                  <TailwindClassIncluder />
                 </div>
 
                 {/* Captured Page Screenshot */}
@@ -367,6 +412,39 @@ export default function Home() {
                                   <div><span className="text-muted-foreground">Alignment:</span> {button.alignItems} / {button.justifyContent}</div>
                                   <div><span className="text-muted-foreground">Text Align:</span> {button.textAlign}</div>
                                 </div>
+
+                                {/* Hover Effects */}
+                                {button.hover && (
+                                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                                    <h5 className="text-xs font-medium text-blue-800 mb-2">✨ Hover Effects Detected</h5>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                      {button.hover.backgroundColor && (
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-muted-foreground">Hover Background:</span>
+                                          <div className="flex items-center gap-1">
+                                            <div
+                                              className="w-3 h-3 rounded border"
+                                              style={{ backgroundColor: button.hover.backgroundColor }}
+                                            />
+                                            <span className="font-mono">{button.hover.backgroundColor}</span>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {button.hover.color && (
+                                        <div><span className="text-muted-foreground">Hover Text:</span> {button.hover.color}</div>
+                                      )}
+                                      {button.hover.opacity && (
+                                        <div><span className="text-muted-foreground">Hover Opacity:</span> {button.hover.opacity}</div>
+                                      )}
+                                      {button.hover.transform && (
+                                        <div><span className="text-muted-foreground">Transform:</span> {button.hover.transform}</div>
+                                      )}
+                                      {button.hover.transition && (
+                                        <div className="col-span-2"><span className="text-muted-foreground">Transition:</span> {button.hover.transition}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
