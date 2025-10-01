@@ -392,42 +392,60 @@ export default function CTAPreview() {
             {ctaData.tokens?.buttons?.variants && ctaData.tokens.buttons.variants.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border p-4">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3 tracking-tight">
-                  Detected Buttons
+                  Detected Buttons ({ctaData.tokens.buttons.variants.length})
                 </h3>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {ctaData.tokens.buttons.variants
-                    .filter((button: any) => button.type !== 'ghost')
-                    .slice(0, 5)
-                    .map((button: any, i: number) => (
-                    <div key={i} className="p-3 bg-gray-50 rounded border text-xs">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium capitalize">{button.type}</span>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                          {button.count}x
-                        </span>
-                      </div>
-                      <div className="flex justify-center mb-2">
-                        <button
-                          className="font-mono"
-                          style={{
-                            backgroundColor: button.backgroundColor,
-                            color: button.color,
-                            padding: button.padding,
-                            fontSize: `${button.fontSize}px`,
-                            fontWeight: button.fontWeight,
-                            borderRadius: button.borderRadius,
-                            border: button.borderColor ? `1px solid ${button.borderColor}` : 'none',
-                            cursor: 'default'
-                          }}
-                        >
-                          Button
-                        </button>
-                      </div>
-                      <div className="text-xs text-gray-600">
-                        <span className="font-mono">{button.backgroundColor}</span>
-                      </div>
-                    </div>
-                  ))}
+                    .slice(0, 8)
+                    .map((button: any, i: number) => {
+                      const isGhost = button.type === 'ghost';
+                      const hasBorder = button.borderColor && button.borderColor !== 'transparent';
+                      return (
+                        <div key={i} className="p-3 bg-gray-50 rounded border text-xs">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium capitalize">{button.type}</span>
+                              {isGhost && hasBorder && (
+                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px]">
+                                  border
+                                </span>
+                              )}
+                            </div>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                              {button.count}x
+                            </span>
+                          </div>
+                          <div className="flex justify-center mb-2">
+                            <button
+                              style={{
+                                backgroundColor: button.backgroundColor === '#transparent' ? 'transparent' : button.backgroundColor,
+                                color: button.color,
+                                padding: button.padding,
+                                fontSize: `${button.fontSize}px`,
+                                fontWeight: button.fontWeight,
+                                fontFamily: button.fontFamily || 'system-ui, sans-serif',
+                                borderRadius: button.borderRadius,
+                                border: button.borderColor ? `1px solid ${button.borderColor}` : (isGhost ? '1px solid #ccc' : 'none'),
+                                cursor: 'default'
+                              }}
+                            >
+                              Button
+                            </button>
+                          </div>
+                          <div className="text-xs text-gray-600 space-y-1">
+                            <div>
+                              <span className="font-mono">{button.backgroundColor}</span>
+                              {button.color && <span className="ml-2">→ {button.color}</span>}
+                            </div>
+                            {hasBorder && (
+                              <div className="text-[10px] text-green-600">
+                                Border: {button.borderColor}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}

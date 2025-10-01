@@ -69,6 +69,7 @@ export interface DesignTokens {
       padding: string;
       fontSize: number;
       fontWeight: number;
+      fontFamily?: string;
       display: string;
       alignItems: string;
       justifyContent: string;
@@ -286,6 +287,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     padding: string;
     fontSize: number;
     fontWeight: number;
+    fontFamily?: string;
     display: string;
     alignItems: string;
     justifyContent: string;
@@ -331,27 +333,62 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     const role = node.role || '';
 
     // Detect buttons and CTAs with stricter criteria - Phase 1.1: Improved Button Detection
-    const isButton = tagName === 'button' ||
-                    role === 'button' ||
-                    classes.includes('btn') ||
-                    classes.includes('button') ||
-                    classes.includes('cta') ||
-                    classes.includes('ctabutton');
+    const hasButtonSemantics = tagName === 'button' ||
+                               role === 'button' ||
+                               classes.includes('btn') ||
+                               classes.includes('button') ||
+                               classes.includes('cta') ||
+                               classes.includes('ctabutton');
 
     // Phase 1.1: Add area thresholds and content validation for better button detection
     const hasValidArea = area >= 100 && area <= 10000; // Buttons typically 100px² to 10,000px²
     const hasValidAspectRatio = (node.bbox.w / node.bbox.h) <= 10 && (node.bbox.h / node.bbox.w) <= 10; // No extreme ratios
     const hasTextContent = node.textContent && node.textContent.trim().length > 0;
 
+    // Enhanced: Detect links styled as buttons based on visual characteristics
+    const isLink = tagName === 'a';
+    const hasButtonStyling = isLink && (
+      // Has visible background color (not transparent/white)
+      (bgColor && (bgColor.alpha ?? 1) > 0.5 &&
+       formatHex(bgColor).toLowerCase() !== '#ffffff' &&
+       formatHex(bgColor).toLowerCase() !== '#fff') ||
+      // Has border that makes it button-like
+      (node.styles.border && node.styles.border !== 'none' &&
+       node.styles.border !== '0px' &&
+       parseFloat(node.styles.borderRadius) > 0) ||
+      // Has significant padding (button-like)
+      (node.styles.padding && parseFloat(node.styles.padding) >= 8)
+    );
+
+    // Combined button detection: semantic buttons OR styled links
+    const isButton = hasButtonSemantics || (isLink && hasButtonStyling);
+
     // Only consider it a button if it meets our validation criteria
     const isValidButton = isButton && hasValidArea && hasValidAspectRatio && hasTextContent;
+
+    // Debug styled links that look like buttons
+    if (isLink && hasButtonStyling && node.textContent?.includes('View products')) {
+      console.log(`[DEBUG] View products button:`, {
+        tag: tagName,
+        isButton,
+        hasButtonStyling,
+        isValidButton,
+        hasValidArea,
+        hasValidAspectRatio,
+        hasTextContent,
+        area,
+        bgColor: bgColor ? formatHex(bgColor) : 'none',
+        bgAlpha: bgColor?.alpha,
+        border: node.styles.border,
+        borderRadius: node.styles.borderRadius,
+        padding: node.styles.padding
+      });
+    }
 
     // Debug specific elements we're looking for
     if (classes.includes('ctabutton') || classes.includes('homepagefrontdoor')) {
       console.log(`[DEBUG] Found CTA element: tag=${tagName}, classes="${classes}", isButton=${isButton}, isValidButton=${isValidButton}, area=${area}`);
     }
-
-    const isLink = tagName === 'a' || classes.includes('link');
 
     if (isValidButton && bgColor) {
       // Only collect colors from non-transparent buttons for semantic color extraction
@@ -367,7 +404,8 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
       }
     }
 
-    if (isLink && textColor) {
+    // Track link colors (excluding links that are styled as buttons)
+    if (isLink && !isValidButton && textColor) {
       const hex = formatHex(textColor);
       linkColors.set(hex, (linkColors.get(hex) || 0) + 1);
     }
@@ -582,6 +620,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     padding: string;
     fontSize: number;
     fontWeight: number;
+    fontFamily?: string;
     display: string;
     alignItems: string;
     justifyContent: string;
@@ -613,6 +652,34 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     const extractedPadding = node.styles.padding || '8px 16px';
     const validPadding = fixZeroPadding(extractedPadding, node);
 
+    // Extract border information from the border string (e.g., "1px solid rgb(38, 38, 38)")
+    const parseBorder = (borderStr: string): { width: string; style: string; color: string | null } => {
+      const parts = borderStr.trim().split(/\s+/);
+      if (parts.length < 2) return { width: '0px', style: 'none', color: null };
+
+      const width = parts[0];
+      const style = parts[1];
+
+      // Extract color - it might be rgb(), rgba(), or hex
+      const colorMatch = borderStr.match(/rgb\([^)]+\)|rgba\([^)]+\)|#[0-9a-f]{3,8}/i);
+      let borderColor: string | null = null;
+
+      if (colorMatch) {
+        const parsedColor = parse(colorMatch[0]);
+        if (parsedColor) {
+          // If alpha is undefined, treat as 1.0 (fully opaque)
+          const alpha = parsedColor.alpha ?? 1.0;
+          if (alpha > 0.1) {
+            borderColor = formatHex(parsedColor);
+          }
+        }
+      }
+
+      return { width, style, color: borderColor };
+    };
+
+    const border = parseBorder(node.styles.border || '0px none');
+
     // Handle transparent backgrounds properly
     if (bgColor.alpha !== undefined && bgColor.alpha < 0.1) {
       // For transparent buttons, use a special identifier
@@ -623,11 +690,12 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
         type: 'ghost', // Transparent buttons are usually ghost/outline style
         backgroundColor: finalBgHex,
         color: textHex,
-        borderColor: undefined,
+        borderColor: border.color || undefined,
         borderRadius: node.styles.borderRadius || '4px',
         padding: validPadding,
         fontSize: parseFloat(node.styles.fontSize) || 16,
         fontWeight: parseInt(node.styles.fontWeight) || 400,
+        fontFamily: node.styles.fontFamily,
         display: node.styles.display || 'inline-block',
         alignItems: node.styles.alignItems || 'center',
         justifyContent: node.styles.justifyContent || 'center',
@@ -659,11 +727,12 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
       type,
       backgroundColor: bgHex,
       color: textHex,
-      borderColor: undefined, // Not captured in current interface
+      borderColor: border.color || undefined,
       borderRadius: node.styles.borderRadius || '4px',
       padding: validPadding,
       fontSize,
       fontWeight,
+      fontFamily: node.styles.fontFamily,
       display: node.styles.display || 'inline-block',
       alignItems: node.styles.alignItems || 'center',
       justifyContent: node.styles.justifyContent || 'center',
@@ -680,6 +749,13 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     .slice(0, 8)
     .map(([color]) => color);
 
+  const top10 = Array.from(colorAreas.entries())
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 10);
+
+  console.log('🎨 Top 10 colors by area:');
+  top10.forEach(([c, area], i) => console.log(`  ${i + 1}. ${c}: ${area}`));
+
   // Separate primary and neutral colors
   const primaryColors = topColors.slice(0, 4);
   const neutralColors = topColors.slice(4);
@@ -689,8 +765,52 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
   const mostCommonText = Array.from(textColors.entries())
     .sort(([, countA], [, countB]) => countB - countA)[0]?.[0];
 
-  const mostCommonBg = Array.from(bgColors.entries())
-    .sort(([, countA], [, countB]) => countB - countA)[0]?.[0];
+  // For background, prioritize <body> tag, then find largest SINGLE element's background
+  // This represents the actual page background as rendered by the browser
+
+  // First, check if <body> has a background color
+  const bodyNode = nodes.find(node => node.tag?.toLowerCase() === 'body');
+  let bodyBgColor: string | null = null;
+
+  if (bodyNode) {
+    const bgColor = parse(bodyNode.styles.backgroundColor);
+    if (bgColor && (bgColor.alpha === undefined || bgColor.alpha >= 0.5)) {
+      const hex = formatHex(bgColor);
+      // Allow body background even if it's white-ish (it's the document background)
+      if (hex.toLowerCase() !== '#ffffff' && hex.toLowerCase() !== '#fff') {
+        bodyBgColor = hex;
+        console.log(`🎨 Using <body> background: ${bodyBgColor}`);
+      }
+    }
+  }
+
+  // If body doesn't have a usable background, find largest element
+  const largestElementBgs = nodes
+    .filter(node => {
+      const bgColor = parse(node.styles.backgroundColor);
+      if (!bgColor || (bgColor.alpha !== undefined && bgColor.alpha < 0.5)) return false;
+
+      const hex = formatHex(bgColor).toLowerCase();
+      // Only exclude pure white (#ffffff), allow off-whites
+      if (hex === '#ffffff' || hex === '#fff') return false;
+
+      return true;
+    })
+    .map(node => ({
+      color: formatHex(parse(node.styles.backgroundColor)!),
+      area: node.bbox.w * node.bbox.h,
+      tag: node.tag
+    }))
+    .sort((a, b) => b.area - a.area);
+
+  if (!bodyBgColor) {
+    console.log('🎨 Top 5 largest element backgrounds:');
+    largestElementBgs.slice(0, 5).forEach((bg, i) =>
+      console.log(`  ${i + 1}. ${bg.color} (${bg.tag}): ${bg.area}`)
+    );
+  }
+
+  const mostCommonBg = bodyBgColor || largestElementBgs[0]?.color;
 
   // Extract typography tokens
   const topFontFamilies = Array.from(fontFamilies.entries())
@@ -781,7 +901,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
 
   for (const variant of allButtonVariants) {
     // Create a unique key based on all styling properties
-    const key = `${variant.type}-${variant.backgroundColor}-${variant.color}-${variant.borderRadius}-${variant.padding}-${variant.fontSize}-${variant.fontWeight}-${variant.display}-${variant.alignItems}-${variant.justifyContent}-${variant.textAlign}`;
+    const key = `${variant.type}-${variant.backgroundColor}-${variant.color}-${variant.borderRadius}-${variant.padding}-${variant.fontSize}-${variant.fontWeight}-${variant.fontFamily || 'default'}-${variant.display}-${variant.alignItems}-${variant.justifyContent}-${variant.textAlign}`;
 
     if (buttonVariantMap.has(key)) {
       // Update existing variant with new data

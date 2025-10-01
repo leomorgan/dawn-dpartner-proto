@@ -1,6 +1,7 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { DesignTokens } from '../tokens';
+import { getSystemFontFallback, normalizeSystemFontWeight } from './font-fallbacks';
 // Tailwind mapper imports - commented out as we're using manual classes for now
 // import {
 //   generateButtonClasses,
@@ -197,6 +198,70 @@ export function selectTemplate(): TemplateVariant {
   return cardTemplate;
 }
 
+/**
+ * Ghost button visibility validator
+ * Determines if a ghost button is visually valid by checking:
+ * - Border visibility (color + width)
+ * - Text visibility (color + contrast)
+ * - Hover state presence
+ */
+interface GhostButtonValidation {
+  isValid: boolean;
+  score: number;
+  reasons: string[];
+}
+
+function validateGhostButton(
+  button: DesignTokens['buttons']['variants'][0],
+  pageBackground: string
+): GhostButtonValidation {
+  const reasons: string[] = [];
+  let score = 0;
+
+  // 1. Check if button has a visible border
+  const hasBorder = button.borderColor && button.borderColor !== '#000000' && button.borderColor !== 'transparent';
+  if (hasBorder) {
+    score += 40;
+    reasons.push(`Has visible border (${button.borderColor})`);
+  }
+
+  // 2. Check if text color is visible against page background
+  const textColor = button.color;
+  if (textColor && textColor !== 'transparent') {
+    try {
+      const contrast = calculateContrast(textColor, pageBackground);
+      if (contrast >= 3.0) {
+        score += 30;
+        reasons.push(`Text has good contrast (${contrast.toFixed(1)}:1)`);
+      } else if (contrast >= 2.0) {
+        score += 15;
+        reasons.push(`Text has minimal contrast (${contrast.toFixed(1)}:1)`);
+      } else if (contrast > 0) {
+        reasons.push(`Text contrast too low (${contrast.toFixed(1)}:1)`);
+      }
+    } catch (err) {
+      reasons.push(`Failed to calculate contrast: ${err.message}`);
+    }
+  }
+
+  // 3. Check if button has hover state
+  if (button.hover) {
+    if (button.hover.backgroundColor || button.hover.color) {
+      score += 20;
+      reasons.push('Has hover state');
+    }
+    if (button.hover.opacity) {
+      score += 10;
+      reasons.push('Has opacity hover');
+    }
+  }
+
+  // Valid if: (border + text contrast) OR (text contrast + hover) OR (border + hover)
+  const isValid = score >= 50;
+
+  return { isValid, score, reasons };
+}
+
 function findButtonTextColor(backgroundColor: string, tokens: DesignTokens): string {
   // Find the best text color by looking at existing button combinations
   for (const variant of tokens.buttons.variants) {
@@ -214,9 +279,9 @@ function findButtonTextColor(backgroundColor: string, tokens: DesignTokens): str
     }
   }
 
-  // Fallback to contrast-compliant color
+  // Fallback to contrast-compliant color from extracted palette
   const textColor = ensureContrastCompliance(tokens.colors.semantic.text, backgroundColor, tokens);
-  return textColor !== tokens.colors.semantic.text ? textColor : '#000000';
+  return textColor !== tokens.colors.semantic.text ? textColor : tokens.colors.neutral[0] || tokens.colors.primary[0];
 }
 
 function getBrightness(color: string): number {
@@ -239,23 +304,72 @@ function getBrightness(color: string): number {
 }
 
 export function validateAndSelectColors(tokens: DesignTokens): SafeColors {
-  // 1. Use the most common button style for primary
-  const mostCommonButton = tokens.buttons.variants.find(b => b.type !== 'ghost') || tokens.buttons.variants[0];
+  const pageBackground = tokens.colors.semantic.background;
 
-  // 2. Find secondary background color (use semantic secondary or neutral)
-  const secondaryBg = tokens.colors.contextual?.buttons?.[1] || tokens.colors.neutral[0];
+  // 1. Separate buttons into solid and ghost types
+  const solidButtons = tokens.buttons.variants.filter(b => b.type !== 'ghost');
+  const ghostButtons = tokens.buttons.variants.filter(b => b.type === 'ghost');
 
-  // 3. Find appropriate text colors for both buttons
-  const primaryTextColor = mostCommonButton?.color || findButtonTextColor(mostCommonButton?.backgroundColor || tokens.colors.semantic.cta, tokens);
-  const secondaryTextColor = findButtonTextColor(secondaryBg, tokens);
+  // 2. Validate ghost buttons and filter to only valid ones
+  const validGhostButtons = ghostButtons
+    .map(button => ({
+      button,
+      validation: validateGhostButton(button, pageBackground)
+    }))
+    .filter(({ validation }) => validation.isValid)
+    .sort((a, b) => b.validation.score - a.validation.score);
+
+  console.log(`👻 Ghost button validation: ${ghostButtons.length} total, ${validGhostButtons.length} valid`);
+  if (validGhostButtons.length > 0) {
+    validGhostButtons.forEach(({ button, validation }) => {
+      console.log(`  ✅ Score ${validation.score}: ${button.color} | ${validation.reasons.join(', ')}`);
+    });
+  } else if (ghostButtons.length > 0) {
+    console.log('  ❌ No ghost buttons passed validation. Checking why...');
+    ghostButtons.slice(0, 3).forEach(button => {
+      const validation = validateGhostButton(button, pageBackground);
+      console.log(`    ${button.color} scored ${validation.score}: ${validation.reasons.join(', ') || 'no reasons'}`);
+    });
+  }
+
+  // 3. Combine solid and valid ghost buttons for selection
+  const selectableButtons = [...solidButtons, ...validGhostButtons.map(v => v.button)];
+
+  // 4. Select primary: prefer solid buttons with hover states, fallback to most prominent
+  const primaryButton = selectableButtons.find(b =>
+    b.type !== 'ghost' && (b.hover?.backgroundColor || b.hover?.opacity)
+  ) || selectableButtons[0] || tokens.buttons.variants[0];
+
+  // 5. Select secondary: find a DIFFERENT color from primary
+  // Simply find any button that's different, but exclude pure black (#000000)
+  const primaryBg = primaryButton?.backgroundColor;
+  const secondaryButton = selectableButtons.find(b =>
+    b.backgroundColor !== primaryBg &&
+    b.backgroundColor !== '#transparent' &&
+    b.backgroundColor !== '#000000'
+  ) || validGhostButtons[0]?.button;
+
+  const secondaryBg = secondaryButton?.backgroundColor ||
+    tokens.colors.contextual?.buttons?.find(c => c !== primaryBg && c !== '#000000') ||
+    tokens.colors.neutral.find(c => c !== '#000000') ||
+    tokens.colors.neutral[0];
+
+  // 6. Find appropriate text colors for both buttons
+  const primaryTextColor = primaryButton?.color || findButtonTextColor(primaryBg || tokens.colors.semantic.cta, tokens);
+  const secondaryTextColor = secondaryButton?.color || findButtonTextColor(secondaryBg, tokens);
+
+  console.log('✅ Selected buttons:', {
+    primary: { bg: primaryBg, text: primaryTextColor, hasHover: !!primaryButton?.hover },
+    secondary: { bg: secondaryBg, text: secondaryTextColor, hasHover: !!secondaryButton?.hover }
+  });
 
   const safeColors: SafeColors = {
     primary: tokens.colors.primary[0],
     secondary: secondaryBg,
-    background: tokens.colors.semantic.background,
+    background: pageBackground,
     text: tokens.colors.semantic.text,
     accent: tokens.colors.semantic.accent,
-    ctaPrimary: mostCommonButton?.backgroundColor || tokens.colors.semantic.cta,
+    ctaPrimary: primaryBg || tokens.colors.semantic.cta,
     ctaSecondary: secondaryBg,
     ctaPrimaryText: primaryTextColor,
     ctaSecondaryText: secondaryTextColor,
@@ -290,15 +404,15 @@ function ensureContrastCompliance(foreground: string, background: string, tokens
 }
 
 function calculateContrast(color1: string, color2: string): number {
-  // Simple contrast calculation - in production, use a proper library
+  // WCAG 2.1 contrast calculation
   const getLuminance = (hex: string): number => {
     const rgb = parseInt(hex.slice(1), 16);
     const r = ((rgb >> 16) & 0xff) / 255;
     const g = ((rgb >> 8) & 0xff) / 255;
     const b = ((rgb >> 0) & 0xff) / 255;
 
+    // Apply sRGB gamma correction
     const sRGB = [r, g, b].map(c => {
-      c = c / 255;
       return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     });
 
@@ -418,7 +532,19 @@ export function applyTemplateStyles(
   const buttonBorderRadius = primaryButton?.borderRadius || tokens.borderRadius[0] || '4px';
   const buttonPadding = normalizePadding(primaryButton?.padding || '8px 16px');
   const buttonFontSize = primaryButton?.fontSize ? `${primaryButton.fontSize}px` : '16px';
-  const buttonFontWeight = primaryButton?.fontWeight?.toString() || '500';
+
+  // Normalize font weight for system fonts
+  const originalFontFamily = tokens.typography.fontFamilies[0] || 'system-ui';
+  const systemFontStack = getSystemFontFallback(originalFontFamily);
+  const rawFontWeight = primaryButton?.fontWeight || 500;
+  const buttonFontWeight = normalizeSystemFontWeight(rawFontWeight, systemFontStack).toString();
+
+  console.log('🔢 Font weight normalization:', {
+    original: rawFontWeight,
+    normalized: buttonFontWeight,
+    fontStack: systemFontStack
+  });
+
   const buttonBorder = primaryButton?.borderColor ? `1px solid ${primaryButton.borderColor}` : 'none';
   const buttonDisplay = normalizeDisplay(primaryButton?.display || 'inline-flex');
   const buttonAlignItems = normalizeAlignment(primaryButton?.alignItems || 'center');
@@ -621,7 +747,14 @@ export function generateReactComponent(styles: StyleMapping, safeColors: SafeCol
 
 
 export function generateTemplateCSSVars(tokens: DesignTokens, safeColors: SafeColors, styles: StyleMapping): string {
-  const fontFamily = tokens.typography.fontFamilies[0] || 'system-ui, -apple-system, sans-serif';
+  // Get original font family and convert to system font fallback
+  const originalFontFamily = tokens.typography.fontFamilies[0] || 'system-ui, -apple-system, sans-serif';
+  const fontFamily = getSystemFontFallback(originalFontFamily);
+
+  console.log('🔤 Font mapping:', {
+    original: originalFontFamily,
+    systemFallback: fontFamily
+  });
 
   // Check if we have actual hover data
   const hasPrimaryHover = styles.button?.primaryHover &&

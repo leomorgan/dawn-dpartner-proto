@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { getSystemFontFallback } from '@/pipeline/cta-template/font-fallbacks';
 
 export async function GET(
   request: NextRequest,
@@ -57,19 +58,33 @@ export async function GET(
     const metadataObj = JSON.parse(metadata);
     const tokens = tokensJson ? JSON.parse(tokensJson) : null;
 
+    // Apply system font fallbacks to button variants
+    if (tokens?.buttons?.variants) {
+      tokens.buttons.variants = tokens.buttons.variants.map((button: any) => {
+        if (button.fontFamily) {
+          return {
+            ...button,
+            fontFamily: getSystemFontFallback(button.fontFamily)
+          };
+        }
+        return button;
+      });
+    }
+
     // Extract template type and other info from metadata
     const templateType = metadataObj.templateType || 'card';
 
     // Create safe colors object from styles and tokens
+    // Use extracted tokens as fallbacks instead of hardcoded values
     const safeColors = {
-      primary: styles.primary || '#000000',
-      secondary: styles.secondary || '#666666',
-      background: styles.background || '#ffffff',
-      text: styles.text || '#000000',
-      accent: styles.accent || '#0066cc',
-      ctaPrimary: styles.primary || '#ff385c',
-      ctaSecondary: styles.secondary || '#f7f7f7',
-      muted: tokens?.colors?.semantic?.muted || '#666666'
+      primary: styles.primary || tokens?.colors?.primary?.[0] || tokens?.colors?.semantic?.cta || '#0066cc',
+      secondary: styles.secondary || tokens?.colors?.neutral?.[0] || '#666666',
+      background: styles.background || tokens?.colors?.semantic?.background || '#ffffff',
+      text: styles.text || tokens?.colors?.semantic?.text || '#1a1a1a',
+      accent: styles.accent || tokens?.colors?.semantic?.accent || '#0066cc',
+      ctaPrimary: styles.primary || tokens?.colors?.semantic?.cta || '#0066cc',
+      ctaSecondary: styles.secondary || tokens?.colors?.neutral?.[0] || '#f7f7f7',
+      muted: tokens?.colors?.semantic?.muted || tokens?.colors?.neutral?.[1] || '#666666'
     };
 
     // Get template name and description based on type
