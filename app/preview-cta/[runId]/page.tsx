@@ -239,7 +239,15 @@ export default function CTAPreview() {
               />
             </div>
             <p className="text-xs text-gray-600 mt-2">
-              Source: <span className="font-mono">{ctaData.url}</span> • Click to zoom
+              Source: <a
+                href={ctaData.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-blue-600 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {ctaData.url}
+              </a> • Click image to zoom
             </p>
           </div>
         )}
@@ -459,6 +467,34 @@ export default function CTAPreview() {
           </div>
         </div>
       </div>
+
+      {/* Image Zoom Modal */}
+      {showImageModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-auto">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-semibold tracking-tight">Captured Page</h3>
+              <Button
+                onClick={() => setShowImageModal(false)}
+                variant="ghost"
+                size="sm"
+              >
+                ✕
+              </Button>
+            </div>
+            <div className="p-4">
+              <img
+                src={`/api/artifact/${runId}/raw/page.png`}
+                alt="Full captured webpage screenshot"
+                className="w-full h-auto"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
