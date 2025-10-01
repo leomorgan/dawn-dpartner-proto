@@ -548,13 +548,13 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
   function fixZeroPadding(padding: string, node: ComputedStyleNode): string {
     const parts = padding.trim().split(/\s+/);
 
-    // Check if all padding values are 0
-    const isZeroPadding = parts.every(part => {
+    // Check if any padding value is 0 (partial or complete zero padding)
+    const hasZeroPadding = parts.some(part => {
       const value = parseFloat(part);
       return value === 0 || part === '0px' || part === '0';
     });
 
-    if (isZeroPadding) {
+    if (hasZeroPadding) {
       // Calculate padding from button dimensions and text content
       const buttonWidth = node.bbox.w;
       const buttonHeight = node.bbox.h;

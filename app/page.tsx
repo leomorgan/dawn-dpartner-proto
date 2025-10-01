@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PipelineResult, PipelineStep } from '../pipeline/orchestration';
 
 // Define the CTA result type
@@ -51,11 +51,31 @@ import { PipelineInput } from '@/components/pipeline-input';
 import { PipelineStage } from '@/components/pipeline-stage';
 import { Separator } from '@/components/ui/separator';
 
-// Component to safely render CTA templates with Tailwind classes
-function CTATemplateRenderer({ html }: { html: string }) {
-  // Parse the HTML and convert it to React elements
-  // For now, we'll use dangerouslySetInnerHTML but with better safety
-  // In a production app, you'd want to use a proper HTML parser like htmlparser2
+// Component to safely render CTA templates with CSS variables
+function CTATemplateRenderer({ html, cssVariables }: { html: string; cssVariables?: string }) {
+  // Inject CSS variables into the page when component mounts
+  useEffect(() => {
+    if (!cssVariables) return;
+
+    const styleId = 'cta-template-css-vars';
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+
+    styleElement.textContent = cssVariables;
+
+    return () => {
+      // Cleanup on unmount
+      const el = document.getElementById(styleId);
+      if (el) {
+        el.remove();
+      }
+    };
+  }, [cssVariables]);
 
   // Clean the HTML to remove any script tags for security
   const cleanHtml = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
@@ -187,10 +207,11 @@ export default function Home() {
                   <div className="mb-4">
                     <h3 className="font-mono font-semibold text-sm text-muted-foreground">✨ Generated Component</h3>
                   </div>
-                  {/* Render the component with proper React and Tailwind classes */}
-                  <CTATemplateRenderer html={result.template?.html || ''} />
-                  {/* Hidden component to force Tailwind to include generated arbitrary classes */}
-                  <TailwindClassIncluder />
+                  {/* Render the component with CSS variables injected */}
+                  <CTATemplateRenderer
+                    html={result.template?.html || ''}
+                    cssVariables={result.template?.cssVariables || ''}
+                  />
                 </div>
 
                 {/* Captured Page Screenshot */}

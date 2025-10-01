@@ -4,8 +4,8 @@
  * Test script for CTA template generation using existing captured data
  */
 
-const { extractTokens } = require('../dist/pipeline/tokens/index.js');
-const { selectTemplate, applyTokensToTemplate } = require('../dist/pipeline/cta-template/index.js');
+const { extractTokens } = require('../dist/tokens/index.js');
+const { selectTemplate, applyTokensToTemplate } = require('../dist/cta-template/index.js');
 
 async function main() {
   const runId = process.argv[2];

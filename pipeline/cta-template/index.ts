@@ -374,32 +374,46 @@ export function applyTemplateStyles(
     large: tokens.spacing.find(s => s >= 24) || 32
   };
 
-  // Extract button-specific styles from detected button variants
-  // Use the most frequently detected non-ghost button (since they're sorted by count, ghost buttons last)
-  const mostCommonButton = tokens.buttons.variants.find(b => b.type !== 'ghost') || tokens.buttons.variants[0];
+  // SIMPLIFIED APPROACH:
+  // 1. Find button matching primary color (for sizing and primary hover)
+  // 2. Find button matching secondary color (for secondary hover only)
+  // 3. Use primary button's sizing for BOTH buttons
 
-  // Find button that matches the primary CTA color chosen by validateAndSelectColors
-  // Prefer buttons with hover styles when multiple buttons have the same color
   const primaryCTAColor = safeColors.ctaPrimary;
-  const primaryCandidates = tokens.buttons.variants.filter(b => b.backgroundColor === primaryCTAColor);
-  const primaryButton = primaryCandidates.find(b => b.hover) || primaryCandidates[0] || mostCommonButton;
-
-  // Find button that matches the secondary CTA color chosen by validateAndSelectColors
-  // Prefer buttons with hover styles when multiple buttons have the same color
   const secondaryCTAColor = safeColors.ctaSecondary;
-  const secondaryCandidates = tokens.buttons.variants.filter(b =>
-    b.backgroundColor === secondaryCTAColor &&
-    b !== primaryButton // Ensure it's not the same button instance
-  );
-  const secondaryButton = secondaryCandidates.find(b => b.hover) || // Prefer with hover
-                          secondaryCandidates[0] || // Fallback to first with matching color
-                          tokens.buttons.variants.find(b =>
-                            b.type !== 'ghost' &&
-                            b !== primaryButton &&
-                            (b.backgroundColor !== primaryButton?.backgroundColor ||
-                             b.color !== primaryButton?.color ||
-                             b.type !== primaryButton?.type)
-                          ) || tokens.buttons.variants[1]; // Final fallback
+
+  // Find ALL buttons for each color
+  const primaryButtons = tokens.buttons.variants.filter(b => b.backgroundColor === primaryCTAColor);
+  const secondaryButtons = tokens.buttons.variants.filter(b => b.backgroundColor === secondaryCTAColor);
+
+  // Helper: check if hover background matches card background (would be invisible/confusing)
+  const cardBackground = safeColors.background;
+  const isHoverSameAsCardBg = (hoverBg: string | undefined) => {
+    if (!hoverBg) return false;
+    return hoverBg.toLowerCase() === cardBackground.toLowerCase();
+  };
+
+  // Select primary: prefer buttons WITH meaningful hover (backgroundColor or opacity change)
+  // but exclude hovers that match the card background
+  const primaryButton = primaryButtons.find(b =>
+    (b.hover?.backgroundColor && !isHoverSameAsCardBg(b.hover.backgroundColor)) || b.hover?.opacity
+  ) || primaryButtons[0] || tokens.buttons.variants[0];
+
+  // Select secondary: prefer buttons with opacity hover OR backgroundColor that doesn't match card background
+  const secondaryButton = secondaryButtons.find(b =>
+    b.hover?.opacity && !isHoverSameAsCardBg(b.hover.backgroundColor)
+  ) || secondaryButtons.find(b =>
+    b.hover?.backgroundColor && !isHoverSameAsCardBg(b.hover.backgroundColor)
+  ) || secondaryButtons[0] || tokens.buttons.variants[1];
+
+  console.log('🔍 PRIMARY BUTTON SELECTED:', {
+    backgroundColor: primaryButton?.backgroundColor,
+    hover: primaryButton?.hover
+  });
+  console.log('🔍 SECONDARY BUTTON SELECTED:', {
+    backgroundColor: secondaryButton?.backgroundColor,
+    hover: secondaryButton?.hover
+  });
 
   const buttonBorderRadius = primaryButton?.borderRadius || tokens.borderRadius[0] || '4px';
   const buttonPadding = normalizePadding(primaryButton?.padding || '8px 16px');
@@ -411,7 +425,7 @@ export function applyTemplateStyles(
   const buttonJustifyContent = normalizeAlignment(primaryButton?.justifyContent || 'center');
   const buttonTextAlign = normalizeAlignment(primaryButton?.textAlign || 'center');
 
-  // Extract primary button hover styles if detected
+  // Extract hover styles - use what we have, with sensible fallbacks
   const primaryButtonHover = primaryButton?.hover ? {
     backgroundColor: primaryButton.hover.backgroundColor,
     color: primaryButton.hover.color,
@@ -420,7 +434,6 @@ export function applyTemplateStyles(
     transition: primaryButton.hover.transition
   } : undefined;
 
-  // Extract secondary button hover styles if detected
   const secondaryButtonHover = secondaryButton?.hover ? {
     backgroundColor: secondaryButton.hover.backgroundColor,
     color: secondaryButton.hover.color,
@@ -458,61 +471,52 @@ export function applyTemplateStyles(
 }
 
 export function generateTemplateHTML(styles: StyleMapping, safeColors: SafeColors, tokens: DesignTokens): string {
-  // Define content constants to follow DRY principle
-  const content = {
-    title: "Financial infrastructure for the internet",
-    subtitle: "Millions of businesses of all sizes use Stripe's software and APIs",
-    primaryCTA: "Start now",
-    secondaryCTA: "Contact sales"
-  };
+  // Simple card with header + two CTAs (Cancel/Accept)
+  const containerClasses = 'max-w-sm mx-auto shadow-lg';
+  const headerClasses = 'text-center';
+  const buttonContainerClasses = 'flex justify-center';
+  const buttonBaseClasses = 'cursor-pointer inline-flex items-center justify-center text-center transition-all duration-200 ease-in-out';
 
-  // Phase 2.1: Removed Tailwind arbitrary values - use layout classes only + CSS variables
-  const containerClasses = 'max-w-sm mx-auto shadow-lg p-6 bg-white rounded-lg';
-  const headerClasses = 'text-center mb-6';
-  const titleClasses = 'text-2xl font-semibold mb-3';
-  const subtitleClasses = 'text-sm text-gray-600 mb-6';
-  const buttonContainerClasses = 'flex gap-3 justify-center';
-
-  // Phase 2.1: Use basic layout classes only - styles will come from CSS variables
-  const buttonBaseClasses = 'cursor-pointer inline-flex items-center justify-center text-center transition-all duration-200 ease-in-out px-4 py-2 rounded-lg font-medium text-sm';
-
-  // Phase 2.3: Apply inline styles using CSS custom properties for precision
   return `
     <div class="${containerClasses}" style="
       background-color: var(--cta-background);
       color: var(--cta-text);
-      font-family: var(--cta-font-family);
+      padding: var(--cta-container-padding);
       border-radius: var(--cta-button-radius);
+      font-family: var(--cta-font-family);
     ">
-      <header class="${headerClasses}">
-        <h1 class="${titleClasses}" style="color: var(--cta-text); font-weight: var(--cta-button-font-weight);">
-          ${content.title}
+      <header class="${headerClasses}" style="margin-bottom: var(--cta-section-spacing);">
+        <h1 class="text-2xl font-semibold m-0" style="color: var(--cta-text);">
+          Header
         </h1>
-        <p class="${subtitleClasses}" style="color: var(--cta-text); opacity: 0.8;">
-          ${content.subtitle}
-        </p>
       </header>
 
-      <div class="${buttonContainerClasses}">
-        <button class="${buttonBaseClasses}" style="
-          background-color: var(--cta-primary-bg);
-          color: var(--cta-primary-text);
+      <div class="${buttonContainerClasses}" style="gap: var(--cta-element-spacing);">
+        <button class="${buttonBaseClasses} cta-button-secondary" style="
+          background-color: var(--cta-secondary-bg);
+          color: var(--cta-secondary-text);
+          padding: var(--cta-button-padding);
+          border-radius: var(--cta-button-radius);
           border: var(--cta-button-border);
           font-size: var(--cta-button-font-size);
           font-weight: var(--cta-button-font-weight);
-          border-radius: var(--cta-button-radius);
-        " onmouseover="this.style.backgroundColor='var(--cta-primary-hover-bg)';" onmouseout="this.style.backgroundColor='var(--cta-primary-bg)';">
-          ${content.primaryCTA}
+          line-height: var(--cta-button-line-height);
+          transition: var(--cta-transition);
+        ">
+          Cancel
         </button>
-        <button class="${buttonBaseClasses}" style="
-          background-color: var(--cta-secondary-bg);
-          color: var(--cta-secondary-text);
-          border: 1px solid var(--cta-secondary-bg);
+        <button class="${buttonBaseClasses} cta-button-primary" style="
+          background-color: var(--cta-primary-bg);
+          color: var(--cta-primary-text);
+          padding: var(--cta-button-padding);
+          border-radius: var(--cta-button-radius);
+          border: var(--cta-button-border);
           font-size: var(--cta-button-font-size);
           font-weight: var(--cta-button-font-weight);
-          border-radius: var(--cta-button-radius);
-        " onmouseover="this.style.backgroundColor='var(--cta-secondary-hover-bg)';" onmouseout="this.style.backgroundColor='var(--cta-secondary-bg)';">
-          ${content.secondaryCTA}
+          line-height: var(--cta-button-line-height);
+          transition: var(--cta-transition);
+        ">
+          Accept
         </button>
       </div>
     </div>
@@ -520,93 +524,94 @@ export function generateTemplateHTML(styles: StyleMapping, safeColors: SafeColor
 }
 
 export function generateReactComponent(styles: StyleMapping, safeColors: SafeColors, tokens: DesignTokens): string {
-  // Define content constants to follow DRY principle
-  const content = {
-    title: "Financial infrastructure for the internet",
-    subtitle: "Millions of businesses of all sizes use Stripe's software and APIs",
-    primaryCTA: "Start now",
-    secondaryCTA: "Contact sales"
-  };
-
-  // Phase 2.1: Removed Tailwind arbitrary values - use layout classes only + CSS variables
-  const containerClasses = 'max-w-sm mx-auto shadow-lg p-6 bg-white rounded-lg';
-  const headerClasses = 'text-center mb-6';
-  const titleClasses = 'text-2xl font-semibold mb-3';
-  const subtitleClasses = 'text-sm text-gray-600 mb-6';
-  const buttonContainerClasses = 'flex gap-3 justify-center';
-  const buttonBaseClasses = 'cursor-pointer inline-flex items-center justify-center text-center transition-all duration-200 ease-in-out px-4 py-2 rounded-lg font-medium text-sm';
-
-  // Phase 2.3: Apply inline styles using CSS custom properties for precision
+  // Simple card with header + two CTAs (Cancel/Accept)
   return `export default function CTATemplate() {
   return (
     <div
-      className="${containerClasses}"
       style={{
         backgroundColor: 'var(--cta-background)',
         color: 'var(--cta-text)',
-        fontFamily: 'var(--cta-font-family)',
-        borderRadius: 'var(--cta-button-radius)'
+        padding: 'var(--cta-container-padding)',
+        borderRadius: 'var(--cta-button-radius)',
+        fontFamily: 'var(--cta-font-family)'
       }}
+      className="max-w-sm mx-auto shadow-lg"
     >
-      <header className="${headerClasses}">
+      <header
+        style={{ marginBottom: 'var(--cta-section-spacing)' }}
+        className="text-center"
+      >
         <h1
-          className="${titleClasses}"
-          style={{
-            color: 'var(--cta-text)',
-            fontWeight: 'var(--cta-button-font-weight)'
-          }}
+          style={{ color: 'var(--cta-text)' }}
+          className="text-2xl font-semibold m-0"
         >
-          ${content.title}
+          Header
         </h1>
-        <p
-          className="${subtitleClasses}"
-          style={{
-            color: 'var(--cta-text)',
-            opacity: 0.8
-          }}
-        >
-          ${content.subtitle}
-        </p>
       </header>
 
-      <div className="${buttonContainerClasses}">
+      <div
+        style={{ gap: 'var(--cta-element-spacing)' }}
+        className="flex justify-center"
+      >
         <button
-          className="${buttonBaseClasses}"
-          style={{
-            backgroundColor: 'var(--cta-primary-bg)',
-            color: 'var(--cta-primary-text)',
-            border: 'var(--cta-button-border)',
-            fontSize: 'var(--cta-button-font-size)',
-            fontWeight: 'var(--cta-button-font-weight)',
-            borderRadius: 'var(--cta-button-radius)'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--cta-primary-hover-bg)';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--cta-primary-bg)';
-          }}
-        >
-          ${content.primaryCTA}
-        </button>
-        <button
-          className="${buttonBaseClasses}"
           style={{
             backgroundColor: 'var(--cta-secondary-bg)',
             color: 'var(--cta-secondary-text)',
-            border: '1px solid var(--cta-secondary-bg)',
+            padding: 'var(--cta-button-padding)',
+            borderRadius: 'var(--cta-button-radius)',
+            border: 'var(--cta-button-border)',
             fontSize: 'var(--cta-button-font-size)',
             fontWeight: 'var(--cta-button-font-weight)',
-            borderRadius: 'var(--cta-button-radius)'
+            lineHeight: 'var(--cta-button-line-height)',
+            transition: 'var(--cta-transition)'
           }}
+          className="cursor-pointer inline-flex items-center justify-center text-center transition-all duration-200 ease-in-out"
           onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--cta-secondary-hover-bg)';
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-secondary-hover-bg)';
+            target.style.color = 'var(--cta-secondary-hover-color)';
+            target.style.opacity = 'var(--cta-secondary-hover-opacity)';
+            target.style.transform = 'var(--cta-secondary-hover-transform)';
           }}
           onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--cta-secondary-bg)';
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-secondary-bg)';
+            target.style.color = 'var(--cta-secondary-text)';
+            target.style.opacity = '1';
+            target.style.transform = 'none';
           }}
         >
-          ${content.secondaryCTA}
+          Cancel
+        </button>
+        <button
+          style={{
+            backgroundColor: 'var(--cta-primary-bg)',
+            color: 'var(--cta-primary-text)',
+            padding: 'var(--cta-button-padding)',
+            borderRadius: 'var(--cta-button-radius)',
+            border: 'var(--cta-button-border)',
+            fontSize: 'var(--cta-button-font-size)',
+            fontWeight: 'var(--cta-button-font-weight)',
+            lineHeight: 'var(--cta-button-line-height)',
+            transition: 'var(--cta-transition)'
+          }}
+          className="cursor-pointer inline-flex items-center justify-center text-center transition-all duration-200 ease-in-out"
+          onMouseOver={(e) => {
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-primary-hover-bg)';
+            target.style.color = 'var(--cta-primary-hover-color)';
+            target.style.opacity = 'var(--cta-primary-hover-opacity)';
+            target.style.transform = 'var(--cta-primary-hover-transform)';
+          }}
+          onMouseOut={(e) => {
+            const target = e.target as HTMLButtonElement;
+            target.style.backgroundColor = 'var(--cta-primary-bg)';
+            target.style.color = 'var(--cta-primary-text)';
+            target.style.opacity = '1';
+            target.style.transform = 'none';
+          }}
+        >
+          Accept
         </button>
       </div>
     </div>
@@ -618,7 +623,43 @@ export function generateReactComponent(styles: StyleMapping, safeColors: SafeCol
 export function generateTemplateCSSVars(tokens: DesignTokens, safeColors: SafeColors, styles: StyleMapping): string {
   const fontFamily = tokens.typography.fontFamilies[0] || 'system-ui, -apple-system, sans-serif';
 
-  // Phase 2.2: Comprehensive CSS Custom Properties System
+  // Check if we have actual hover data
+  const hasPrimaryHover = styles.button?.primaryHover &&
+    (styles.button.primaryHover.backgroundColor || styles.button.primaryHover.opacity);
+  const hasSecondaryHover = styles.button?.secondaryHover &&
+    (styles.button.secondaryHover.backgroundColor || styles.button.secondaryHover.opacity);
+
+  console.log('🔍 Hover data check:', { hasPrimaryHover, hasSecondaryHover });
+  if (hasPrimaryHover) {
+    console.log('🎨 PRIMARY HOVER:', styles.button?.primaryHover);
+  }
+  if (hasSecondaryHover) {
+    console.log('🎨 SECONDARY HOVER:', styles.button?.secondaryHover);
+  }
+
+  // Generate hover CSS only if we have hover data
+  let primaryHoverCSS = '';
+  if (hasPrimaryHover) {
+    primaryHoverCSS = `
+.cta-button-primary:hover {
+  ${styles.button?.primaryHover?.backgroundColor ? `background-color: ${styles.button.primaryHover.backgroundColor} !important;` : ''}
+  ${styles.button?.primaryHover?.color ? `color: ${styles.button.primaryHover.color} !important;` : ''}
+  ${styles.button?.primaryHover?.opacity ? `opacity: ${styles.button.primaryHover.opacity};` : ''}
+  ${styles.button?.primaryHover?.transform ? `transform: ${styles.button.primaryHover.transform};` : ''}
+}`;
+  }
+
+  let secondaryHoverCSS = '';
+  if (hasSecondaryHover) {
+    secondaryHoverCSS = `
+.cta-button-secondary:hover {
+  ${styles.button?.secondaryHover?.backgroundColor ? `background-color: ${styles.button.secondaryHover.backgroundColor} !important;` : ''}
+  ${styles.button?.secondaryHover?.color ? `color: ${styles.button.secondaryHover.color} !important;` : ''}
+  ${styles.button?.secondaryHover?.opacity ? `opacity: ${styles.button.secondaryHover.opacity};` : ''}
+  ${styles.button?.secondaryHover?.transform ? `transform: ${styles.button.secondaryHover.transform};` : ''}
+}`;
+  }
+
   return `:root {
   /* Colors */
   --cta-primary-bg: ${safeColors.ctaPrimary};
@@ -649,20 +690,11 @@ export function generateTemplateCSSVars(tokens: DesignTokens, safeColors: SafeCo
   --cta-button-align-items: ${styles.button?.alignItems || 'center'};
   --cta-button-justify-content: ${styles.button?.justifyContent || 'center'};
 
-  /* Hover States */
-  --cta-primary-hover-bg: ${styles.button?.primaryHover?.backgroundColor || safeColors.ctaPrimary};
-  --cta-primary-hover-color: ${styles.button?.primaryHover?.color || safeColors.ctaPrimaryText};
-  --cta-primary-hover-opacity: ${styles.button?.primaryHover?.opacity || '0.8'};
-  --cta-primary-hover-transform: ${styles.button?.primaryHover?.transform || 'none'};
-
-  --cta-secondary-hover-bg: ${styles.button?.secondaryHover?.backgroundColor || safeColors.ctaSecondary};
-  --cta-secondary-hover-color: ${styles.button?.secondaryHover?.color || safeColors.ctaSecondaryText};
-  --cta-secondary-hover-opacity: ${styles.button?.secondaryHover?.opacity || '0.8'};
-  --cta-secondary-hover-transform: ${styles.button?.secondaryHover?.transform || 'none'};
-
   /* Transitions */
   --cta-transition: all 0.2s ease-in-out;
-}`;
+}
+${primaryHoverCSS}
+${secondaryHoverCSS}`;
 }
 
 export async function saveTemplateArtifacts(
