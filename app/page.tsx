@@ -50,6 +50,7 @@ function isPipelineResult(result: GenerationResult): result is PipelineResult {
 import { PipelineInput } from '@/components/pipeline-input';
 import { PipelineStage } from '@/components/pipeline-stage';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 // Component to safely render CTA templates with CSS variables
 function CTATemplateRenderer({ html, cssVariables }: { html: string; cssVariables?: string }) {
@@ -131,7 +132,12 @@ export default function Home() {
       const data = await response.json();
 
       if (data.success) {
-        setResult(data.result);
+        // For CTA mode, navigate to preview page with runId in URL
+        if (mode === 'cta') {
+          window.location.href = `/preview-cta/${data.result.runId}`;
+        } else {
+          setResult(data.result);
+        }
       } else {
         throw new Error(data.error || 'Generation failed');
       }
@@ -146,10 +152,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-mono font-bold">Dawn: Design Partner Test Site</h1>
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Dawn: Design Partner</h1>
+          <p className="text-sm text-muted-foreground">Generate React + Tailwind components from any website</p>
         </div>
 
         {/* Input */}
@@ -157,13 +164,13 @@ export default function Home() {
 
         {/* Results Display */}
         {result && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-mono font-semibold">
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold tracking-tight">
                 {isPipelineResult(result) ? 'Pipeline Execution' : 'CTA Generation'}
               </h2>
-              <div className="text-sm text-muted-foreground font-mono">
-                Run ID: {result.runId}
+              <div className="text-xs text-muted-foreground font-mono px-2 py-1 bg-muted rounded">
+                {result.runId}
               </div>
             </div>
 
@@ -183,19 +190,19 @@ export default function Home() {
 
                 {/* Pipeline Final Actions */}
                 {result.status === 'completed' && (
-                  <div className="flex gap-3 pt-4">
-                    <button
+                  <div className="flex gap-2 pt-4">
+                    <Button
                       onClick={() => window.open(`/preview/${result.runId}`, '_blank')}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded font-mono text-sm hover:bg-primary/90 transition-colors"
+                      variant="default"
                     >
                       Preview Components
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => window.open(`/api/download/${result.runId}`, '_blank')}
-                      className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-sm hover:bg-secondary/80 transition-colors"
+                      variant="secondary"
                     >
                       Download ZIP
-                    </button>
+                    </Button>
                   </div>
                 )}
               </>
@@ -205,7 +212,7 @@ export default function Home() {
                 {/* Generated CTA Component - FIRST */}
                 <div className="p-6 border-2 border-dashed border-muted-foreground/30 rounded-lg bg-background">
                   <div className="mb-4">
-                    <h3 className="font-mono font-semibold text-sm text-muted-foreground">✨ Generated Component</h3>
+                    <h3 className="font-semibold text-sm text-muted-foreground">✨ Generated Component</h3>
                   </div>
                   {/* Render the component with CSS variables injected */}
                   <CTATemplateRenderer
@@ -216,7 +223,7 @@ export default function Home() {
 
                 {/* Captured Page Screenshot */}
                 <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
-                  <h3 className="font-mono font-semibold text-sm">📸 Captured Page</h3>
+                  <h3 className="font-semibold text-sm">📸 Captured Page</h3>
                   <div className="flex justify-center">
                     <img
                       src={`/api/artifact/${result.runId}/raw/page.png`}
@@ -235,12 +242,12 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-6 p-6 border rounded-lg bg-muted/50">
-                  <h3 className="font-mono font-semibold text-lg">Design Analysis & Extracted Tokens</h3>
+                  <h3 className="font-semibold text-lg">Design Analysis & Extracted Tokens</h3>
 
                   {/* Brand Personality Analysis */}
                   {result.tokens?.brandPersonality && (
                     <div className="space-y-3 p-4 bg-background rounded border">
-                      <h4 className="font-mono font-medium text-sm flex items-center gap-2">
+                      <h4 className="font-medium text-sm flex items-center gap-2">
                         🎨 Brand Personality
                         <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
                           {Math.round(result.tokens.brandPersonality.confidence * 100)}% confidence
@@ -276,7 +283,7 @@ export default function Home() {
                   {/* Design System Analysis */}
                   {result.tokens?.designSystemAnalysis && (
                     <div className="space-y-3 p-4 bg-background rounded border">
-                      <h4 className="font-mono font-medium text-sm">📐 Design System Maturity</h4>
+                      <h4 className="font-medium text-sm">📐 Design System Maturity</h4>
                       <div className="grid grid-cols-2 gap-4 text-xs">
                         <div>
                           <span className="text-muted-foreground">Maturity:</span> <span className="font-medium capitalize">{result.tokens.designSystemAnalysis.maturityLevel}</span>
@@ -296,7 +303,7 @@ export default function Home() {
 
                   {/* Enhanced Color Palette */}
                   <div className="space-y-3">
-                    <h4 className="font-mono font-medium text-sm">🎨 Color Palette</h4>
+                    <h4 className="font-medium text-sm">🎨 Color Palette</h4>
 
                     {/* Semantic Colors */}
                     <div className="space-y-2">
@@ -354,7 +361,7 @@ export default function Home() {
                   {/* Button Variants */}
                   {result.tokens.buttons?.variants?.length > 0 && (
                     <div className="space-y-3">
-                      <h4 className="font-mono font-medium text-sm">🔘 Button Variants (Ordered by Count)</h4>
+                      <h4 className="font-medium text-sm">🔘 Button Variants (Ordered by Count)</h4>
 
                       {/* Solid/Non-Ghost Buttons */}
                       {result.tokens.buttons.variants.filter((button: any) => button.type !== 'ghost').length > 0 && (
@@ -477,7 +484,7 @@ export default function Home() {
                         <details className="group">
                           <summary className="cursor-pointer list-none">
                             <div className="flex items-center gap-2 p-3 bg-muted/30 rounded border">
-                              <span className="text-sm font-mono font-medium">
+                              <span className="text-sm font-medium">
                                 👻 Transparent Buttons ({result.tokens.buttons.variants.filter((button: any) => button.type === 'ghost').length})
                               </span>
                               <span className="text-xs text-muted-foreground ml-auto group-open:rotate-180 transition-transform">
@@ -550,7 +557,7 @@ export default function Home() {
                   {/* Enhanced Typography */}
                   {result.tokens.typography && (
                     <div className="space-y-3">
-                      <h4 className="font-mono font-medium text-sm">📝 Typography System</h4>
+                      <h4 className="font-medium text-sm">📝 Typography System</h4>
                       <div className="grid grid-cols-1 gap-3 text-xs">
                         <div>
                           <span className="text-muted-foreground">Font Families:</span>
@@ -588,7 +595,7 @@ export default function Home() {
 
                   {/* Enhanced Spacing System */}
                   <div className="space-y-3">
-                    <h4 className="font-mono font-medium text-sm">📏 Spacing System</h4>
+                    <h4 className="font-medium text-sm">📏 Spacing System</h4>
                     <div className="space-y-2">
                       <div className="text-xs">
                         <span className="text-muted-foreground">Template Spacing:</span>
@@ -624,7 +631,7 @@ export default function Home() {
 
                   {/* Applied Styling Decisions */}
                   <div className="space-y-3 p-4 bg-background rounded border">
-                    <h4 className="font-mono font-medium text-sm">⚙️ Applied Styling Decisions</h4>
+                    <h4 className="font-medium text-sm">⚙️ Applied Styling Decisions</h4>
                     <div className="text-xs space-y-2">
                       <div>
                         <span className="text-muted-foreground">Template Type:</span> <span className="font-medium capitalize">{result.template.templateType}</span>
@@ -651,13 +658,14 @@ export default function Home() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-background rounded-lg max-w-4xl max-h-[90vh] overflow-auto">
               <div className="p-4 border-b flex justify-between items-center">
-                <h3 className="font-mono font-semibold">Captured Page</h3>
-                <button
+                <h3 className="font-semibold tracking-tight">Captured Page</h3>
+                <Button
                   onClick={() => setShowImageModal(false)}
-                  className="text-muted-foreground hover:text-foreground"
+                  variant="ghost"
+                  size="sm"
                 >
                   ✕
-                </button>
+                </Button>
               </div>
               <div className="p-4">
                 <img
@@ -680,9 +688,9 @@ export default function Home() {
         {/* Initial State */}
         {!result && !isGenerating && (
           <div className="text-center py-16 text-muted-foreground">
-            <div className="text-4xl mb-4 font-mono">⚡</div>
-            <h3 className="text-lg font-mono font-medium mb-2">Ready</h3>
-            <p className="font-mono text-sm">Enter URL and prompt to start pipeline</p>
+            <div className="text-4xl mb-4">⚡</div>
+            <h3 className="text-lg font-medium mb-2">Ready</h3>
+            <p className="text-sm">Enter URL and prompt to start pipeline</p>
           </div>
         )}
       </div>

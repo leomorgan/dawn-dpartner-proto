@@ -35,13 +35,15 @@ export async function GET(
       stylesJson,
       cssVariables,
       metadata,
-      tokensJson
+      tokensJson,
+      html
     ] = await Promise.all([
       readFile(join(ctaDir, 'CTATemplate.tsx'), 'utf8').catch(() => null),
       readFile(join(ctaDir, 'styles.json'), 'utf8').catch(() => null),
       readFile(join(ctaDir, 'template.css'), 'utf8').catch(() => null),
       readFile(join(ctaDir, 'metadata.json'), 'utf8').catch(() => null),
-      readFile(join(runDir, 'design_tokens.json'), 'utf8').catch(() => null)
+      readFile(join(runDir, 'design_tokens.json'), 'utf8').catch(() => null),
+      readFile(join(ctaDir, 'template.html'), 'utf8').catch(() => null)
     ]);
 
     if (!componentCode || !stylesJson || !cssVariables || !metadata) {
@@ -86,8 +88,11 @@ export async function GET(
         componentCode,
         cssVariables,
         templateType,
-        safeColors
+        safeColors,
+        html: html || '',
+        appliedStyles: styles
       },
+      tokens: tokens,
       selectedTemplate: templateType,
       metadata: {
         templateName: templateMeta.name,

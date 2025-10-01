@@ -79,10 +79,10 @@ npm run generate -- --url http://localhost:5050 --prompt "create a property deta
 Create `.env.local` in repository root:
 
 ```bash
-# LLM Provider (choose one or keep mock for deterministic demos)
-OPENAI_API_KEY=sk-...              # optional
-ANTHROPIC_API_KEY=sk-ant-...       # optional
-INTENT_PROVIDER=mock               # mock | openai | anthropic
+# LLM Provider (required - choose one)
+OPENAI_API_KEY=sk-...              # option 1
+ANTHROPIC_API_KEY=sk-ant-...       # option 2
+INTENT_PROVIDER=openai             # openai | anthropic
 
 # Server
 PORT=3000
@@ -92,8 +92,6 @@ TAILWIND_SAFELIST=text-xl,text-2xl,text-3xl,bg-brand-500,bg-brand-600,rounded-r0
 ```
 
 ## Key Technical Details
-
-### Component Set
 
 ### Browser Automation
 - Playwright with Chromium
@@ -118,15 +116,14 @@ Use these agents for non-trivial tasks in their respective domains to ensure exp
 ## Development Guidelines
 
 ### Code Quality & Style
-- **No hardcoded data or mock results** - use real pipeline outputs and dynamic data
+- **No hardcoded data, mocks, or fallbacks** - use real pipeline outputs and dynamic data; fail fast with clear errors if data is missing
 - **Keep code concise** - prefer minimal, readable implementations
 - **Prefer removal over addition** when refactoring - simplify rather than extend
 - **TypeScript must be lint-clean** - fix all ESLint errors, no workarounds or ignores
 - **No linting suppressions** - address the root cause rather than suppressing warnings
-- **Test changes as you go!** Code should work when completed, without fallbacks or mocks.
-- **NEVER HARDCODE VALUES or use FALLBACKS or MOCKS.**
-- **Use the most simple implementation possible.**
-- **ALWAYS FOLLOW A DRY APPROACH.**
+- **Test changes as you go** - code should work when completed
+- **Use the most simple implementation possible**
+- **Follow DRY principles** - don't repeat yourself
 
 ### MVP Philosophy
 This is an **MVP tech demo** with a core focus on **crafted design output quality**:

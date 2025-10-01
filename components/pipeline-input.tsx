@@ -60,7 +60,6 @@ export function PipelineInput({ onGenerate, isGenerating }: PipelineInputProps) 
             variant={mode === 'full' ? 'default' : 'outline'}
             onClick={() => setMode('full')}
             disabled={isGenerating}
-            className="font-mono text-sm"
           >
             Full Pipeline
           </Button>
@@ -68,7 +67,6 @@ export function PipelineInput({ onGenerate, isGenerating }: PipelineInputProps) 
             variant={mode === 'cta' ? 'default' : 'outline'}
             onClick={() => setMode('cta')}
             disabled={isGenerating}
-            className="font-mono text-sm"
           >
             CTA Templates
           </Button>
@@ -87,7 +85,6 @@ export function PipelineInput({ onGenerate, isGenerating }: PipelineInputProps) 
               onKeyPress={handleKeyPress}
               placeholder="airbnb.com, stripe.com, github.com..."
               disabled={isGenerating}
-              className="font-mono text-sm"
             />
           </div>
 
@@ -104,7 +101,6 @@ export function PipelineInput({ onGenerate, isGenerating }: PipelineInputProps) 
                 onKeyPress={handleKeyPress}
                 placeholder="create a landing page"
                 disabled={isGenerating}
-                className="font-mono text-sm"
               />
             </div>
           )}
@@ -113,7 +109,7 @@ export function PipelineInput({ onGenerate, isGenerating }: PipelineInputProps) 
           <Button
             onClick={handleSubmit}
             disabled={isGenerating || !url.trim() || (mode === 'full' && !prompt.trim())}
-            className="h-10 px-8 font-mono"
+            size="lg"
           >
             {isGenerating ? 'Generating...' : 'Generate'}
           </Button>

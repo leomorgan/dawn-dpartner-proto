@@ -704,6 +704,7 @@ export async function saveTemplateArtifacts(
     styles: StyleMapping;
     css: string;
     template: string;
+    html?: string;
   },
   artifactDir?: string
 ): Promise<void> {
@@ -713,7 +714,7 @@ export async function saveTemplateArtifacts(
 
   await mkdir(ctaDir, { recursive: true });
 
-  await Promise.all([
+  const filesToWrite = [
     writeFile(join(ctaDir, 'CTATemplate.tsx'), artifacts.component),
     writeFile(join(ctaDir, 'styles.json'), JSON.stringify(artifacts.styles, null, 2)),
     writeFile(join(ctaDir, 'template.css'), artifacts.css),
@@ -722,7 +723,13 @@ export async function saveTemplateArtifacts(
       generatedAt: new Date().toISOString(),
       runId
     }, null, 2))
-  ]);
+  ];
+
+  if (artifacts.html) {
+    filesToWrite.push(writeFile(join(ctaDir, 'template.html'), artifacts.html));
+  }
+
+  await Promise.all(filesToWrite);
 }
 
 export async function applyTokensToTemplate(
@@ -755,7 +762,8 @@ export async function applyTokensToTemplate(
     component: componentCode,
     styles: appliedStyles,
     css: cssVariables,
-    template: template.type
+    template: template.type,
+    html: html
   }, artifactDir);
 
   return {
