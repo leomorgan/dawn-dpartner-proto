@@ -106,6 +106,23 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [vectorizedCaptures, setVectorizedCaptures] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load vectorized captures on mount
+    const loadVectorizedCaptures = async () => {
+      try {
+        const response = await fetch('/api/vectors/list');
+        if (response.ok) {
+          const data = await response.json();
+          setVectorizedCaptures(data.profiles || []);
+        }
+      } catch (err) {
+        console.error('Failed to load vectorized captures:', err);
+      }
+    };
+    loadVectorizedCaptures();
+  }, []);
 
   const handleGenerate = async (url: string, prompt: string, mode: 'full' | 'cta' = 'full') => {
     setIsGenerating(true);
@@ -158,6 +175,41 @@ export default function Home() {
           <h1 className="text-2xl font-semibold tracking-tight">Dawn: Design Partner</h1>
           <p className="text-sm text-muted-foreground">Generate React + Tailwind components from any website</p>
         </div>
+
+        {/* Vectorized Captures List */}
+        {vectorizedCaptures.length > 0 && (
+          <div className="bg-white border rounded-lg p-4">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3">Vector Database ({vectorizedCaptures.length})</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {vectorizedCaptures.map((capture) => (
+                <a
+                  key={capture.id}
+                  href={`/vectors/${capture.id}`}
+                  className="group block p-3 border rounded-lg hover:border-blue-500 hover:shadow-sm transition-all cursor-pointer"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">
+                        {new URL(capture.source_url).hostname.replace('www.', '')}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {capture.source_url}
+                      </div>
+                    </div>
+                  </div>
+                  {capture.brand_tone && (
+                    <div className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded capitalize">
+                      {capture.brand_tone}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-400 mt-2">
+                    {new Date(capture.created_at).toLocaleDateString()}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Input */}
         <PipelineInput onGenerate={handleGenerate} isGenerating={isGenerating} />
