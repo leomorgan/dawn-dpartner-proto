@@ -1,20 +1,20 @@
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { parse, formatHex, differenceEuclidean, converter } from 'culori';
+import { OpenAI } from 'openai';
 
-// Simple WCAG contrast calculation
+// WCAG 2.1 contrast calculation
 function calculateContrast(color1: any, color2: any): number {
   if (!color1 || !color2) return 0;
 
   const getLuminance = (color: any): number => {
-    // Convert to RGB
-    const r = color.r || 0;
-    const g = color.g || 0;
-    const b = color.b || 0;
+    // culori parse() returns RGB values already normalized to 0-1
+    const r = color.r ?? 0;
+    const g = color.g ?? 0;
+    const b = color.b ?? 0;
 
-    // Calculate relative luminance
+    // Calculate relative luminance using WCAG 2.1 formula
     const sRGB = [r, g, b].map(c => {
-      c = c / 255;
       return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     });
 
@@ -32,8 +32,18 @@ import type { ComputedStyleNode } from '../capture';
 
 export interface DesignTokens {
   colors: {
+    // === NEW: 4-tier classification ===
+    foundation: string[];       // Pure neutrals (chroma < 5)
+    tintedNeutrals: string[];   // Subtle tints (chroma 5-20)
+    accentColors: string[];     // Muted brand (chroma 20-50)
+    brandColors: string[];      // Vibrant brand (chroma > 50)
+
+    // === DEPRECATED (keep for backward compat) ===
+    /** @deprecated Use foundation + tintedNeutrals instead */
     primary: string[];
+    /** @deprecated Use accentColors + brandColors instead */
     neutral: string[];
+
     semantic: {
       text: string;
       background: string;
@@ -182,6 +192,19 @@ export interface ColorHarmonyAnalysis {
   dominantHue: number;
   saturationRange: { min: number; max: number; avg: number };
   lightnessRange: { min: number; max: number; avg: number };
+
+  // === NEW: Per-tier statistics ===
+  tierDistribution: {
+    foundation: number;       // Count
+    tintedNeutrals: number;
+    accentColors: number;
+    brandColors: number;
+  };
+
+  // === NEW: Tier-specific metrics ===
+  brandColorSaturation: number;  // Avg chroma of brand colors (0-1)
+  accentColorSaturation: number; // Avg chroma of accent colors (0-1)
+  neutralTint: number;           // Avg chroma of tinted neutrals (0-1)
 }
 
 export interface TokenExtractionResult {
@@ -226,7 +249,7 @@ export async function extractTokens(runId: string, artifactDir?: string): Promis
   const tokens = await analyzeStyles(nodes, cssRules, buttonHoverStates);
 
   // Generate style report
-  const report = generateStyleReport(nodes, tokens);
+  const report = await generateStyleReport(nodes, tokens);
 
   // Generate Tailwind config
   const tailwindConfig = generateTailwindConfig(tokens);
@@ -772,7 +795,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
   // Extract top colors by area coverage
   const topColors = Array.from(colorAreas.entries())
     .sort(([, areaA], [, areaB]) => areaB - areaA)
-    .slice(0, 8)
+    .slice(0, 12)
     .map(([color]) => color);
 
   const top10 = Array.from(colorAreas.entries())
@@ -782,9 +805,66 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
   console.log('🎨 Top 10 colors by area:');
   top10.forEach(([c, area], i) => console.log(`  ${i + 1}. ${c}: ${area}`));
 
-  // Separate primary and neutral colors
-  const primaryColors = topColors.slice(0, 4);
-  const neutralColors = topColors.slice(4);
+  // === NEW: 4-tier color classification ===
+  const toLch = converter('lch');
+  const foundation: string[] = [];
+  const tintedNeutrals: string[] = [];
+  const accentColors: string[] = [];
+  const brandColors: string[] = [];
+
+  console.log('🎨 Classifying colors into 4 tiers...');
+
+  for (const colorHex of topColors) {
+    const parsed = parse(colorHex);
+    if (!parsed) continue;
+
+    const lch = toLch(parsed);
+    const chroma = (lch as any).c ?? 0;
+    const lightness = (lch as any).l ?? 0;
+
+    // Foundation: Pure blacks, whites, grays (very low chroma OR extreme lightness)
+    if (chroma < 5 || lightness < 5 || lightness > 95) {
+      foundation.push(colorHex);
+      console.log(`  ${colorHex} → Foundation (chroma=${chroma.toFixed(1)}, L=${lightness.toFixed(1)})`);
+    }
+    // Brand colors: Vibrant, high saturation (chroma > 50)
+    else if (chroma > 50) {
+      brandColors.push(colorHex);
+      console.log(`  ${colorHex} → Brand (chroma=${chroma.toFixed(1)})`);
+    }
+    // Accent colors: Muted brand identity (chroma 20-50)
+    else if (chroma > 20) {
+      accentColors.push(colorHex);
+      console.log(`  ${colorHex} → Accent (chroma=${chroma.toFixed(1)})`);
+    }
+    // Tinted neutrals: Subtle background tints (chroma 5-20)
+    else {
+      tintedNeutrals.push(colorHex);
+      console.log(`  ${colorHex} → Tinted Neutral (chroma=${chroma.toFixed(1)})`);
+    }
+  }
+
+  // Adaptive limits (no hard caps on neutrals!)
+  foundation.splice(8);        // Max 8 pure neutrals
+  tintedNeutrals.splice(6);    // Max 6 tinted neutrals
+  accentColors.splice(6);      // Max 6 accent colors
+  brandColors.splice(4);       // Max 4 brand colors
+
+  console.log(`🎨 Color tier distribution: Foundation=${foundation.length}, Tinted=${tintedNeutrals.length}, Accent=${accentColors.length}, Brand=${brandColors.length}`);
+
+  // === Backward compatibility: derive primary/neutral ===
+  const primaryColors = [...accentColors, ...brandColors];
+  const neutralColors = [...foundation, ...tintedNeutrals];
+
+  // Ensure minimum counts for backward compat
+  if (neutralColors.length === 0 && primaryColors.length > 0) {
+    neutralColors.push(primaryColors.pop()!);
+  }
+  if (primaryColors.length === 0 && neutralColors.length > 0) {
+    primaryColors.push(neutralColors.pop()!);
+  }
+
+  console.log(`🎨 Legacy compatibility: Primary=${primaryColors.length}, Neutral=${neutralColors.length}`);
 
   // Helper function to generate smart fallback colors
   // Find most common text and background colors from captured data
@@ -1008,8 +1088,16 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
 
   return {
     colors: {
+      // === NEW: 4-tier system ===
+      foundation,
+      tintedNeutrals,
+      accentColors,
+      brandColors,
+
+      // === BACKWARD COMPAT ===
       primary: primaryColors,
       neutral: neutralColors,
+
       semantic: {
         text: mostCommonText,
         background: mostCommonBg,
@@ -1052,7 +1140,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
 }
 
 // Real token coverage calculation - replaces hardcoded 0.95
-function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: DesignTokens): RealTokenMetrics {
+async function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: DesignTokens): Promise<RealTokenMetrics> {
   // Extract all colors actually used in the DOM
   const allColorsUsed = new Set<string>();
   const criticalColors = new Set<string>(); // Colors on important elements
@@ -1137,8 +1225,157 @@ function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: DesignTok
   };
 }
 
+/**
+ * Use LLM to analyze brand personality from design tokens
+ */
+async function analyzeBrandPersonalityWithLLM(tokens: DesignTokens): Promise<BrandPersonality | null> {
+  if (!process.env.OPENAI_API_KEY) {
+    return null; // Fall back to heuristics
+  }
+
+  try {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    // Prepare design token data for LLM analysis
+    const colorSummary = {
+      primary: tokens.colors.primary.slice(0, 5),
+      neutral: tokens.colors.neutral.slice(0, 3),
+      cta: tokens.colors.semantic?.cta,
+      accent: tokens.colors.semantic?.accent
+    };
+
+    const typographySummary = {
+      families: tokens.typography.fontFamilies.slice(0, 3),
+      sizes: tokens.typography.fontSizes.slice(0, 6),
+      weights: tokens.typography.fontWeights.slice(0, 4)
+    };
+
+    const spacingSummary = {
+      values: tokens.spacing.slice(0, 8),
+      average: tokens.spacing.reduce((a, b) => a + b, 0) / tokens.spacing.length,
+      max: Math.max(...tokens.spacing)
+    };
+
+    const borderRadiusSummary = tokens.borderRadius.slice(0, 4);
+    const shadowSummary = tokens.boxShadow.slice(0, 3);
+
+    const prompt = `You are a brand personality expert analyzing design tokens from a website.
+
+**Design Tokens:**
+
+COLORS:
+- Primary colors: ${colorSummary.primary.join(', ')}
+- Neutral colors: ${colorSummary.neutral.join(', ')}
+- CTA color: ${colorSummary.cta || 'N/A'}
+- Accent color: ${colorSummary.accent || 'N/A'}
+
+TYPOGRAPHY:
+- Font families: ${typographySummary.families.join(', ')}
+- Font sizes: ${typographySummary.sizes.join('px, ')}px
+- Font weights: ${typographySummary.weights.join(', ')}
+
+SPACING:
+- Spacing values: ${spacingSummary.values.join('px, ')}px
+- Average spacing: ${spacingSummary.average.toFixed(1)}px
+- Max spacing: ${spacingSummary.max}px
+
+VISUAL STYLE:
+- Border radius: ${borderRadiusSummary.join(', ')}
+- Box shadows: ${shadowSummary.length > 0 ? shadowSummary.join('; ') : 'None'}
+
+**Your task:** Analyze these design tokens to determine the brand personality.
+
+Consider:
+1. Color psychology (hue, saturation, lightness)
+2. Typography personality (serif vs sans-serif, weights, sizes)
+3. Spacing rhythm (tight, comfortable, generous, luxurious)
+4. Visual style (sharp vs rounded, shadows vs flat)
+
+**IMPORTANT:**
+- Be specific and diverse in your analysis - different brands should get different personalities
+- Consider the COMBINATION of all design elements, not just one aspect
+- Use the actual token values to inform your classification
+- Provide a confidence score based on how distinct the design signals are
+
+Return JSON with EXACTLY this structure:
+{
+  "tone": "professional" | "playful" | "elegant" | "bold" | "minimal" | "luxury" | "friendly",
+  "energy": "calm" | "energetic" | "sophisticated" | "dynamic",
+  "trustLevel": "conservative" | "modern" | "innovative" | "experimental",
+  "colorPsychology": {
+    "dominantMood": "string describing the overall mood",
+    "emotionalResponse": ["emotion1", "emotion2", "emotion3"],
+    "brandAdjectives": ["adjective1", "adjective2", "adjective3"]
+  },
+  "spacingPersonality": {
+    "rhythm": "tight" | "comfortable" | "generous" | "luxurious",
+    "consistency": "rigid" | "systematic" | "organic"
+  },
+  "confidence": 0.0-1.0
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a design systems expert specializing in brand personality analysis. Provide accurate, diverse classifications based on design token patterns.' },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.3, // Low temperature for consistent but diverse results
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      console.warn('No content from LLM brand personality analysis');
+      return null;
+    }
+
+    const result = JSON.parse(content) as BrandPersonality;
+
+    // Validate the result
+    const validTones = ['professional', 'playful', 'elegant', 'bold', 'minimal', 'luxury', 'friendly'];
+    const validEnergies = ['calm', 'energetic', 'sophisticated', 'dynamic'];
+    const validTrustLevels = ['conservative', 'modern', 'innovative', 'experimental'];
+    const validRhythms = ['tight', 'comfortable', 'generous', 'luxurious'];
+    const validConsistencies = ['rigid', 'systematic', 'organic'];
+
+    if (!validTones.includes(result.tone) ||
+        !validEnergies.includes(result.energy) ||
+        !validTrustLevels.includes(result.trustLevel) ||
+        !validRhythms.includes(result.spacingPersonality?.rhythm) ||
+        !validConsistencies.includes(result.spacingPersonality?.consistency)) {
+      console.warn('Invalid brand personality result from LLM');
+      return null;
+    }
+
+    // Ensure confidence is between 0 and 1
+    result.confidence = Math.max(0, Math.min(1, result.confidence || 0.7));
+
+    console.log('LLM brand personality analysis successful:', {
+      tone: result.tone,
+      energy: result.energy,
+      trustLevel: result.trustLevel,
+      confidence: result.confidence
+    });
+
+    return result;
+  } catch (error) {
+    console.warn('Error in LLM brand personality analysis, falling back to heuristics:', error);
+    return null;
+  }
+}
+
 // Brand personality analysis from design tokens
-function analyzeBrandPersonality(tokens: DesignTokens, nodes: ComputedStyleNode[]): BrandPersonality {
+async function analyzeBrandPersonality(tokens: DesignTokens, nodes: ComputedStyleNode[]): Promise<BrandPersonality> {
+  // Try LLM-based analysis first
+  const llmResult = await analyzeBrandPersonalityWithLLM(tokens);
+  if (llmResult) {
+    return llmResult;
+  }
+
+  // Fall back to heuristic-based analysis
   // Analyze color psychology
   const primaryColors = tokens.colors.primary.map(c => parse(c)).filter(Boolean);
   const colorPsychology = analyzeColorPsychology(primaryColors);
@@ -1168,37 +1405,34 @@ function analyzeBrandPersonality(tokens: DesignTokens, nodes: ComputedStyleNode[
 function analyzeColorPsychology(colors: any[]) {
   if (!colors.length) return { dominantMood: 'neutral', emotions: ['balanced'], adjectives: ['neutral'] };
 
-  // Analyze hue, saturation, lightness patterns
+  // Convert to LCH using culori converter for accurate hue/chroma/lightness
+  const toLch = converter('lch');
+  const lchColors = colors.map(c => toLch(c)).filter(Boolean);
+
+  if (!lchColors.length) {
+    return { dominantMood: 'neutral', emotions: ['balanced'], adjectives: ['neutral'] };
+  }
+
+  // Extract hue, chroma, lightness
   let totalHue = 0, totalSat = 0, totalLight = 0;
   const hues: number[] = [];
 
-  for (const color of colors) {
-    if (color) {
-      // Convert to HSL if not already
-      let hslColor = color;
-      if (!('h' in color)) {
-        const hexColor = formatHex(color);
-        if (hexColor) {
-          hslColor = parse(hexColor);
-        }
-      }
+  for (const lchColor of lchColors) {
+    const hue = (lchColor as any).h ?? 0;
+    // LCH chroma: typical range 0-150 for sRGB colors, normalize to 0-1
+    const chroma = Math.min(1, ((lchColor as any).c ?? 0) / 150);
+    // LCH lightness: 0-100, normalize to 0-1
+    const lightness = ((lchColor as any).l ?? 0) / 100;
 
-      if (hslColor && typeof hslColor === 'object' && 'h' in hslColor) {
-        const hue = hslColor.h || 0;
-        const sat = hslColor.s || 0;
-        const light = hslColor.l || 0;
-
-        totalHue += hue;
-        totalSat += sat;
-        totalLight += light;
-        hues.push(hue);
-      }
-    }
+    totalHue += hue;
+    totalSat += chroma;
+    totalLight += lightness;
+    hues.push(hue);
   }
 
-  const avgHue = totalHue / colors.length;
-  const avgSat = totalSat / colors.length;
-  const avgLight = totalLight / colors.length;
+  const avgHue = totalHue / lchColors.length;
+  const avgSat = totalSat / lchColors.length;
+  const avgLight = totalLight / lchColors.length;
 
   // Determine mood based on color characteristics
   let dominantMood = 'neutral';
@@ -1321,6 +1555,24 @@ function determineTrustLevel(tokens: DesignTokens, nodes: ComputedStyleNode[]): 
   return 'modern';
 }
 
+// Helper function to calculate average chroma for a set of colors
+function calculateAvgChroma(colors: string[]): number {
+  if (colors.length === 0) return 0;
+
+  const toLch = converter('lch');
+  const chromas = colors
+    .map(c => {
+      const parsed = parse(c);
+      if (!parsed) return null;
+      const lch = toLch(parsed);
+      return ((lch as any).c ?? 0) / 150; // Normalize to 0-1
+    })
+    .filter((c): c is number => c !== null);
+
+  if (chromas.length === 0) return 0;
+  return chromas.reduce((sum, c) => sum + c, 0) / chromas.length;
+}
+
 function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
   const allColors = [...tokens.colors.primary, ...tokens.colors.neutral];
   const parsedColors = allColors.map(c => parse(c)).filter(Boolean);
@@ -1331,24 +1583,48 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
       harmonyScore: 0.5,
       dominantHue: 0,
       saturationRange: { min: 0, max: 0, avg: 0 },
-      lightnessRange: { min: 0, max: 0, avg: 0 }
+      lightnessRange: { min: 0, max: 0, avg: 0 },
+      tierDistribution: {
+        foundation: 0,
+        tintedNeutrals: 0,
+        accentColors: 0,
+        brandColors: 0,
+      },
+      brandColorSaturation: 0,
+      accentColorSaturation: 0,
+      neutralTint: 0,
     };
   }
 
-  // Convert to HSL and analyze
-  const hslColors = parsedColors.map(color => {
-    if (color && 'h' in color) return color;
-    const hexColor = formatHex(color);
-    if (hexColor) {
-      const hslColor = parse(hexColor);
-      return hslColor && typeof hslColor === 'object' && 'h' in hslColor ? hslColor : null;
-    }
-    return null;
-  }).filter(Boolean);
+  // Convert to LCH using culori converter
+  const toLch = converter('lch');
+  const lchColors = parsedColors.map(color => toLch(color)).filter(Boolean);
 
-  const hues = hslColors.map(c => c ? (c.h || 0) : 0);
-  const saturations = hslColors.map(c => c && 's' in c ? (c.s || 0) : 0);
-  const lightnesses = hslColors.map(c => c && 'l' in c ? (c.l || 0) : 0);
+  if (!lchColors.length) {
+    return {
+      paletteType: 'monochromatic',
+      harmonyScore: 0.5,
+      dominantHue: 0,
+      saturationRange: { min: 0, max: 0, avg: 0 },
+      lightnessRange: { min: 0, max: 0, avg: 0 },
+      tierDistribution: {
+        foundation: 0,
+        tintedNeutrals: 0,
+        accentColors: 0,
+        brandColors: 0,
+      },
+      brandColorSaturation: 0,
+      accentColorSaturation: 0,
+      neutralTint: 0,
+    };
+  }
+
+  // Extract hue, chroma (saturation), lightness from LCH
+  const hues = lchColors.map(c => (c as any).h ?? 0);
+  // LCH chroma: typical range 0-150 for sRGB colors, normalize to 0-1
+  const chromas = lchColors.map(c => Math.min(1, ((c as any).c ?? 0) / 150));
+  // LCH lightness: 0-100, normalize to 0-1
+  const lightnesses = lchColors.map(c => ((c as any).l ?? 0) / 100);
 
   const dominantHue = hues.reduce((a, b) => a + b, 0) / hues.length;
 
@@ -1363,24 +1639,44 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
   else paletteType = 'complex';
 
   // Calculate harmony score based on consistency and balance
-  const saturationVariance = Math.max(...saturations) - Math.min(...saturations);
+  // Lower variance = higher harmony
+  const saturationVariance = Math.max(...chromas) - Math.min(...chromas);
   const lightnessVariance = Math.max(...lightnesses) - Math.min(...lightnesses);
-  const harmonyScore = Math.max(0, 1 - (saturationVariance + lightnessVariance) / 2);
+  // Both variances are 0-1, so average variance is 0-1
+  const avgVariance = (saturationVariance + lightnessVariance) / 2;
+  const harmonyScore = Math.max(0, Math.min(1, 1 - avgVariance));
+
+  // === NEW: Calculate tier distribution ===
+  const tierDistribution = {
+    foundation: tokens.colors.foundation.length,
+    tintedNeutrals: tokens.colors.tintedNeutrals.length,
+    accentColors: tokens.colors.accentColors.length,
+    brandColors: tokens.colors.brandColors.length,
+  };
+
+  // === NEW: Tier-specific saturation metrics ===
+  const brandColorSaturation = calculateAvgChroma(tokens.colors.brandColors);
+  const accentColorSaturation = calculateAvgChroma(tokens.colors.accentColors);
+  const neutralTint = calculateAvgChroma(tokens.colors.tintedNeutrals);
 
   return {
     paletteType,
     harmonyScore,
     dominantHue,
     saturationRange: {
-      min: Math.min(...saturations),
-      max: Math.max(...saturations),
-      avg: saturations.reduce((a, b) => a + b, 0) / saturations.length
+      min: Math.min(...chromas),
+      max: Math.max(...chromas),
+      avg: chromas.reduce((a, b) => a + b, 0) / chromas.length
     },
     lightnessRange: {
       min: Math.min(...lightnesses),
       max: Math.max(...lightnesses),
       avg: lightnesses.reduce((a, b) => a + b, 0) / lightnesses.length
-    }
+    },
+    tierDistribution,        // NEW
+    brandColorSaturation,    // NEW
+    accentColorSaturation,   // NEW
+    neutralTint,             // NEW
   };
 }
 
@@ -1403,16 +1699,32 @@ function calculateBrandCoherence(tokens: DesignTokens, nodes: ComputedStyleNode[
 function analyzeSpacingConsistency(spacing: number[]): number {
   if (spacing.length < 2) return 1;
 
-  // Check if spacing follows systematic patterns (4px, 8px grid, etc.)
-  const systematicPattern = spacing.every(s => s % 4 === 0) || spacing.every(s => s % 8 === 0);
   const uniqueValues = new Set(spacing).size;
 
-  // Penalize too many unique values or no systematic pattern
-  let consistency = 1;
-  if (!systematicPattern) consistency -= 0.3;
-  if (uniqueValues > 8) consistency -= 0.2;
+  // Calculate coefficient of variation (std dev / mean) as a measure of consistency
+  const mean = spacing.reduce((a, b) => a + b, 0) / spacing.length;
+  const variance = spacing.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / spacing.length;
+  const stdDev = Math.sqrt(variance);
+  const coefficientOfVariation = mean > 0 ? stdDev / mean : 0;
 
-  return Math.max(0, consistency);
+  // Lower CV = more consistent spacing
+  // CV of 0 = perfect consistency, CV > 1 = high variance
+  let consistency = Math.max(0, 1 - coefficientOfVariation);
+
+  // Penalize too many unique values (suggests ad-hoc spacing rather than systematic)
+  if (uniqueValues > 8) {
+    consistency -= 0.2;
+  } else if (uniqueValues > 6) {
+    consistency -= 0.1;
+  }
+
+  // Bonus for following systematic patterns (4px or 8px grid)
+  const systematicPattern = spacing.every(s => s % 8 === 0) || spacing.every(s => s % 4 === 0);
+  if (systematicPattern && uniqueValues <= 6) {
+    consistency = Math.min(1, consistency + 0.1);
+  }
+
+  return Math.max(0, Math.min(1, consistency));
 }
 
 function analyzeTypographyCoherence(typography: DesignTokens['typography']): number {
@@ -1460,7 +1772,7 @@ function analyzeDesignSystem(tokens: DesignTokens, nodes: ComputedStyleNode[]): 
   };
 }
 
-function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): StyleReport {
+async function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): Promise<StyleReport> {
   let totalPairs = 0;
   let aaPassing = 0;
   const failures: StyleReport['contrastResults']['failures'] = [];
@@ -1502,8 +1814,8 @@ function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): 
   const paletteRecall = allColors.length >= 3 ? (allColors.length >= 6 ? 1.0 : 0.75) : 0.5;
 
   // Calculate real token coverage
-  const realTokenMetrics = calculateRealTokenMetrics(nodes, tokens);
-  const brandPersonality = analyzeBrandPersonality(tokens, nodes);
+  const realTokenMetrics = await calculateRealTokenMetrics(nodes, tokens);
+  const brandPersonality = await analyzeBrandPersonality(tokens, nodes);
   const designSystemAnalysis = analyzeDesignSystem(tokens, nodes);
 
   return {

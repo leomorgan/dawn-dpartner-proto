@@ -1,0 +1,24 @@
+# Test URLs for Multi-Tier Color Classification
+# Diverse brand palette types
+
+# Fintech (professional, muted)
+https://stripe.com
+https://monzo.com
+https://revolut.com
+
+# Lifestyle/Travel (warm, inviting)
+https://airbnb.com
+
+# Sports (bold, high contrast)
+https://fifa.com
+
+# Tech/Creative (minimal, modern)
+https://dawnlabs.co
+https://vercel.com
+https://github.com
+
+# E-commerce (varied)
+https://apple.com
+
+# Media (complex palettes)
+https://cnn.com

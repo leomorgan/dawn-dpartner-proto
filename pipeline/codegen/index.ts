@@ -106,18 +106,18 @@ function getBrandColors(tokens: DesignTokens) {
   const secondaryHover = secondaryButton?.hover?.backgroundColor;
 
   return {
-    primary: tokens.colors.primary[0],
-    accent: tokens.colors.semantic?.accent || tokens.colors.primary[2],
-    cta: tokens.colors.semantic?.cta || tokens.colors.primary[1],
+    primary: tokens.colors.brandColors?.[0] || tokens.colors.accentColors?.[0] || tokens.colors.primary[0],
+    accent: tokens.colors.semantic?.accent || tokens.colors.accentColors?.[0] || tokens.colors.primary[2],
+    cta: tokens.colors.semantic?.cta || tokens.colors.brandColors?.[0] || tokens.colors.primary[1],
     text: tokens.colors.semantic.text,
     background: tokens.colors.semantic.background,
-    muted: tokens.colors.semantic?.muted || tokens.colors.neutral[0],
-    link: tokens.colors.contextual?.links?.[0] || tokens.colors.primary[1],
-    neutral: tokens.colors.neutral[0],
+    muted: tokens.colors.semantic?.muted || tokens.colors.tintedNeutrals?.[0] || tokens.colors.neutral[0],
+    link: tokens.colors.contextual?.links?.[0] || tokens.colors.brandColors?.[0] || tokens.colors.primary[1],
+    neutral: tokens.colors.foundation?.[0] || tokens.colors.neutral[0],
     light: tokens.colors.contextual?.backgrounds?.[0] || tokens.colors.semantic.background,
     // Button variants
-    buttonPrimary: tokens.colors.contextual?.buttons?.[0] || tokens.colors.semantic?.cta || tokens.colors.primary[0],
-    buttonSecondary: tokens.colors.contextual?.buttons?.[1] || tokens.colors.neutral[0] || tokens.colors.semantic.background,
+    buttonPrimary: tokens.colors.contextual?.buttons?.[0] || tokens.colors.semantic?.cta || tokens.colors.brandColors?.[0] || tokens.colors.primary[0],
+    buttonSecondary: tokens.colors.contextual?.buttons?.[1] || tokens.colors.tintedNeutrals?.[0] || tokens.colors.neutral[0] || tokens.colors.semantic.background,
     // Button hover effects
     buttonPrimaryHover: primaryHover,
     buttonSecondaryHover: secondaryHover,

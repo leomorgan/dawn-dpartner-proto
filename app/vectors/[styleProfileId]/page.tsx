@@ -349,11 +349,248 @@ function MetricCard({ title, value, score }: { title: string; value: string; sco
 
 // Colors Tab Component
 function ColorsTab({ tokens, report }: any) {
+  const hasNewTierSystem = tokens.colors.foundation !== undefined;
+
+  if (hasNewTierSystem) {
+    return <ColorsTabFourTier tokens={tokens} report={report} />;
+  } else {
+    return <ColorsTabLegacy tokens={tokens} report={report} />;
+  }
+}
+
+// New 4-Tier Color System Display
+function ColorsTabFourTier({ tokens, report }: any) {
+  const tierDistribution = report?.realTokenMetrics?.colorHarmony?.tierDistribution;
+  const colorHarmony = report?.realTokenMetrics?.colorHarmony;
+
   return (
     <div className="space-y-6">
+      {/* Tier Distribution Stats */}
+      {tierDistribution && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-blue-900 mb-3">Color Tier Distribution</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatBox
+              label="Brand Colors"
+              value={tierDistribution.brandColors}
+              color="purple"
+              description="Vibrant identity"
+            />
+            <StatBox
+              label="Accent Colors"
+              value={tierDistribution.accentColors}
+              color="blue"
+              description="Muted brand"
+            />
+            <StatBox
+              label="Tinted Neutrals"
+              value={tierDistribution.tintedNeutrals}
+              color="gray"
+              description="Subtle tints"
+            />
+            <StatBox
+              label="Foundation"
+              value={tierDistribution.foundation}
+              color="slate"
+              description="Pure neutrals"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Tier-Specific Saturation Metrics */}
+      {colorHarmony && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {colorHarmony.brandColorSaturation !== undefined && (
+            <SaturationMetricCard
+              title="Brand Saturation"
+              value={colorHarmony.brandColorSaturation}
+              color="purple"
+            />
+          )}
+          {colorHarmony.accentColorSaturation !== undefined && (
+            <SaturationMetricCard
+              title="Accent Saturation"
+              value={colorHarmony.accentColorSaturation}
+              color="blue"
+            />
+          )}
+          {colorHarmony.neutralTint !== undefined && (
+            <SaturationMetricCard
+              title="Neutral Tint"
+              value={colorHarmony.neutralTint}
+              color="gray"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Brand Colors (Vibrant Identity, Chroma > 50) */}
+      <div className="bg-white rounded-lg border-2 border-purple-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Brand Colors</h3>
+            <p className="text-xs text-gray-600 mt-1">Vibrant identity colors (chroma &gt; 50)</p>
+          </div>
+          <div className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+            {tokens.colors.brandColors.length} colors
+          </div>
+        </div>
+        {tokens.colors.brandColors.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {tokens.colors.brandColors.map((color: string, i: number) => (
+              <ColorSwatch key={i} color={color} label={`Brand ${i + 1}`} showChroma />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            No vibrant brand colors detected
+          </div>
+        )}
+      </div>
+
+      {/* Accent Colors (Muted Brand, Chroma 20-50) */}
+      <div className="bg-white rounded-lg border-2 border-blue-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Accent Colors</h3>
+            <p className="text-xs text-gray-600 mt-1">Muted brand colors (chroma 20-50)</p>
+          </div>
+          <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+            {tokens.colors.accentColors.length} colors
+          </div>
+        </div>
+        {tokens.colors.accentColors.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {tokens.colors.accentColors.map((color: string, i: number) => (
+              <ColorSwatch key={i} color={color} label={`Accent ${i + 1}`} showChroma />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            No accent colors detected
+          </div>
+        )}
+      </div>
+
+      {/* Tinted Neutrals (Subtle Tints, Chroma 5-20) */}
+      <div className="bg-white rounded-lg border-2 border-gray-300 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Tinted Neutrals</h3>
+            <p className="text-xs text-gray-600 mt-1">Subtle tinted neutrals (chroma 5-20)</p>
+          </div>
+          <div className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+            {tokens.colors.tintedNeutrals.length} colors
+          </div>
+        </div>
+        {tokens.colors.tintedNeutrals.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {tokens.colors.tintedNeutrals.map((color: string, i: number) => (
+              <ColorSwatch key={i} color={color} label={`Tinted ${i + 1}`} showChroma />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            No tinted neutrals detected
+          </div>
+        )}
+      </div>
+
+      {/* Foundation Colors (Pure Neutrals, Chroma < 5) */}
+      <div className="bg-white rounded-lg border-2 border-gray-400 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Foundation Colors</h3>
+            <p className="text-xs text-gray-600 mt-1">Pure neutrals (chroma &lt; 5)</p>
+          </div>
+          <div className="px-3 py-1 bg-gray-200 text-gray-800 rounded-full text-xs font-medium">
+            {tokens.colors.foundation.length} colors
+          </div>
+        </div>
+        {tokens.colors.foundation.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {tokens.colors.foundation.map((color: string, i: number) => (
+              <ColorSwatch key={i} color={color} label={`Foundation ${i + 1}`} showChroma />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500 text-sm">
+            No foundation colors detected
+          </div>
+        )}
+      </div>
+
+      {/* Semantic Colors */}
+      <div className="bg-white rounded-lg border p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">Semantic Colors</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Object.entries(tokens.colors.semantic).map(([name, color]) => (
+            <ColorSwatch key={name} color={color as string} label={name} />
+          ))}
+        </div>
+      </div>
+
+      {/* Color Harmony */}
+      {report?.realTokenMetrics?.colorHarmony && (
+        <div className="bg-white rounded-lg border p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Color Harmony</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <div className="text-gray-600">Palette Type</div>
+              <div className="font-semibold capitalize mt-1">
+                {report.realTokenMetrics.colorHarmony.paletteType}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">Harmony Score</div>
+              <div className="font-semibold mt-1">
+                {(report.realTokenMetrics.colorHarmony.harmonyScore * 100).toFixed(0)}%
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">Dominant Hue</div>
+              <div className="font-semibold mt-1">
+                {Math.round(report.realTokenMetrics.colorHarmony.dominantHue)}°
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">Saturation Avg</div>
+              <div className="font-semibold mt-1">
+                {(report.realTokenMetrics.colorHarmony.saturationRange.avg * 100).toFixed(0)}%
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Legacy Color System Display (Backward Compatibility)
+function ColorsTabLegacy({ tokens, report }: any) {
+  return (
+    <div className="space-y-6">
+      {/* Legacy System Notice */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-1 bg-amber-200 text-amber-900 rounded text-xs font-semibold">
+            Legacy
+          </span>
+          <p className="text-sm text-amber-900">
+            This profile uses the legacy 2-tier color classification system.
+          </p>
+        </div>
+      </div>
+
       {/* Primary Colors */}
       <div className="bg-white rounded-lg border p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">Primary Palette</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-base font-semibold text-gray-900">Primary Palette</h3>
+          <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">
+            Legacy
+          </span>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {tokens.colors.primary.map((color: string, i: number) => (
             <ColorSwatch key={i} color={color} label={`Primary ${i + 1}`} />
@@ -363,7 +600,12 @@ function ColorsTab({ tokens, report }: any) {
 
       {/* Neutral Colors */}
       <div className="bg-white rounded-lg border p-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">Neutral Palette</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-base font-semibold text-gray-900">Neutral Palette</h3>
+          <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">
+            Legacy
+          </span>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {tokens.colors.neutral.map((color: string, i: number) => (
             <ColorSwatch key={i} color={color} label={`Neutral ${i + 1}`} />
@@ -417,7 +659,90 @@ function ColorsTab({ tokens, report }: any) {
   );
 }
 
-function ColorSwatch({ color, label }: { color: string; label: string }) {
+// Helper component for tier distribution stats
+function StatBox({ label, value, color, description }: {
+  label: string;
+  value: number;
+  color: 'purple' | 'blue' | 'gray' | 'slate';
+  description: string;
+}) {
+  const colorClasses = {
+    purple: 'bg-purple-50 border-purple-200 text-purple-900',
+    blue: 'bg-blue-50 border-blue-200 text-blue-900',
+    gray: 'bg-gray-50 border-gray-200 text-gray-900',
+    slate: 'bg-slate-50 border-slate-200 text-slate-900',
+  };
+
+  return (
+    <div className={`rounded-lg border p-3 ${colorClasses[color]}`}>
+      <div className="text-2xl font-bold">{value}</div>
+      <div className="text-xs font-semibold mt-0.5">{label}</div>
+      <div className="text-[10px] opacity-75 mt-0.5">{description}</div>
+    </div>
+  );
+}
+
+// Helper component for saturation metrics
+function SaturationMetricCard({ title, value, color }: {
+  title: string;
+  value: number;
+  color: 'purple' | 'blue' | 'gray';
+}) {
+  const colorClasses = {
+    purple: 'border-purple-200 text-purple-700 bg-purple-50',
+    blue: 'border-blue-200 text-blue-700 bg-blue-50',
+    gray: 'border-gray-300 text-gray-700 bg-gray-50',
+  };
+
+  const barColorClasses = {
+    purple: 'bg-purple-600',
+    blue: 'bg-blue-600',
+    gray: 'bg-gray-600',
+  };
+
+  const percentage = Math.round(value * 100);
+
+  return (
+    <div className={`rounded-lg border-2 p-4 ${colorClasses[color]}`}>
+      <div className="text-xs font-medium mb-1 opacity-75">{title}</div>
+      <div className="text-2xl font-bold mb-2">{percentage}%</div>
+      <div className="w-full bg-white/50 rounded-full h-2">
+        <div
+          className={`h-2 rounded-full transition-all ${barColorClasses[color]}`}
+          style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+}
+
+// Enhanced ColorSwatch with optional chroma display
+function ColorSwatch({ color, label, showChroma }: {
+  color: string;
+  label: string;
+  showChroma?: boolean;
+}) {
+  // Calculate chroma if needed (simplified - assumes RGB hex format)
+  const getChroma = (hexColor: string): number => {
+    try {
+      // Simple RGB to chroma approximation
+      const hex = hexColor.replace('#', '');
+      const r = parseInt(hex.substring(0, 2), 16) / 255;
+      const g = parseInt(hex.substring(2, 4), 16) / 255;
+      const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const chroma = (max - min) * 100;
+
+      return Math.round(chroma);
+    } catch {
+      return 0;
+    }
+  };
+
+  const chromaValue = showChroma ? getChroma(color) : null;
+
   return (
     <div className="flex flex-col gap-2">
       <div
@@ -427,6 +752,11 @@ function ColorSwatch({ color, label }: { color: string; label: string }) {
       <div className="text-xs">
         <div className="font-medium text-gray-700 capitalize">{label}</div>
         <div className="font-mono text-gray-500 text-[10px]">{color}</div>
+        {showChroma && chromaValue !== null && (
+          <div className="text-[10px] text-gray-400 mt-0.5">
+            Chroma: {chromaValue}
+          </div>
+        )}
       </div>
     </div>
   );

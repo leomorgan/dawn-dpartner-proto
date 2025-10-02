@@ -271,6 +271,8 @@ function selectComponentBackground(semanticType: string, tokens: DesignTokens): 
   // Use contextual colors when available
   if (semanticType === 'hero' || semanticType === 'overview') {
     return tokens.colors.contextual?.backgrounds?.[0] ||
+           tokens.colors.brandColors?.[0] ||
+           tokens.colors.accentColors?.[0] ||
            tokens.colors.primary[0] ||
            tokens.colors.semantic.background;
   }
@@ -278,6 +280,8 @@ function selectComponentBackground(semanticType: string, tokens: DesignTokens): 
   if (semanticType === 'alerts' || semanticType === 'price_cta') {
     return tokens.colors.semantic?.cta ||
            tokens.colors.contextual?.buttons?.[0] ||
+           tokens.colors.brandColors?.[0] ||
+           tokens.colors.accentColors?.[0] ||
            tokens.colors.primary[1] ||
            tokens.colors.semantic.background;
   }
@@ -385,9 +389,9 @@ function generateCSS(plan: ComponentGenerationPlan): string {
   // Enhanced semantic colors
   css += `  --color-text: ${tokens.colors.semantic.text};\n`;
   css += `  --color-background: ${tokens.colors.semantic.background};\n`;
-  css += `  --color-cta: ${tokens.colors.semantic?.cta || tokens.colors.primary[0]};\n`;
-  css += `  --color-accent: ${tokens.colors.semantic?.accent || tokens.colors.primary[1]};\n`;
-  css += `  --color-muted: ${tokens.colors.semantic?.muted || tokens.colors.neutral[0]};\n`;
+  css += `  --color-cta: ${tokens.colors.semantic?.cta || tokens.colors.brandColors?.[0] || tokens.colors.primary[0]};\n`;
+  css += `  --color-accent: ${tokens.colors.semantic?.accent || tokens.colors.accentColors?.[0] || tokens.colors.primary[1]};\n`;
+  css += `  --color-muted: ${tokens.colors.semantic?.muted || tokens.colors.tintedNeutrals?.[0] || tokens.colors.neutral[0]};\n`;
 
   // Contextual colors
   if (tokens.colors.contextual?.buttons?.length) {

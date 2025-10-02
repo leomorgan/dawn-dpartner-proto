@@ -284,7 +284,7 @@ function findButtonTextColor(backgroundColor: string, tokens: DesignTokens): str
 
   // Fallback to contrast-compliant color from extracted palette
   const textColor = ensureContrastCompliance(tokens.colors.semantic.text, backgroundColor, tokens);
-  return textColor !== tokens.colors.semantic.text ? textColor : tokens.colors.neutral[0] || tokens.colors.primary[0];
+  return textColor !== tokens.colors.semantic.text ? textColor : tokens.colors.foundation?.[0] || tokens.colors.neutral[0] || tokens.colors.brandColors?.[0] || tokens.colors.primary[0];
 }
 
 function getBrightness(color: string): number {
@@ -435,7 +435,7 @@ export async function validateAndSelectColors(tokens: DesignTokens): Promise<Saf
   });
 
   const safeColors: SafeColors = {
-    primary: tokens.colors.primary[0],
+    primary: tokens.colors.brandColors?.[0] || tokens.colors.accentColors?.[0] || tokens.colors.primary[0],
     secondary: secondaryBg,
     background: pageBackground,
     text: tokens.colors.semantic.text,
@@ -461,6 +461,8 @@ function ensureContrastCompliance(foreground: string, background: string, tokens
   // Try alternative colors from extracted palette
   const alternatives = [
     tokens.colors.semantic.text,
+    tokens.colors.brandColors?.[0],
+    tokens.colors.foundation?.[0],
     tokens.colors.primary[0],
     tokens.colors.neutral[0],
   ].filter(Boolean);

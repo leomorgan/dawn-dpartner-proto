@@ -20,11 +20,11 @@ export function buildGlobalStyleVec(
 
   // === Color Features (16D) ===
 
-  // Primary color count (log-normalized)
+  // KEEP: Primary color count (log-normalized) - backward compat
   featureNames.push('color_primary_count');
   interpretable.push(normalizeLog(tokens.colors.primary.length, 5));
 
-  // Neutral color count (log-normalized)
+  // KEEP: Neutral color count (log-normalized) - backward compat
   featureNames.push('color_neutral_count');
   interpretable.push(normalizeLog(tokens.colors.neutral.length, 5));
 
@@ -76,9 +76,24 @@ export function buildGlobalStyleVec(
   featureNames.push('color_coherence');
   interpretable.push(colorCoherence);
 
-  // Reserved (4D) for future color features
-  featureNames.push('color_reserved_1', 'color_reserved_2', 'color_reserved_3', 'color_reserved_4');
-  interpretable.push(0, 0, 0, 0);
+  // === NEW: Use reserved slots for tier metrics ===
+  // Foundation color count (replaces color_reserved_1)
+  featureNames.push('color_foundation_count');
+  interpretable.push(normalizeLog(tokens.colors.foundation.length, 5));
+
+  // Brand color count (replaces color_reserved_2)
+  featureNames.push('color_brand_count');
+  interpretable.push(normalizeLog(tokens.colors.brandColors.length, 3));
+
+  // Brand color saturation (replaces color_reserved_3)
+  const brandSat = report.realTokenMetrics?.colorHarmony?.brandColorSaturation ?? 0.5;
+  featureNames.push('color_brand_saturation');
+  interpretable.push(brandSat);
+
+  // Neutral tint (replaces color_reserved_4)
+  const neutralTint = report.realTokenMetrics?.colorHarmony?.neutralTint ?? 0;
+  featureNames.push('color_neutral_tint');
+  interpretable.push(neutralTint);
 
   // === Typography Features (16D) ===
 
