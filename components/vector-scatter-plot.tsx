@@ -1,6 +1,6 @@
 'use client';
 
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Label, LabelList } from 'recharts';
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 interface DataPoint {
   id: string;
@@ -10,6 +10,7 @@ interface DataPoint {
   brandTone: string;
   brandEnergy: string;
   brandName?: string;
+  runId?: string;
 }
 
 interface VectorScatterPlotProps {
@@ -38,33 +39,6 @@ function getToneColor(tone: string): string {
   return TONE_COLORS[normalizedTone] || TONE_COLORS.unknown;
 }
 
-// Custom label to render brand names on the chart
-function renderLabel(props: any) {
-  const { x, y, payload } = props;
-
-  // Guard against undefined payload
-  if (!payload || !payload.sourceUrl) return null;
-
-  try {
-    const hostname = new URL(payload.sourceUrl).hostname.replace('www.', '').replace('.com', '');
-
-    return (
-      <text
-        x={x}
-        y={y - 12}
-        textAnchor="middle"
-        fill="#374151"
-        fontSize={11}
-        fontWeight={500}
-      >
-        {hostname}
-      </text>
-    );
-  } catch {
-    return null;
-  }
-}
-
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload || !payload.length) return null;
 
@@ -72,25 +46,39 @@ function CustomTooltip({ active, payload }: any) {
   const hostname = new URL(data.sourceUrl).hostname.replace('www.', '');
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs">
-      <div className="font-semibold text-sm text-gray-900 mb-1">{hostname}</div>
-      <div className="text-xs text-gray-600 mb-2 truncate">{data.sourceUrl}</div>
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div>
-          <span className="text-gray-500">Tone:</span>{' '}
-          <span className="font-medium capitalize">{data.brandTone}</span>
+    <div className="bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden" style={{ maxWidth: '280px' }}>
+      {/* Screenshot Thumbnail */}
+      {data.runId && (
+        <div className="relative w-full h-32 bg-gray-100 overflow-hidden">
+          <img
+            src={`/api/artifact/${data.runId}/raw/page.png`}
+            alt={hostname}
+            className="w-full h-full object-cover object-top"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
         </div>
-        <div>
-          <span className="text-gray-500">Energy:</span>{' '}
-          <span className="font-medium capitalize">{data.brandEnergy}</span>
-        </div>
-        <div>
-          <span className="text-gray-500">PC1:</span>{' '}
-          <span className="font-mono">{data.x.toFixed(2)}</span>
-        </div>
-        <div>
-          <span className="text-gray-500">PC2:</span>{' '}
-          <span className="font-mono">{data.y.toFixed(2)}</span>
+      )}
+
+      {/* Content */}
+      <div className="p-3">
+        <div className="font-semibold text-sm text-gray-900 mb-1">{hostname}</div>
+        <div className="text-xs text-gray-600 mb-2 truncate">{data.sourceUrl}</div>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <span className="text-gray-500">Tone:</span>{' '}
+            <span className="font-medium capitalize">{data.brandTone || 'N/A'}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">PC1:</span>{' '}
+            <span className="font-mono">{data.x.toFixed(2)}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">PC2:</span>{' '}
+            <span className="font-mono">{data.y.toFixed(2)}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -156,7 +144,6 @@ export function VectorScatterPlot({
           >
             {data.map((entry) => {
               const isHighlighted = entry.id === highlightedId;
-              const hostname = new URL(entry.sourceUrl).hostname.replace('www.', '').replace('.com', '');
 
               return (
                 <Cell
@@ -172,15 +159,28 @@ export function VectorScatterPlot({
             <LabelList
               dataKey="sourceUrl"
               position="top"
-              offset={10}
-              formatter={(value: string) => {
+              content={(props: any) => {
+                const { x, y, value } = props;
+                if (!value) return null;
+
                 try {
-                  return new URL(value).hostname.replace('www.', '').replace('.com', '');
+                  const hostname = new URL(value).hostname.replace('www.', '').replace('.com', '');
+                  return (
+                    <text
+                      x={x}
+                      y={y - 10}
+                      textAnchor="middle"
+                      fill="#374151"
+                      fontSize={11}
+                      fontWeight={500}
+                    >
+                      {hostname}
+                    </text>
+                  );
                 } catch {
-                  return '';
+                  return null;
                 }
               }}
-              style={{ fontSize: 11, fill: '#374151', fontWeight: 500 }}
             />
           </Scatter>
         </ScatterChart>

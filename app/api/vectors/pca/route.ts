@@ -13,6 +13,7 @@ interface VectorProjection {
   brandEnergy: string;
   visualModel: string;
   capturedAt: string;
+  runId: string;
 }
 
 /**
@@ -43,7 +44,8 @@ export async function GET(request: NextRequest) {
         sp.combined_vec,
         sp.visual_model,
         sp.ux_summary,
-        c.captured_at
+        c.captured_at,
+        c.run_id
       FROM style_profiles sp
       JOIN captures c ON c.id = sp.capture_id
       WHERE sp.visual_vec IS NOT NULL
@@ -98,10 +100,11 @@ export async function GET(request: NextRequest) {
         sourceUrl: row.source_url,
         x: projectionArray[i][0],
         y: projectionArray[i][1],
-        brandTone: uxSummary.brandPersonality || 'unknown',
-        brandEnergy: uxSummary.brandEnergy || 'unknown',
+        brandTone: uxSummary.brandPersonality,
+        brandEnergy: uxSummary.designSystemMaturity,
         visualModel: row.visual_model || 'none',
         capturedAt: row.captured_at,
+        runId: row.run_id,
       };
     });
 

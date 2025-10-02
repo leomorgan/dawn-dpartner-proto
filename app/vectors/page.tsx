@@ -155,6 +155,46 @@ export default function VectorsPage() {
         </div>
       </div>
 
+      {/* Brand Thumbnails Grid */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="bg-white border rounded-lg p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Brand Screenshots</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {interpretableData.projections.map((projection) => {
+              const hostname = new URL(projection.sourceUrl).hostname.replace('www.', '');
+
+              return (
+                <button
+                  key={projection.id}
+                  onClick={() => handlePointClick(projection.id)}
+                  className="group relative overflow-hidden rounded-lg border-2 border-gray-200 hover:border-blue-500 transition-all cursor-pointer bg-white"
+                >
+                  {/* Thumbnail */}
+                  <div className="relative w-full h-24 bg-gray-100 overflow-hidden">
+                    <img
+                      src={`/api/artifact/${projection.runId}/raw/page.png`}
+                      alt={hostname}
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-200"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+
+                  {/* Label */}
+                  <div className="p-2 bg-white border-t">
+                    <div className="text-xs font-medium text-gray-900 truncate text-center">
+                      {hostname}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* PCA Plots */}
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Interpretable (Style Tokens) Plot */}
@@ -180,45 +220,6 @@ export default function VectorsPage() {
         />
 
 
-        {/* Brand Cards Grid */}
-        <div className="bg-white border rounded-lg p-6">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">All Captured Brands</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {interpretableData.projections.map((projection) => {
-              const hostname = new URL(projection.sourceUrl).hostname.replace('www.', '');
-
-              return (
-                <button
-                  key={projection.id}
-                  onClick={() => handlePointClick(projection.id)}
-                  className="group text-left p-4 border rounded-lg hover:border-blue-500 hover:shadow-sm transition-all"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {hostname}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {projection.sourceUrl}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded capitalize">
-                      {projection.brandTone}
-                    </span>
-                    <span className="inline-block px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded capitalize">
-                      {projection.brandEnergy}
-                    </span>
-                  </div>
-                  <div className="text-xs text-gray-400 mt-2">
-                    {new Date(projection.capturedAt).toLocaleDateString()}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </div>
   );

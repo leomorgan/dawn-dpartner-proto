@@ -124,22 +124,17 @@ export default function Home() {
     loadVectorizedCaptures();
   }, []);
 
-  const handleGenerate = async (url: string, prompt: string, mode: 'full' | 'cta' = 'full') => {
+  const handleVectorize = async (url: string) => {
     setIsGenerating(true);
     setResult(null);
 
     try {
-      const endpoint = mode === 'cta' ? '/api/generate-cta' : '/api/generate';
-      const body = mode === 'cta'
-        ? { url: url.trim() }
-        : { url: url.trim(), prompt: prompt.trim(), enableDebug: true };
-
-      const response = await fetch(endpoint, {
+      const response = await fetch('/api/vectorize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ url: url.trim() }),
       });
 
       if (!response.ok) {
@@ -149,19 +144,22 @@ export default function Home() {
       const data = await response.json();
 
       if (data.success) {
-        // For CTA mode, navigate to preview page with runId in URL
-        if (mode === 'cta') {
-          window.location.href = `/preview-cta/${data.result.runId}`;
-        } else {
-          setResult(data.result);
+        // Reload vectorized captures list
+        const listResponse = await fetch('/api/vectors/list');
+        if (listResponse.ok) {
+          const listData = await listResponse.json();
+          setVectorizedCaptures(listData.profiles || []);
         }
+
+        // Navigate to the vector detail page
+        window.location.href = `/vectors/${data.styleProfileId}`;
       } else {
-        throw new Error(data.error || 'Generation failed');
+        throw new Error(data.error || 'Vectorization failed');
       }
 
     } catch (error) {
-      console.error('Generation failed:', error);
-      alert(`Generation failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('Vectorization failed:', error);
+      alert(`Vectorization failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsGenerating(false);
     }
@@ -175,6 +173,9 @@ export default function Home() {
           <h1 className="text-2xl font-semibold tracking-tight">Dawn: Design Partner</h1>
           <p className="text-sm text-muted-foreground">Generate React + Tailwind components from any website</p>
         </div>
+
+        {/* Input */}
+        <PipelineInput onVectorize={handleVectorize} isGenerating={isGenerating} />
 
         {/* Vectorized Captures List */}
         {vectorizedCaptures.length > 0 && (
@@ -194,34 +195,47 @@ export default function Home() {
                 <a
                   key={capture.id}
                   href={`/vectors/${capture.id}`}
-                  className="group block p-3 border rounded-lg hover:border-blue-500 hover:shadow-sm transition-all cursor-pointer"
+                  className="group block border rounded-lg hover:border-blue-500 hover:shadow-md transition-all cursor-pointer overflow-hidden bg-white"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {new URL(capture.source_url).hostname.replace('www.', '')}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {capture.source_url}
-                      </div>
-                    </div>
+                  {/* Screenshot Thumbnail */}
+                  <div className="relative w-full h-32 bg-gray-100 overflow-hidden">
+                    <img
+                      src={`/api/artifact/${capture.run_id}/raw/page.png`}
+                      alt={`Screenshot of ${new URL(capture.source_url).hostname}`}
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-200"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
                   </div>
-                  {capture.brand_tone && (
-                    <div className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded capitalize">
-                      {capture.brand_tone}
+
+                  {/* Content */}
+                  <div className="p-3">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {new URL(capture.source_url).hostname.replace('www.', '')}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {capture.source_url}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div className="text-xs text-gray-400 mt-2">
-                    {new Date(capture.created_at).toLocaleDateString()}
+                    {capture.brand_tone && (
+                      <div className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded capitalize">
+                        {capture.brand_tone}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-400 mt-2">
+                      {new Date(capture.created_at).toLocaleDateString()}
+                    </div>
                   </div>
                 </a>
               ))}
             </div>
           </div>
         )}
-
-        {/* Input */}
-        <PipelineInput onGenerate={handleGenerate} isGenerating={isGenerating} />
 
         {/* Results Display */}
         {result && (

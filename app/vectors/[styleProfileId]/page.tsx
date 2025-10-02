@@ -771,20 +771,17 @@ function ColorSwatch({ color, label, showChroma }: {
   label: string;
   showChroma?: boolean;
 }) {
-  // Calculate chroma if needed (simplified - assumes RGB hex format)
+  // Calculate proper LCH chroma using culori (same as backend)
   const getChroma = (hexColor: string): number => {
     try {
-      // Simple RGB to chroma approximation
-      const hex = hexColor.replace('#', '');
-      const r = parseInt(hex.substring(0, 2), 16) / 255;
-      const g = parseInt(hex.substring(2, 4), 16) / 255;
-      const b = parseInt(hex.substring(4, 6), 16) / 255;
+      // Use culori for accurate LCH chroma calculation
+      const { parse, converter } = require('culori');
+      const toLch = converter('lch');
+      const parsed = parse(hexColor);
+      if (!parsed) return 0;
 
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const chroma = (max - min) * 100;
-
-      return Math.round(chroma);
+      const lch = toLch(parsed);
+      return Math.round((lch as any).c ?? 0);
     } catch {
       return 0;
     }

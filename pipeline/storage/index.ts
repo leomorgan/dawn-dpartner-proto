@@ -90,8 +90,8 @@ export async function storeVectors(
   // 6. Build UX summary for style_profiles
   const uxSummary = {
     contrastMedian: report.contrastResults?.aaPassRate || 0,
-    brandPersonality: report.brandPersonality?.tone || 'professional',
-    designSystemMaturity: report.designSystemAnalysis?.maturityLevel || 'developing',
+    brandPersonality: report.brandPersonality?.tone,
+    designSystemMaturity: report.designSystemAnalysis?.maturityLevel,
     consistencyScore: report.designSystemAnalysis?.consistency?.overall || 0
   };
 
@@ -117,17 +117,22 @@ export async function storeVectors(
       backgroundColor: primaryButton.backgroundColor,
       color: primaryButton.color,
       borderColor: primaryButton.borderColor,
-      fontWeight: primaryButton.fontWeight || 500,
-      fontSize: primaryButton.fontSize || 16,
-      borderRadius: primaryButton.borderRadius || '4px',
-      padding: primaryButton.padding || '8px 16px',
-      textContent: primaryButton.textContent || null
+      fontWeight: primaryButton.fontWeight,
+      fontSize: primaryButton.fontSize,
+      borderRadius: primaryButton.borderRadius,
+      padding: primaryButton.padding,
+      textContent: primaryButton.textContent
     };
 
     // Parse padding to extract x and y (e.g., "8px 16px")
-    const paddingParts = primaryButton.padding.split(' ').map(p => parseFloat(p));
-    const paddingY = paddingParts[0] || 8;
-    const paddingX = paddingParts[1] || paddingParts[0] || 16;
+    let paddingY = 0;
+    let paddingX = 0;
+
+    if (primaryButton.padding) {
+      const paddingParts = primaryButton.padding.split(' ').map(p => parseFloat(p));
+      paddingY = paddingParts[0] || 0;
+      paddingX = paddingParts[1] || paddingParts[0] || 0;
+    }
 
     ctaUxReport = {
       contrast,
@@ -136,12 +141,14 @@ export async function storeVectors(
         paddingX * 2 + 100,
         paddingY * 2 + 20
       ),
-      prominence: primaryButton.prominence?.score || 0
+      prominence: primaryButton.prominence?.score
     };
 
     // Simple confidence score based on contrast and prominence
     const contrastScore = Math.min(Math.max(contrast / 7, 0), 1);
-    const prominenceScore = Math.min(Math.max(primaryButton.prominence?.score || 0.5, 0), 1);
+    const prominenceScore = primaryButton.prominence?.score !== undefined
+      ? Math.min(Math.max(primaryButton.prominence.score, 0), 1)
+      : 0;
     ctaConfidence = Math.min(Math.max((contrastScore + prominenceScore) / 2, 0), 1);
   }
 
