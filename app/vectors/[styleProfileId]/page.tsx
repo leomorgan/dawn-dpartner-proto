@@ -157,7 +157,7 @@ export default function VectorPage() {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-6">
-            {['overview', 'colors', 'typography', 'brand', 'cta'].map(tab => (
+            {['overview', 'colors', 'typography', 'layout', 'brand', 'cta'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -194,6 +194,10 @@ export default function VectorPage() {
 
         {activeTab === 'typography' && tokens && (
           <TypographyTab tokens={tokens} report={report} />
+        )}
+
+        {activeTab === 'layout' && (
+          <LayoutTab styleVec={styleVec} report={report} />
         )}
 
         {activeTab === 'brand' && report?.brandPersonality && (
@@ -960,6 +964,271 @@ function BrandTab({ brandPersonality }: any) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Layout Tab - New Layout Features
+function LayoutTab({ styleVec, report }: any) {
+  // Extract layout features from the style vector (64D interpretable vector)
+  // Based on global-style-vec.ts structure:
+  // 0-15: Color features
+  // 16-31: Typography features (includes hierarchy_depth at 22, weight_contrast at 23)
+  // 32-39: Spacing features (includes density_score at 35, whitespace_ratio at 36, padding_consistency at 37, image_text_balance at 38)
+  // 40-47: Shape features (includes border_heaviness at 43, shadow_depth at 44, grouping_strength at 45, compositional_complexity at 46)
+  // 48-63: Brand features (includes saturation_energy at 62, role_distinction at 63)
+
+  const layoutFeatures = {
+    // Typography
+    hierarchyDepth: styleVec[22] || 0,
+    weightContrast: styleVec[23] || 0,
+
+    // Spacing & Density
+    densityScore: styleVec[35] || 0,
+    whitespaceRatio: styleVec[36] || 0,
+    paddingConsistency: styleVec[37] || 0,
+    imageTextBalance: styleVec[38] || 0,
+
+    // Shape & Composition
+    borderHeaviness: styleVec[43] || 0,
+    shadowDepth: styleVec[44] || 0,
+    groupingStrength: styleVec[45] || 0,
+    compositionalComplexity: styleVec[46] || 0,
+
+    // Color
+    saturationEnergy: styleVec[62] || 0,
+    roleDistinction: styleVec[63] || 0,
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Overview Card */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+        <div className="flex items-start gap-4">
+          <div className="text-4xl">📐</div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Layout Features
+            </h3>
+            <p className="text-sm text-gray-700">
+              12 new layout features extracted from DOM geometry, visual hierarchy, and compositional analysis.
+              These features capture spatial relationships, density, and visual organization patterns.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Typography Features */}
+      <FeatureCategoryCard
+        title="Typography & Hierarchy"
+        icon="🔤"
+        color="purple"
+        features={[
+          {
+            name: 'Hierarchy Depth',
+            value: layoutFeatures.hierarchyDepth,
+            labels: ['Flat', 'Deep'],
+            description: 'Visual hierarchy complexity (coefficient of variation of font sizes)'
+          },
+          {
+            name: 'Weight Contrast',
+            value: layoutFeatures.weightContrast,
+            labels: ['Uniform', 'High Contrast'],
+            description: 'Font weight variation for emphasis and visual hierarchy'
+          }
+        ]}
+      />
+
+      {/* Spacing & Density Features */}
+      <FeatureCategoryCard
+        title="Spacing & Density"
+        icon="📏"
+        color="blue"
+        features={[
+          {
+            name: 'Visual Density',
+            value: layoutFeatures.densityScore,
+            labels: ['Minimal', 'Dense'],
+            description: 'Overall content density and element packing'
+          },
+          {
+            name: 'Whitespace Breathing',
+            value: layoutFeatures.whitespaceRatio,
+            labels: ['Tight', 'Generous'],
+            description: 'Ratio of empty space to content for breathing room'
+          },
+          {
+            name: 'Padding Consistency',
+            value: layoutFeatures.paddingConsistency,
+            labels: ['Variable', 'Systematic'],
+            description: 'Consistency of spacing patterns across elements'
+          },
+          {
+            name: 'Image-Text Balance',
+            value: layoutFeatures.imageTextBalance,
+            labels: ['Text-Heavy', 'Image-Heavy'],
+            description: 'Ratio of visual to textual content'
+          }
+        ]}
+      />
+
+      {/* Shape & Composition Features */}
+      <FeatureCategoryCard
+        title="Shape & Composition"
+        icon="🎨"
+        color="indigo"
+        features={[
+          {
+            name: 'Border Heaviness',
+            value: layoutFeatures.borderHeaviness,
+            labels: ['Minimal', 'Heavy'],
+            description: 'Prevalence and weight of borders and dividers'
+          },
+          {
+            name: 'Shadow Depth',
+            value: layoutFeatures.shadowDepth,
+            labels: ['Flat', 'Elevated'],
+            description: 'Average elevation and shadow intensity'
+          },
+          {
+            name: 'Grouping Strength',
+            value: layoutFeatures.groupingStrength,
+            labels: ['Loose', 'Tight'],
+            description: 'Gestalt proximity and visual grouping patterns'
+          },
+          {
+            name: 'Compositional Complexity',
+            value: layoutFeatures.compositionalComplexity,
+            labels: ['Simple', 'Complex'],
+            description: 'Overall layout complexity and element count'
+          }
+        ]}
+      />
+
+      {/* Color Features */}
+      <FeatureCategoryCard
+        title="Color Expression"
+        icon="🌈"
+        color="pink"
+        features={[
+          {
+            name: 'Saturation Energy',
+            value: layoutFeatures.saturationEnergy,
+            labels: ['Muted', 'Vibrant'],
+            description: 'Average color vibrancy and saturation intensity'
+          },
+          {
+            name: 'Role Distinction',
+            value: layoutFeatures.roleDistinction,
+            labels: ['Subtle', 'High Contrast'],
+            description: 'Perceptual color difference between semantic roles (ΔE)'
+          }
+        ]}
+      />
+
+      {/* Feature Vector Raw Data */}
+      <div className="bg-white rounded-lg border p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">Raw Feature Values</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs font-mono">
+          {Object.entries(layoutFeatures).map(([key, value]) => (
+            <div key={key} className="p-2 bg-gray-50 rounded">
+              <div className="text-gray-600 mb-1">{key}</div>
+              <div className="text-gray-900 font-semibold">{(value as number).toFixed(4)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Feature Category Card Component
+function FeatureCategoryCard({
+  title,
+  icon,
+  color,
+  features
+}: {
+  title: string;
+  icon: string;
+  color: 'purple' | 'blue' | 'indigo' | 'pink';
+  features: Array<{
+    name: string;
+    value: number;
+    labels: [string, string];
+    description: string;
+  }>;
+}) {
+  const colorClasses = {
+    purple: 'border-purple-200 bg-purple-50',
+    blue: 'border-blue-200 bg-blue-50',
+    indigo: 'border-indigo-200 bg-indigo-50',
+    pink: 'border-pink-200 bg-pink-50',
+  };
+
+  return (
+    <div className={`rounded-lg border-2 p-6 ${colorClasses[color]}`}>
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-2xl">{icon}</span>
+        <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+        <span className="ml-auto px-3 py-1 bg-white/70 text-gray-700 rounded-full text-xs font-medium">
+          {features.length} features
+        </span>
+      </div>
+      <div className="space-y-4">
+        {features.map((feature) => (
+          <FeatureBar
+            key={feature.name}
+            name={feature.name}
+            value={feature.value}
+            labels={feature.labels}
+            description={feature.description}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Feature Bar Component
+function FeatureBar({
+  name,
+  value,
+  labels,
+  description
+}: {
+  name: string;
+  value: number;
+  labels: [string, string];
+  description: string;
+}) {
+  const percentage = Math.round(value * 100);
+
+  return (
+    <div className="bg-white rounded-lg p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <div className="font-semibold text-gray-900 text-sm">{name}</div>
+          <div className="text-xs text-gray-600 mt-0.5">{description}</div>
+        </div>
+        <div className="ml-4 text-right">
+          <div className="text-xl font-bold text-gray-900">{percentage}%</div>
+        </div>
+      </div>
+      <div className="relative">
+        {/* Progress bar background */}
+        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+          <div
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${percentage}%` }}
+          ></div>
+        </div>
+        {/* Labels */}
+        <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
+          <span>{labels[0]}</span>
+          <span>{labels[1]}</span>
+        </div>
+      </div>
     </div>
   );
 }

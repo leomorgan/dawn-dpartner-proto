@@ -1,4 +1,5 @@
 import type { DesignTokens, StyleReport } from '../tokens';
+import type { ComputedStyleNode } from '../capture';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { buildGlobalStyleVec } from './global-style-vec';
@@ -43,6 +44,17 @@ export async function buildVectors(
     await readFile(reportPath, 'utf8')
   );
 
+  // Read raw captured data for layout features
+  const nodesPath = join(runDir, 'raw', 'computed_styles.json');
+  const nodes: ComputedStyleNode[] = JSON.parse(
+    await readFile(nodesPath, 'utf8')
+  );
+
+  const metaPath = join(runDir, 'raw', 'meta.json');
+  const meta: { viewport: { width: number; height: number } } = JSON.parse(
+    await readFile(metaPath, 'utf8')
+  );
+
   // Validate inputs
   if (!tokens.colors || !tokens.colors.primary) {
     throw new Error(`Invalid tokens: missing colors.primary`);
@@ -53,7 +65,7 @@ export async function buildVectors(
   }
 
   // Build vectors
-  const globalStyleVec = buildGlobalStyleVec(tokens, report);
+  const globalStyleVec = buildGlobalStyleVec(tokens, report, nodes, meta.viewport);
   const primaryCtaVec = buildPrimaryCtaVec(tokens, report);
 
   // Verify dimensions

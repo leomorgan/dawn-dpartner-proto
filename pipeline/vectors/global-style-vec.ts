@@ -1,14 +1,18 @@
 import type { DesignTokens, StyleReport } from '../tokens';
+import type { ComputedStyleNode } from '../capture';
 import { normalizeLinear, normalizeLog, hexToLCH } from './utils';
+import { extractLayoutFeatures } from './extractors/layout-features';
 
 /**
  * Builds a 192D global style vector:
- * - 64D interpretable: normalized token statistics
+ * - 64D interpretable: normalized token statistics + layout features
  * - 128D visual: zero-padded for MVP (future: CLIP embeddings)
  */
 export function buildGlobalStyleVec(
   tokens: DesignTokens,
-  report: StyleReport
+  report: StyleReport,
+  nodes: ComputedStyleNode[],
+  viewport: { width: number; height: number }
 ): {
   interpretable: Float32Array;
   visual: Float32Array;
@@ -17,6 +21,9 @@ export function buildGlobalStyleVec(
 } {
   const interpretable: number[] = [];
   const featureNames: string[] = [];
+
+  // Extract layout features from DOM data
+  const layoutFeats = extractLayoutFeatures(nodes, viewport);
 
   // === Color Features (16D) ===
 
@@ -125,8 +132,16 @@ export function buildGlobalStyleVec(
   featureNames.push('typo_coherence');
   interpretable.push(typoCoherence);
 
-  // Reserved (10D)
-  for (let i = 0; i < 10; i++) {
+  // NEW: Typographic hierarchy depth (coefficient of variation)
+  featureNames.push('typo_hierarchy_depth');
+  interpretable.push(layoutFeats.typographicHierarchyDepth);
+
+  // NEW: Font weight contrast (normalized)
+  featureNames.push('typo_weight_contrast');
+  interpretable.push(layoutFeats.fontWeightContrast);
+
+  // Reserved (8D)
+  for (let i = 0; i < 8; i++) {
     featureNames.push(`typo_reserved_${i + 1}`);
     interpretable.push(0);
   }
@@ -149,11 +164,25 @@ export function buildGlobalStyleVec(
   featureNames.push('spacing_consistency');
   interpretable.push(spacingConsistency);
 
-  // Reserved (5D)
-  for (let i = 0; i < 5; i++) {
-    featureNames.push(`spacing_reserved_${i + 1}`);
-    interpretable.push(0);
-  }
+  // NEW: Visual density score
+  featureNames.push('spacing_density_score');
+  interpretable.push(layoutFeats.visualDensityScore);
+
+  // NEW: Whitespace breathing ratio
+  featureNames.push('spacing_whitespace_ratio');
+  interpretable.push(layoutFeats.whitespaceBreathingRatio);
+
+  // NEW: Padding consistency
+  featureNames.push('spacing_padding_consistency');
+  interpretable.push(layoutFeats.paddingConsistency);
+
+  // NEW: Image to text balance (log scale, >1 = image-heavy, <1 = text-heavy)
+  featureNames.push('spacing_image_text_balance');
+  interpretable.push(normalizeLog(layoutFeats.imageToTextBalance, 1.0));
+
+  // Reserved (1D)
+  featureNames.push('spacing_reserved_1');
+  interpretable.push(0);
 
   // === Shape Features (8D) ===
 
@@ -172,11 +201,25 @@ export function buildGlobalStyleVec(
   featureNames.push('shape_shadow_count');
   interpretable.push(normalizeLog(tokens.boxShadow.length, 3));
 
-  // Reserved (5D)
-  for (let i = 0; i < 5; i++) {
-    featureNames.push(`shape_reserved_${i + 1}`);
-    interpretable.push(0);
-  }
+  // NEW: Border heaviness
+  featureNames.push('shape_border_heaviness');
+  interpretable.push(layoutFeats.borderHeaviness);
+
+  // NEW: Shadow elevation depth
+  featureNames.push('shape_shadow_depth');
+  interpretable.push(layoutFeats.shadowElevationDepth);
+
+  // NEW: Gestalt grouping strength
+  featureNames.push('shape_grouping_strength');
+  interpretable.push(layoutFeats.gestaltGroupingStrength);
+
+  // NEW: Compositional complexity
+  featureNames.push('shape_compositional_complexity');
+  interpretable.push(layoutFeats.compositionalComplexity);
+
+  // Reserved (1D)
+  featureNames.push('shape_reserved_1');
+  interpretable.push(0);
 
   // === Brand Personality Features (16D) ===
 
@@ -212,9 +255,15 @@ export function buildGlobalStyleVec(
     featureNames.push('brand_confidence');
     interpretable.push(report.brandPersonality.confidence);
 
-    // Reserved (2D)
-    featureNames.push('brand_reserved_1', 'brand_reserved_2');
-    interpretable.push(0, 0);
+    // NEW: Color saturation energy (replaces brand_reserved_1)
+    // LCH chroma range: 0-130, observed: 2.8-5.4
+    featureNames.push('brand_color_saturation_energy');
+    interpretable.push(normalizeLinear(layoutFeats.colorSaturationEnergy, 0, 130));
+
+    // NEW: Color role distinction (replaces brand_reserved_2)
+    // ΔE observed: 5325-6225, use max 10000 for normalization
+    featureNames.push('brand_color_role_distinction');
+    interpretable.push(normalizeLinear(layoutFeats.colorRoleDistinction, 0, 10000));
   } else {
     // Fallback: all zeros
     for (let i = 0; i < 16; i++) {
