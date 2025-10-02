@@ -21,6 +21,8 @@
     "codegen": "npm run build:pipeline && node scripts/codegen.js",
     "canvas": "npm run build:pipeline && node scripts/canvas.js",
     "generate": "npm run build:pipeline && node scripts/generate.js",
+    "store-vectors": "npm run build:pipeline && node scripts/store-vectors.js",
+    "batch-ingest": "npm run build:pipeline && node scripts/batch-ingest.js",
     "fixtures:serve": "npx serve fixtures/site -p 5050",
     "db:migrate": "npm run build:pipeline && node scripts/db-migrate.js"
   },

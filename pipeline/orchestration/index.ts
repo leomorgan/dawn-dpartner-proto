@@ -6,6 +6,7 @@ import { synthesizeLayout } from '../layout';
 import { applyStyling } from '../styling';
 import { generateCode } from '../codegen';
 import { generateCanvas } from '../canvas';
+import { storeVectors } from '../storage';
 
 export interface PipelineStep {
   id: string;
@@ -52,7 +53,8 @@ const PIPELINE_STEPS: Omit<PipelineStep, 'status' | 'duration' | 'error' | 'outp
   { id: 'layout', name: 'Layout Synthesis' },
   { id: 'styling', name: 'Styling Engine' },
   { id: 'codegen', name: 'Code Generation' },
-  { id: 'canvas', name: 'Vector Canvas' }
+  { id: 'canvas', name: 'Vector Canvas' },
+  { id: 'storage', name: 'Vector Storage' }
 ];
 
 export class PipelineOrchestrator {
@@ -106,6 +108,7 @@ export class PipelineOrchestrator {
       await this.executeStep(result, 'styling', () => this.runStyling(result.runId));
       await this.executeStep(result, 'codegen', () => this.runCodegen(result.runId));
       await this.executeStep(result, 'canvas', () => this.runCanvas(result.runId));
+      await this.executeStep(result, 'storage', () => this.runStorage(result.runId));
 
       result.status = 'completed';
       result.endTime = new Date().toISOString();
@@ -224,6 +227,10 @@ export class PipelineOrchestrator {
 
   private async runCanvas(runId: string) {
     return await generateCanvas(runId, this.config.artifactDir);
+  }
+
+  private async runStorage(runId: string) {
+    return await storeVectors(runId, this.config.artifactDir);
   }
 
   private extractStepOutputs(result: any): Record<string, any> {
