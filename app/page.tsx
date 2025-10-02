@@ -179,7 +179,16 @@ export default function Home() {
         {/* Vectorized Captures List */}
         {vectorizedCaptures.length > 0 && (
           <div className="bg-white border rounded-lg p-4">
-            <h2 className="text-sm font-semibold text-gray-900 mb-3">Vector Database ({vectorizedCaptures.length})</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-900">Vector Database ({vectorizedCaptures.length})</h2>
+              <Button
+                onClick={() => window.location.href = '/vectors'}
+                variant="default"
+                size="sm"
+              >
+                📊 View PCA Visualization
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {vectorizedCaptures.map((capture) => (
                 <a

@@ -240,28 +240,77 @@ export default function VectorPage() {
 function OverviewTab({ styleVec, ctaVec, nonZeroCount, ctaNonZeroCount, report }: any) {
   return (
     <div className="space-y-6">
-      {/* Vector Health Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Vector Health Cards - New Architecture */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Interpretable (Style Tokens) */}
         <div className="bg-white rounded-lg border p-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Global Style Vector</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+            🎨 Style Tokens
+          </h3>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-3xl font-bold text-gray-900">192D</div>
-              <div className="text-sm text-gray-600">Total dimensions</div>
+              <div className="text-3xl font-bold text-gray-900">64D</div>
+              <div className="text-xs text-gray-600">Interpretable</div>
             </div>
             <div className="text-right">
               <div className="text-2xl font-semibold text-green-600">{nonZeroCount}</div>
-              <div className="text-sm text-gray-600">Active features</div>
+              <div className="text-xs text-gray-600">Active</div>
             </div>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-green-600 h-2 rounded-full"
-              style={{ width: `${(nonZeroCount / 192) * 100}%` }}
+              style={{ width: `${(nonZeroCount / 64) * 100}%` }}
             ></div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Feature Density: {nonZeroCount}/192 ({Math.round((nonZeroCount / 192) * 100)}%)
+            Colors, typography, spacing tokens
+          </p>
+        </div>
+
+        {/* Visual (CLIP) */}
+        <div className="bg-white rounded-lg border p-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+            👁️ Visual Embedding
+          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-3xl font-bold text-gray-900">768D</div>
+              <div className="text-xs text-gray-600">OpenAI CLIP</div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-semibold text-purple-600">✓</div>
+              <div className="text-xs text-gray-600">Embedded</div>
+            </div>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="bg-purple-600 h-2 rounded-full w-full"></div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Screenshot visual features (CLIP)
+          </p>
+        </div>
+
+        {/* Combined */}
+        <div className="bg-white rounded-lg border-2 border-blue-500 p-6">
+          <h3 className="text-sm font-semibold text-blue-700 mb-4 flex items-center gap-2">
+            🔀 Combined
+          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-3xl font-bold text-blue-900">832D</div>
+              <div className="text-xs text-blue-600">L2 normalized</div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-semibold text-blue-600">✓</div>
+              <div className="text-xs text-blue-600">Hybrid</div>
+            </div>
+          </div>
+          <div className="w-full bg-blue-100 rounded-full h-2">
+            <div className="bg-blue-600 h-2 rounded-full w-full"></div>
+          </div>
+          <p className="text-xs text-blue-600 mt-2">
+            64D style + 768D visual (normalized)
           </p>
         </div>
 

@@ -32,6 +32,18 @@ export function hexToLCH(hex: string): { l: number; c: number; h: number } {
   }
 }
 
+// L2 normalization (unit vector)
+export function normalizeL2(vector: number[]): number[] {
+  const norm = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+
+  // Handle zero vector (avoid division by zero)
+  if (norm === 0) {
+    return vector.map(() => 0);
+  }
+
+  return vector.map(val => val / norm);
+}
+
 // WCAG contrast calculation
 export function calculateContrast(fg: string, bg: string): number {
   const getLuminance = (hex: string): number => {
