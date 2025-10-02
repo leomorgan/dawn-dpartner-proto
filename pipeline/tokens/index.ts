@@ -74,6 +74,7 @@ export interface DesignTokens {
       alignItems: string;
       justifyContent: string;
       textAlign: string;
+      textContent?: string;  // Button copy for semantic analysis
       count: number;
       prominence: {
         score: number;
@@ -251,6 +252,24 @@ export async function extractTokens(runId: string, artifactDir?: string): Promis
 }
 
 async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], buttonHoverStates: any[] = []): Promise<DesignTokens> {
+  // Helper: Calculate relative luminance (brightness) from hex color
+  const getBrightness = (hexColor: string): number => {
+    try {
+      const rgb = parseInt(hexColor.slice(1), 16);
+      const r = ((rgb >> 16) & 0xff) / 255;
+      const g = ((rgb >> 8) & 0xff) / 255;
+      const b = ((rgb >> 0) & 0xff) / 255;
+
+      const sRGB = [r, g, b].map(c => {
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+
+      return 0.2126 * sRGB[0] + 0.7152 * sRGB[1] + 0.0722 * sRGB[2];
+    } catch {
+      return 0.5;
+    }
+  };
+
   // Analyze colors weighted by element area
   const colorAreas = new Map<string, number>();
   const textColors = new Map<string, number>();
@@ -292,6 +311,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     alignItems: string;
     justifyContent: string;
     textAlign: string;
+    textContent?: string;
     area: number;
     yPosition: number;
     hover?: {
@@ -625,6 +645,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     alignItems: string;
     justifyContent: string;
     textAlign: string;
+    textContent?: string;
     area: number;
     yPosition: number;
     hover?: {
@@ -682,6 +703,12 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
 
     // Handle transparent backgrounds properly
     if (bgColor.alpha !== undefined && bgColor.alpha < 0.1) {
+      // IMPORTANT: Transparent elements are ONLY buttons if they have a visible border
+      // Links and text elements without borders should NOT be classified as buttons
+      if (!border.color) {
+        return null; // Not a button - just a transparent link/text element
+      }
+
       // For transparent buttons, use a special identifier
       const finalBgHex = '#transparent';
       const hoverStyles = findHoverStyles(node, cssRules, buttonHoverStates);
@@ -700,22 +727,20 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
         alignItems: node.styles.alignItems || 'center',
         justifyContent: node.styles.justifyContent || 'center',
         textAlign: node.styles.textAlign || 'center',
+        textContent: node.textContent?.trim() || undefined,
         area,
         yPosition: node.bbox.y,
         hover: hoverStyles
       };
     }
 
-    // Determine button type based on styling
-    // Check if button is transparent or very light
+    // Determine button type based on visual semantics
+    // For now, use simple classification - will be overridden by LLM analysis later
     const transparentCheck = bgColor.alpha === 0;
-    const isVeryLight = 'l' in bgColor && bgColor.l > 0.9;
 
-    const type: 'primary' | 'secondary' | 'outline' | 'ghost' = 
-      transparentCheck ? 'ghost' :
-      isVeryLight ? 'secondary' :
-      bgHex.toLowerCase().includes('f') ? 'secondary' :
-      'primary';
+    // Simple heuristic: defer to post-processing for semantic analysis
+    // Mark all solid buttons as 'primary' initially, LLM will reclassify based on copy + prominence
+    const type: 'primary' | 'secondary' | 'outline' | 'ghost' = 'primary';
 
     const fontSize = parseFloat(node.styles.fontSize) || 16;
     const fontWeight = parseInt(node.styles.fontWeight) || 400;
@@ -737,6 +762,7 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
       alignItems: node.styles.alignItems || 'center',
       justifyContent: node.styles.justifyContent || 'center',
       textAlign: node.styles.textAlign || 'center',
+      textContent: node.textContent?.trim() || undefined,
       area,
       yPosition: node.bbox.y,
       hover: hoverStyles
@@ -972,6 +998,13 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     // For non-ghost buttons, sort by count (highest first)
     return b.count - a.count;
   });
+
+  // LLM-based semantic classification of buttons (async, will update types)
+  // TODO: Implement LLM button classifier that analyzes:
+  // - Button text content (from nodes)
+  // - Visual hierarchy (prominence, size, position)
+  // - Context (surrounding elements, page section)
+  // For now, keep simple type assignment
 
   return {
     colors: {

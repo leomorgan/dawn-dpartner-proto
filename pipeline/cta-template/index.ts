@@ -2,6 +2,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { DesignTokens } from '../tokens';
 import { getSystemFontFallback, normalizeSystemFontWeight } from './font-fallbacks';
+import { classifyButtonsWithLLM } from '../tokens/button-classifier';
 // Tailwind mapper imports - commented out as we're using manual classes for now
 // import {
 //   generateButtonClasses,
@@ -303,8 +304,18 @@ function getBrightness(color: string): number {
   }
 }
 
-export function validateAndSelectColors(tokens: DesignTokens): SafeColors {
+export async function validateAndSelectColors(tokens: DesignTokens): Promise<SafeColors> {
   const pageBackground = tokens.colors.semantic.background;
+
+  // 🤖 Use LLM to semantically classify buttons based on copy and visual properties
+  const llmClassification = await classifyButtonsWithLLM(tokens.buttons.variants);
+  console.log('🎨 Button Classification:', {
+    primary: llmClassification.primary,
+    secondary: llmClassification.secondary,
+    primaryIndex: llmClassification.primaryIndex,
+    secondaryIndex: llmClassification.secondaryIndex,
+    reasoning: llmClassification.reasoning
+  });
 
   // 1. Separate buttons into solid and ghost types
   const solidButtons = tokens.buttons.variants.filter(b => b.type !== 'ghost');
@@ -335,19 +346,77 @@ export function validateAndSelectColors(tokens: DesignTokens): SafeColors {
   // 3. Combine solid and valid ghost buttons for selection
   const selectableButtons = [...solidButtons, ...validGhostButtons.map(v => v.button)];
 
-  // 4. Select primary: prefer solid buttons with hover states, fallback to most prominent
-  const primaryButton = selectableButtons.find(b =>
-    b.type !== 'ghost' && (b.hover?.backgroundColor || b.hover?.opacity)
-  ) || selectableButtons[0] || tokens.buttons.variants[0];
+  // 3a. Build a list of actionable buttons (excluding #000000) for LLM index mapping
+  const actionableButtons = tokens.buttons.variants.filter(b => b.backgroundColor !== '#000000');
 
-  // 5. Select secondary: find a DIFFERENT color from primary
-  // Simply find any button that's different, but exclude pure black (#000000)
+  // 4. Select primary: use LLM classification if available, fallback to heuristics
+  let primaryButton: typeof tokens.buttons.variants[0] | undefined;
+
+  // Try to use LLM index first (most specific)
+  if (llmClassification.primaryIndex && llmClassification.primaryIndex > 0 && llmClassification.primaryIndex <= actionableButtons.length) {
+    const llmSelectedPrimary = actionableButtons[llmClassification.primaryIndex - 1];
+    // Verify it's in selectableButtons (passed validation)
+    primaryButton = selectableButtons.find(b => b === llmSelectedPrimary);
+  }
+
+  // Fallback to backgroundColor match
+  if (!primaryButton) {
+    primaryButton = selectableButtons.find(b =>
+      llmClassification.primary.includes(b.backgroundColor)
+    );
+  }
+
+  if (!primaryButton) {
+    // Fallback: prefer solid buttons with hover states
+    primaryButton = selectableButtons.find(b =>
+      b.type !== 'ghost' && (b.hover?.backgroundColor || b.hover?.opacity)
+    ) || selectableButtons[0] || tokens.buttons.variants[0];
+  }
+
+  // 5. Select secondary: use LLM classification if available, fallback to heuristics
   const primaryBg = primaryButton?.backgroundColor;
-  const secondaryButton = selectableButtons.find(b =>
-    b.backgroundColor !== primaryBg &&
-    b.backgroundColor !== '#transparent' &&
-    b.backgroundColor !== '#000000'
-  ) || validGhostButtons[0]?.button;
+
+  let secondaryButton: typeof tokens.buttons.variants[0] | undefined;
+
+  // Try to use LLM index first (most specific)
+  if (llmClassification.secondaryIndex && llmClassification.secondaryIndex > 0 && llmClassification.secondaryIndex <= actionableButtons.length) {
+    const llmSelectedSecondary = actionableButtons[llmClassification.secondaryIndex - 1];
+    // Verify it's in selectableButtons and different from primary
+    if (llmSelectedSecondary !== primaryButton) {
+      secondaryButton = selectableButtons.find(b => b === llmSelectedSecondary);
+    }
+  }
+
+  // Fallback to backgroundColor match
+  if (!secondaryButton) {
+    secondaryButton = selectableButtons.find(b =>
+      llmClassification.secondary.includes(b.backgroundColor) &&
+      b.backgroundColor !== primaryBg
+    );
+  }
+
+  if (!secondaryButton) {
+    // Fallback: find a DIFFERENT color from primary
+    const differentButtons = selectableButtons.filter(b =>
+      b.backgroundColor !== primaryBg &&
+      b.backgroundColor !== '#transparent' &&
+      b.backgroundColor !== '#000000'
+    );
+
+    // Sort by: 1) has hover state, 2) prominence score, 3) count
+    secondaryButton = differentButtons.sort((a, b) => {
+      const aHasHover = (a.hover?.backgroundColor || a.hover?.opacity) ? 1 : 0;
+      const bHasHover = (b.hover?.backgroundColor || b.hover?.opacity) ? 1 : 0;
+
+      if (aHasHover !== bHasHover) return bHasHover - aHasHover;
+
+      const aProminence = a.prominence?.score || 0;
+      const bProminence = b.prominence?.score || 0;
+      if (Math.abs(aProminence - bProminence) > 2) return bProminence - aProminence;
+
+      return (b.count || 0) - (a.count || 0);
+    })[0] || validGhostButtons[0]?.button;
+  }
 
   const secondaryBg = secondaryButton?.backgroundColor ||
     tokens.colors.contextual?.buttons?.find(c => c !== primaryBg && c !== '#000000') ||
@@ -571,6 +640,8 @@ export function applyTemplateStyles(
   return {
     primary: safeColors.ctaPrimary,
     secondary: safeColors.ctaSecondary,
+    primaryText: safeColors.ctaPrimaryText,
+    secondaryText: safeColors.ctaSecondaryText,
     background: safeColors.background,
     text: safeColors.text,
     accent: safeColors.accent,
@@ -872,8 +943,8 @@ export async function applyTokensToTemplate(
   artifactDir?: string
 ): Promise<TemplateResult> {
 
-  // Select optimal colors with contrast validation
-  const safeColors = validateAndSelectColors(tokens);
+  // Select optimal colors with contrast validation (using LLM semantic analysis)
+  const safeColors = await validateAndSelectColors(tokens);
 
   // Get the primary button variant for metadata
   const primaryButton = tokens.buttons.variants.find(b => b.type !== 'ghost') || tokens.buttons.variants[0];

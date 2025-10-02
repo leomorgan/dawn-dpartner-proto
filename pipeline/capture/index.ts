@@ -334,8 +334,8 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
       return rules;
     });
 
-    // Extract button hover states by using Playwright's hover functionality
-    console.log('🎯 Capturing button hover states...');
+    // Extract button hover states using physical mouse hover
+    console.log('🎯 Capturing button hover states using physical hover...');
     const buttonHoverStates: Array<{
       selector: string;
       className: string;
@@ -343,14 +343,18 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
       hoverStyles: any;
     }> = [];
 
+    // No CDP session needed for physical hover
+
     // Get button elements for hover testing (including CTA-style anchor tags)
     const buttonLocators = await page.locator('button, a[role="button"], input[type="button"], input[type="submit"], a[class*="button" i], a[class*="btn" i], a[class*="cta" i]').all();
 
-    // Time limit for hover capture (30 seconds max)
-    const hoverStartTime = Date.now();
-    const maxHoverTime = 30000; // 30 seconds
+    console.log(`📊 Found ${buttonLocators.length} potential buttons to analyze`);
 
-    for (let i = 0; i < Math.min(buttonLocators.length, 25); i++) { // Limit to first 25 buttons
+    // Time limit for hover capture (45 seconds max)
+    const hoverStartTime = Date.now();
+    const maxHoverTime = 45000; // 45 seconds
+
+    for (let i = 0; i < Math.min(buttonLocators.length, 30); i++) { // Increased to 30 buttons
       // Check time limit
       if (Date.now() - hoverStartTime > maxHoverTime) {
         console.log(`⏰ Hover capture time limit reached, stopping at button ${i + 1}`);
@@ -359,12 +363,24 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
       const button = buttonLocators[i];
 
       try {
+        // Log first 10 buttons to see what we're testing (before visibility check)
+        if (i < 10) {
+          const tagName = await button.evaluate(el => el.tagName);
+          const classList = await button.getAttribute('class');
+          const text = await button.evaluate(el => el.textContent?.trim().substring(0, 30));
+          const visible = await button.isVisible();
+          console.log(`🔍 Button ${i + 1}: <${tagName}> "${text}" visible=${visible}`);
+        }
+
         // Check if button is visible
         if (!(await button.isVisible())) continue;
 
-        // Phase 1.3: Enhanced hover state capture with more properties
+        // Helper to get computed styles
         const getAdvancedStyles = (el: Element) => {
           const styles = getComputedStyle(el);
+          const beforeStyles = getComputedStyle(el, '::before');
+          const afterStyles = getComputedStyle(el, '::after');
+
           return {
             backgroundColor: styles.backgroundColor,
             color: styles.color,
@@ -372,59 +388,87 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
             transform: styles.transform,
             borderColor: styles.borderColor,
             boxShadow: styles.boxShadow,
-            // Phase 1.3: Add more properties for comprehensive capture
             scale: styles.scale || 'none',
             filter: styles.filter,
             transition: styles.transition,
-            cursor: styles.cursor
+            cursor: styles.cursor,
+            // Check pseudo-elements for hover effects
+            beforeBg: beforeStyles.backgroundColor,
+            beforeOpacity: beforeStyles.opacity,
+            afterBg: afterStyles.backgroundColor,
+            afterOpacity: afterStyles.opacity
           };
         };
 
         // Get normal state
         const normalStyles = await button.evaluate(getAdvancedStyles);
-
         const className = await button.getAttribute('class') || '';
 
-        // Phase 1.3: Multi-state capture with proper timing
-        await button.hover({ timeout: 2000 });
+        // PHYSICAL HOVER: Simulate actual mouse hover
+        try {
+          let hoverStyles = normalStyles;
 
-        // Phase 1.3: Multiple snapshots during transition for comprehensive capture
-        const snapshots = [];
-        for (const delay of [0, 150, 300]) {
-          await page.waitForTimeout(delay);
-          const snapshot = await button.evaluate(getAdvancedStyles);
-          snapshots.push(snapshot);
-        }
+          // Hover over the button
+          await button.hover({ timeout: 3000 });
 
-        // Use the final snapshot as the hover state (most complete transition)
-        const hoverStyles = snapshots[snapshots.length - 1];
+          // Wait for hover animations/transitions (extra time for CSS-in-JS sites)
+          await page.waitForTimeout(500);
 
-        // Check if hover state is different
-        let hasChanges = false;
-        for (const prop in hoverStyles) {
-          if (hoverStyles[prop as keyof typeof hoverStyles] !== normalStyles[prop as keyof typeof normalStyles]) {
-            hasChanges = true;
-            break;
+          // Read hover state
+          hoverStyles = await button.evaluate(getAdvancedStyles);
+
+          // Move mouse away
+          await page.mouse.move(0, 0);
+          await page.waitForTimeout(100);
+
+          // Check if hover state is different
+          let hasChanges = false;
+          for (const prop in hoverStyles) {
+            if (hoverStyles[prop as keyof typeof hoverStyles] !== normalStyles[prop as keyof typeof normalStyles]) {
+              hasChanges = true;
+              break;
+            }
           }
-        }
 
-        if (hasChanges) {
-          buttonHoverStates.push({
-            selector: 'button' + (className ? '.' + className.trim().split(/\s+/).join('.') : ''),
-            className,
-            normalStyles,
-            hoverStyles
-          });
-          console.log(`✅ Found hover effect for button ${i + 1}`);
-        }
+          if (hasChanges) {
+            // Log changes for debugging
+            const changes = [];
+            if (normalStyles.backgroundColor !== hoverStyles.backgroundColor) {
+              changes.push(`bg: ${normalStyles.backgroundColor} → ${hoverStyles.backgroundColor}`);
+            }
+            if (normalStyles.color !== hoverStyles.color) {
+              changes.push(`color: ${normalStyles.color} → ${hoverStyles.color}`);
+            }
+            if (normalStyles.borderColor !== hoverStyles.borderColor) {
+              changes.push(`border: ${normalStyles.borderColor} → ${hoverStyles.borderColor}`);
+            }
+            if (normalStyles.beforeBg !== hoverStyles.beforeBg) {
+              changes.push(`::before bg: ${normalStyles.beforeBg} → ${hoverStyles.beforeBg}`);
+            }
+            if (normalStyles.beforeOpacity !== hoverStyles.beforeOpacity) {
+              changes.push(`::before opacity: ${normalStyles.beforeOpacity} → ${hoverStyles.beforeOpacity}`);
+            }
 
-        // Move mouse away to reset hover state
-        await page.mouse.move(0, 0);
+            buttonHoverStates.push({
+              selector: 'button' + (className ? '.' + className.trim().split(/\s+/).join('.') : ''),
+              className,
+              normalStyles,
+              hoverStyles
+            });
+
+            console.log(`✅ Found hover for button ${i + 1}: ${changes.join(', ')}`);
+          }
+
+        } catch (hoverError) {
+          // Hover might fail for covered/moving elements - just skip
+        }
 
       } catch (e) {
         console.warn(`⚠️  Error capturing hover for button ${i + 1}:`, e);
       }
     }
+
+    console.log(`✨ Captured ${buttonHoverStates.length} button hover states`);
 
     // Extract computed styles for visible elements
     const styles = await page.evaluate(() => {

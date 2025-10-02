@@ -75,16 +75,17 @@ export async function GET(
     const templateType = metadataObj.templateType || 'card';
 
     // Create safe colors object from styles and tokens
-    // Use extracted tokens as fallbacks instead of hardcoded values
     const safeColors = {
-      primary: styles.primary || tokens?.colors?.primary?.[0] || tokens?.colors?.semantic?.cta || '#0066cc',
-      secondary: styles.secondary || tokens?.colors?.neutral?.[0] || '#666666',
-      background: styles.background || tokens?.colors?.semantic?.background || '#ffffff',
-      text: styles.text || tokens?.colors?.semantic?.text || '#1a1a1a',
-      accent: styles.accent || tokens?.colors?.semantic?.accent || '#0066cc',
-      ctaPrimary: styles.primary || tokens?.colors?.semantic?.cta || '#0066cc',
-      ctaSecondary: styles.secondary || tokens?.colors?.neutral?.[0] || '#f7f7f7',
-      muted: tokens?.colors?.semantic?.muted || tokens?.colors?.neutral?.[1] || '#666666'
+      primary: styles.primary || tokens?.colors?.primary?.[0] || tokens?.colors?.semantic?.cta,
+      secondary: styles.secondary || tokens?.colors?.neutral?.[0],
+      background: styles.background || tokens?.colors?.semantic?.background,
+      text: styles.text || tokens?.colors?.semantic?.text,
+      accent: styles.accent || tokens?.colors?.semantic?.accent,
+      ctaPrimary: styles.primary || tokens?.colors?.semantic?.cta,
+      ctaSecondary: styles.secondary || tokens?.colors?.neutral?.[0],
+      ctaPrimaryText: styles.primaryText,
+      ctaSecondaryText: styles.secondaryText || styles.text,
+      muted: tokens?.colors?.semantic?.muted || tokens?.colors?.neutral?.[1]
     };
 
     // Get template name and description based on type
