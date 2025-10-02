@@ -21,7 +21,8 @@
     "codegen": "npm run build:pipeline && node scripts/codegen.js",
     "canvas": "npm run build:pipeline && node scripts/canvas.js",
     "generate": "npm run build:pipeline && node scripts/generate.js",
-    "fixtures:serve": "npx serve fixtures/site -p 5050"
+    "fixtures:serve": "npx serve fixtures/site -p 5050",
+    "db:migrate": "npm run build:pipeline && node scripts/db-migrate.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
@@ -34,6 +35,7 @@
     "@types/archiver": "^6.0.3",
     "@types/jsdom": "^21.1.0",
     "@types/node": "^20",
+    "@types/pg": "^8.15.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^9.0.0",
@@ -51,6 +53,7 @@
     "lucide-react": "^0.544.0",
     "next": "^14.2.33",
     "openai": "^4.20.0",
+    "pg": "^8.16.3",
     "playwright": "^1.40.0",
     "postcss": "^8.4.0",
     "react": "^18",

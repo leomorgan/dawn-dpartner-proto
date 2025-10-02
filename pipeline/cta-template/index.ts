@@ -37,6 +37,8 @@ export interface TemplateStructure {
 export interface StyleMapping {
   primary: string;
   secondary: string;
+  primaryText?: string;
+  secondaryText?: string;
   background: string;
   text: string;
   accent: string;
@@ -241,7 +243,7 @@ function validateGhostButton(
         reasons.push(`Text contrast too low (${contrast.toFixed(1)}:1)`);
       }
     } catch (err) {
-      reasons.push(`Failed to calculate contrast: ${err.message}`);
+      reasons.push(`Failed to calculate contrast: ${err instanceof Error ? err.message : 'unknown error'}`);
     }
   }
 

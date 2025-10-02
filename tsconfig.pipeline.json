@@ -17,6 +17,7 @@
   },
   "include": [
     "pipeline/**/*",
+    "lib/**/*",
     "scripts/**/*"
   ],
   "exclude": [
