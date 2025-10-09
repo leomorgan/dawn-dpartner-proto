@@ -22,3 +22,10 @@ https://apple.com
 
 # Media (complex palettes)
 https://cnn.com
+
+# AI Tools (modern, clean)
+https://v0.app/
+
+# News/Media (editorial, information-dense)
+https://www.ft.com/
+https://www.theguardian.com/uk

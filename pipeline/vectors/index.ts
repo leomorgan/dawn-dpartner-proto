@@ -68,9 +68,9 @@ export async function buildVectors(
   const globalStyleVec = buildGlobalStyleVec(tokens, report, nodes, meta.viewport);
   const primaryCtaVec = buildPrimaryCtaVec(tokens, report);
 
-  // Verify dimensions
-  if (globalStyleVec.combined.length !== 192) {
-    throw new Error(`GlobalStyleVec must be 192D, got ${globalStyleVec.combined.length}D`);
+  // Verify dimensions (reduced from 192D to 826D to 823D: 55D interpretable + 768D visual)
+  if (globalStyleVec.combined.length !== 823) {
+    throw new Error(`GlobalStyleVec must be 823D, got ${globalStyleVec.combined.length}D`);
   }
 
   if (primaryCtaVec.combined.length !== 64) {

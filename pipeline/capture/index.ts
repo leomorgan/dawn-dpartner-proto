@@ -2,6 +2,7 @@ import { chromium, Browser, Page } from 'playwright';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import sharp from 'sharp';
 
 export interface CaptureResult {
   runId: string;
@@ -91,6 +92,70 @@ export interface CaptureMetadata {
   timestamp: string;
   userAgent: string;
   title: string;
+}
+
+/**
+ * Downscale an image to approximately the target file size
+ * Uses iterative quality reduction and resizing to reach target size
+ */
+async function downscaleImage(
+  buffer: Buffer,
+  outputPath: string,
+  targetSizeBytes: number
+): Promise<void> {
+  const image = sharp(buffer);
+  const metadata = await image.metadata();
+
+  console.log(`📸 Original screenshot: ${metadata.width}x${metadata.height}, ${(buffer.length / 1024 / 1024).toFixed(2)}MB`);
+
+  // If already under target size, save as-is
+  if (buffer.length <= targetSizeBytes) {
+    await image.toFile(outputPath);
+    console.log(`✅ Screenshot already under target size, saved as-is`);
+    return;
+  }
+
+  // Start with quality 80 and progressively reduce until we hit target
+  let quality = 80;
+  let scale = 1.0;
+  let result = buffer;
+
+  // Try quality reduction first (up to 3 iterations)
+  for (let i = 0; i < 3; i++) {
+    const processed = await sharp(buffer)
+      .resize(Math.round(metadata.width! * scale), Math.round(metadata.height! * scale))
+      .png({ quality, compressionLevel: 9 })
+      .toBuffer();
+
+    const sizeRatio = processed.length / targetSizeBytes;
+    console.log(`🔄 Attempt ${i + 1}: scale=${scale.toFixed(2)}, quality=${quality}, size=${(processed.length / 1024 / 1024).toFixed(2)}MB (${(sizeRatio * 100).toFixed(0)}% of target)`);
+
+    result = processed;
+
+    // If we're within 10% of target (90-110%), we're good
+    if (sizeRatio <= 1.1) {
+      break;
+    }
+
+    // Adjust parameters for next iteration
+    if (sizeRatio > 2.0) {
+      // Way too big - reduce both quality and scale aggressively
+      quality = Math.max(50, quality - 20);
+      scale = Math.max(0.5, scale * 0.8);
+    } else if (sizeRatio > 1.5) {
+      // Still too big - reduce quality more
+      quality = Math.max(60, quality - 15);
+      scale = Math.max(0.6, scale * 0.9);
+    } else {
+      // Getting close - gentle reduction
+      quality = Math.max(70, quality - 10);
+      scale = Math.max(0.7, scale * 0.95);
+    }
+  }
+
+  await writeFile(outputPath, result);
+  const finalMetadata = await sharp(result).metadata();
+  console.log(`✅ Final screenshot: ${finalMetadata.width}x${finalMetadata.height}, ${(result.length / 1024 / 1024).toFixed(2)}MB`);
 }
 
 async function handleCookieBanners(page: Page): Promise<void> {
@@ -531,13 +596,15 @@ export async function capture(url: string, outputDir?: string, runId?: string): 
       return nodes;
     });
 
-    // Take screenshot
-    const screenshotPath = join(rawDir, 'page.png');
-    await page.screenshot({
-      path: screenshotPath,
+    // Take screenshot to buffer first (so we can process it)
+    const screenshotBuffer = await page.screenshot({
       fullPage: true,
       type: 'png',
     });
+
+    // Downscale screenshot to approximately 1MB
+    const screenshotPath = join(rawDir, 'page.png');
+    await downscaleImage(screenshotBuffer, screenshotPath, 1024 * 1024); // 1MB target
 
     // Get metadata
     const title = await page.title();

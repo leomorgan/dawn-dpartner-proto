@@ -24,6 +24,10 @@
     "node_modules",
     "dist",
     "app/**/*",
-    "tests/**/*"
+    "tests/**/*",
+    "scripts/analyze-vector-variance.ts",
+    "scripts/debug-dead-normalization.ts",
+    "scripts/diagnose-phase1a-failure.ts",
+    "scripts/regenerate-brand-personality.ts"
   ]
 }

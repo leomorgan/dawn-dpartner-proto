@@ -214,3 +214,111 @@ export function calculateInterGroupSpacing(
 
   return totalDistance / otherNodes.length;
 }
+
+/**
+ * Detect horizontal bands of elements (elements at similar Y positions)
+ * Used for measuring vertical rhythm and whitespace gaps
+ *
+ * @param nodes Array of nodes to analyze
+ * @param yThreshold Maximum Y difference to consider elements in same band (default: 20px)
+ * @returns Array of bands, where each band is an array of nodes
+ *
+ * @example
+ * const bands = detectHorizontalBands(nodes, 20);
+ * // Returns: [[headerNodes...], [heroNodes...], [contentNodes...], ...]
+ */
+export function detectHorizontalBands(
+  nodes: ComputedStyleNode[],
+  yThreshold: number = 20
+): ComputedStyleNode[][] {
+  if (nodes.length === 0) return [];
+
+  // Sort by Y position (top to bottom)
+  const sorted = [...nodes].sort((a, b) => a.bbox.y - b.bbox.y);
+
+  const bands: ComputedStyleNode[][] = [];
+  let currentBand: ComputedStyleNode[] = [sorted[0]];
+  let lastY = sorted[0].bbox.y;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const node = sorted[i];
+
+    if (node.bbox.y - lastY > yThreshold) {
+      // Start new band
+      bands.push(currentBand);
+      currentBand = [node];
+      lastY = node.bbox.y;
+    } else {
+      // Add to current band
+      currentBand.push(node);
+    }
+  }
+
+  // Push final band
+  if (currentBand.length > 0) {
+    bands.push(currentBand);
+  }
+
+  return bands;
+}
+
+/**
+ * Measure vertical gaps between consecutive horizontal bands
+ * Gap = distance from bottom of band N to top of band N+1
+ *
+ * @param bands Array of horizontal bands from detectHorizontalBands
+ * @returns Array of gap sizes in pixels
+ */
+export function measureVerticalGaps(bands: ComputedStyleNode[][]): number[] {
+  if (bands.length < 2) return [];
+
+  const gaps: number[] = [];
+
+  for (let i = 0; i < bands.length - 1; i++) {
+    const currentBand = bands[i];
+    const nextBand = bands[i + 1];
+
+    // Find bottom of current band (max Y + height)
+    const bandBottom = Math.max(...currentBand.map(n => n.bbox.y + n.bbox.h));
+
+    // Find top of next band (min Y)
+    const nextBandTop = Math.min(...nextBand.map(n => n.bbox.y));
+
+    const gap = nextBandTop - bandBottom;
+    if (gap > 0) {
+      gaps.push(gap);
+    }
+  }
+
+  return gaps;
+}
+
+/**
+ * Measure horizontal gaps between elements within bands
+ * Gap = distance from right edge of element N to left edge of element N+1
+ *
+ * @param bands Array of horizontal bands from detectHorizontalBands
+ * @returns Array of gap sizes in pixels
+ */
+export function measureHorizontalGaps(bands: ComputedStyleNode[][]): number[] {
+  const gaps: number[] = [];
+
+  for (const band of bands) {
+    if (band.length < 2) continue;
+
+    // Sort by X position (left to right)
+    const sortedByX = [...band].sort((a, b) => a.bbox.x - b.bbox.x);
+
+    for (let i = 0; i < sortedByX.length - 1; i++) {
+      const current = sortedByX[i];
+      const next = sortedByX[i + 1];
+
+      const gap = next.bbox.x - (current.bbox.x + current.bbox.w);
+      if (gap > 0) {
+        gaps.push(gap);
+      }
+    }
+  }
+
+  return gaps;
+}

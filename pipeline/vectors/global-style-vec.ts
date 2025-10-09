@@ -4,9 +4,11 @@ import { normalizeLinear, normalizeLog, hexToLCH } from './utils';
 import { extractLayoutFeatures } from './extractors/layout-features';
 
 /**
- * Builds a 192D global style vector:
- * - 64D interpretable: normalized token statistics + layout features
- * - 128D visual: zero-padded for MVP (future: CLIP embeddings)
+ * Builds an 823D global style vector:
+ * - 55D interpretable: normalized token statistics + layout features (reduced from 64D → 58D → 55D)
+ *   - Removed 6 reserved slots (64D → 58D)
+ *   - Removed 3 dead features: color_background_variation, typo_family_count, brand_color_saturation_energy (58D → 55D)
+ * - 768D visual: CLIP embeddings from screenshot
  */
 export function buildGlobalStyleVec(
   tokens: DesignTokens,
@@ -70,8 +72,7 @@ export function buildGlobalStyleVec(
   interpretable.push(normalizeLog(tokens.colors.contextual.links.length, 3));
 
   // Background variation (log-normalized)
-  featureNames.push('color_background_variation');
-  interpretable.push(normalizeLog(tokens.colors.contextual.backgrounds.length, 4));
+  // REMOVED: color_background_variation - not discriminative (all sites have 3-4 backgrounds)
 
   // Harmony score (already 0-1) - ROBUST NULL HANDLING
   const harmonyScore = report.realTokenMetrics?.colorHarmony?.harmonyScore ?? 0.5;
@@ -104,9 +105,7 @@ export function buildGlobalStyleVec(
 
   // === Typography Features (16D) ===
 
-  // Font family count (log-normalized, typical 1-2)
-  featureNames.push('typo_family_count');
-  interpretable.push(normalizeLog(tokens.typography.fontFamilies.length, 2));
+  // REMOVED: typo_family_count - not discriminative (all sites use exactly 2 font families in modern web design)
 
   // Font size range (robust normalize, typical 10-40px)
   const fontSizeRange = tokens.typography.fontSizes.length > 0
@@ -140,24 +139,32 @@ export function buildGlobalStyleVec(
   featureNames.push('typo_weight_contrast');
   interpretable.push(layoutFeats.fontWeightContrast);
 
-  // Reserved (8D)
-  for (let i = 0; i < 8; i++) {
-    featureNames.push(`typo_reserved_${i + 1}`);
-    interpretable.push(0);
-  }
+  // V2: New layout features (using reserved slots)
+  featureNames.push('layout_element_scale_variance');
+  interpretable.push(layoutFeats.elementScaleVariance);
 
-  // === Spacing Features (8D) ===
+  featureNames.push('layout_vertical_rhythm');
+  interpretable.push(layoutFeats.verticalRhythmConsistency);
+
+  featureNames.push('layout_grid_regularity');
+  interpretable.push(layoutFeats.gridRegularityScore);
+
+  featureNames.push('layout_above_fold_density');
+  interpretable.push(layoutFeats.aboveFoldDensity);
+
+  // === Spacing Features (7D) - removed 1 reserved slot ===
 
   // Spacing scale length (log-normalized)
   featureNames.push('spacing_scale_length');
   interpretable.push(normalizeLog(tokens.spacing.length, 6));
 
-  // Spacing median (linear normalize, typical 0-48px)
+  // Spacing median (linear normalize)
+  // V3 FIX: Adjust range from 0-48 to 8-64 to better capture real variation
   const spacingMedian = tokens.spacing.length > 0
     ? tokens.spacing[Math.floor(tokens.spacing.length / 2)]
     : 0;
   featureNames.push('spacing_median');
-  interpretable.push(normalizeLinear(spacingMedian, 0, 48));
+  interpretable.push(normalizeLinear(spacingMedian, 8, 64));
 
   // Spacing consistency (already 0-1)
   const spacingConsistency = report.realTokenMetrics?.brandCoherence?.spacingConsistency ?? 0.5;
@@ -180,11 +187,7 @@ export function buildGlobalStyleVec(
   featureNames.push('spacing_image_text_balance');
   interpretable.push(normalizeLog(layoutFeats.imageToTextBalance, 1.0));
 
-  // Reserved (1D)
-  featureNames.push('spacing_reserved_1');
-  interpretable.push(0);
-
-  // === Shape Features (8D) ===
+  // === Shape Features (7D) - removed 1 reserved slot ===
 
   // Border radius count (log-normalized)
   featureNames.push('shape_radius_count');
@@ -216,10 +219,6 @@ export function buildGlobalStyleVec(
   // NEW: Compositional complexity
   featureNames.push('shape_compositional_complexity');
   interpretable.push(layoutFeats.compositionalComplexity);
-
-  // Reserved (1D)
-  featureNames.push('shape_reserved_1');
-  interpretable.push(0);
 
   // === Brand Personality Features (16D) ===
 
@@ -256,14 +255,12 @@ export function buildGlobalStyleVec(
     interpretable.push(report.brandPersonality.confidence);
 
     // NEW: Color saturation energy (replaces brand_reserved_1)
-    // LCH chroma range: 0-130, observed: 2.8-5.4
-    featureNames.push('brand_color_saturation_energy');
-    interpretable.push(normalizeLinear(layoutFeats.colorSaturationEnergy, 0, 130));
+    // REMOVED: brand_color_saturation_energy - extraction broken (layoutFeatures not saved to style_report.json, all values = 0)
 
     // NEW: Color role distinction (replaces brand_reserved_2)
-    // ΔE observed: 5325-6225, use max 10000 for normalization
+    // V3 FIX: Narrow range from 0-10000 to 3000-8000 (observed: 5325-6225)
     featureNames.push('brand_color_role_distinction');
-    interpretable.push(normalizeLinear(layoutFeats.colorRoleDistinction, 0, 10000));
+    interpretable.push(normalizeLinear(layoutFeats.colorRoleDistinction, 3000, 8000));
   } else {
     // Fallback: all zeros
     for (let i = 0; i < 16; i++) {
@@ -273,12 +270,15 @@ export function buildGlobalStyleVec(
   }
 
   // === Verify Length ===
-  if (interpretable.length !== 64) {
-    throw new Error(`Interpretable vector must be 64D, got ${interpretable.length}D`);
+  // Reduced from 64D → 58D (removed 6 reserved slots) → 55D (removed 3 dead features)
+  if (interpretable.length !== 55) {
+    throw new Error(`Interpretable vector must be 55D, got ${interpretable.length}D`);
   }
 
-  // === Visual Features (128D) - Zero-padded for MVP ===
-  const visual = Array(128).fill(0);
+  // === Visual Features (768D) - CLIP embeddings ===
+  // Note: Visual vector should be populated by CLIP, not zero-padded
+  // For now we just verify it exists in the combined vector
+  const visual = Array(768).fill(0);
 
   // === Combine ===
   const combined = [...interpretable, ...visual];

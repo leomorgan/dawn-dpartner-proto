@@ -10,6 +10,7 @@ interface PCAData {
   dimensions: number;
   projections: Array<{
     id: string;
+    runId: string;
     sourceUrl: string;
     x: number;
     y: number;
@@ -200,7 +201,7 @@ export default function VectorsPage() {
         {/* Interpretable (Style Tokens) Plot */}
         <VectorScatterPlot
           data={interpretableData.projections}
-          title="🎨 Style Token Embeddings (64D)"
+          title="🎨 Style Token Embeddings (55D)"
           explainedVariance={{
             pc1: interpretableData.explainedVariance.pc1,
             pc2: interpretableData.explainedVariance.pc2,

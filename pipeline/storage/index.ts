@@ -201,22 +201,20 @@ export async function storeVectors(
       const updateRes = await client.query(
         `UPDATE style_profiles SET
           tokens_json = $2,
-          style_vec = $3,
-          interpretable_vec = $4,
-          visual_vec = $5,
-          combined_vec = $6,
-          visual_model = $7,
+          interpretable_vec = $3,
+          visual_vec = $4,
+          combined_vec = $5,
+          visual_model = $6,
           visual_embedding_date = NOW(),
-          ux_summary = $8
+          ux_summary = $7
         WHERE capture_id = $1
         RETURNING id`,
         [
           captureId,
           JSON.stringify(tokens),
-          floatArrayToPgVector(vectorResult.globalStyleVec.combined), // Keep old 192D for backward compat
-          `[${interpretableVec.join(',')}]`,  // New: 64D interpretable
-          `[${visualVec.join(',')}]`,         // New: 512D visual
-          `[${combinedVec.join(',')}]`,       // New: 576D combined
+          `[${interpretableVec.join(',')}]`,  // 55D interpretable
+          `[${visualVec.join(',')}]`,         // 768D visual
+          `[${combinedVec.join(',')}]`,       // 823D combined
           visualModel,
           JSON.stringify(uxSummary)
         ]
@@ -226,19 +224,18 @@ export async function storeVectors(
       // Insert new
       const styleProfileRes = await client.query(
         `INSERT INTO style_profiles (
-          capture_id, source_url, tokens_json, style_vec,
+          capture_id, source_url, tokens_json,
           interpretable_vec, visual_vec, combined_vec, visual_model, visual_embedding_date,
           ux_summary
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
         RETURNING id`,
         [
           captureId,
           meta.url,
           JSON.stringify(tokens),
-          floatArrayToPgVector(vectorResult.globalStyleVec.combined), // Keep old 192D for backward compat
-          `[${interpretableVec.join(',')}]`,  // New: 64D interpretable
-          `[${visualVec.join(',')}]`,         // New: 512D visual
-          `[${combinedVec.join(',')}]`,       // New: 576D combined
+          `[${interpretableVec.join(',')}]`,  // 55D interpretable
+          `[${visualVec.join(',')}]`,         // 768D visual
+          `[${combinedVec.join(',')}]`,       // 823D combined
           visualModel,
           JSON.stringify(uxSummary)
         ]

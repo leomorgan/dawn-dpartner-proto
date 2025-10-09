@@ -1398,8 +1398,45 @@ async function analyzeBrandPersonality(tokens: DesignTokens, nodes: ComputedStyl
       brandAdjectives: colorPsychology.adjectives
     },
     spacingPersonality,
-    confidence: 0.8 // Based on analysis depth
+    confidence: calculateConfidence(tokens, colorPsychology)
   };
+}
+
+// V3 FIX: Calculate dynamic confidence based on feature distinctiveness
+function calculateConfidence(tokens: DesignTokens, colorPsych: any): number {
+  let distinctiveness = 0.5; // Start at 50%
+
+  // 1. Color palette distinctiveness (+0-0.2)
+  const colorCount = (tokens.colors?.foundation?.length || 0) + (tokens.colors?.accentColors?.length || 0);
+  if (colorCount < 5) distinctiveness += 0.1; // Very minimal = distinct
+  else if (colorCount > 15) distinctiveness += 0.15; // Very colorful = distinct
+  else if (colorCount > 10) distinctiveness += 0.05; // Somewhat colorful
+
+  // 2. Border radius distinctiveness (+0-0.15)
+  const avgRadius = tokens.borderRadius.length > 0
+    ? tokens.borderRadius.reduce((sum, r) => sum + parseFloat(r), 0) / tokens.borderRadius.length
+    : 0;
+  if (avgRadius < 2) distinctiveness += 0.15; // Very sharp = distinct
+  else if (avgRadius > 20) distinctiveness += 0.15; // Very rounded = distinct
+  else if (avgRadius > 12) distinctiveness += 0.05; // Somewhat rounded
+
+  // 3. Shadow usage distinctiveness (+0-0.1)
+  if (tokens.boxShadow.length === 0) distinctiveness += 0.1; // Flat = distinct
+  else if (tokens.boxShadow.length > 4) distinctiveness += 0.1; // Very shadowy = distinct
+
+  // 4. Typography distinctiveness (+0-0.15)
+  if (tokens.typography.fontFamilies.length === 1) distinctiveness += 0.05; // Minimal = somewhat distinct
+  else if (tokens.typography.fontFamilies.length > 2) distinctiveness += 0.15; // Multi-font = very distinct
+
+  // 5. Spacing distinctiveness (+0-0.1)
+  const spacingMedian = tokens.spacing.length > 0
+    ? tokens.spacing[Math.floor(tokens.spacing.length / 2)]
+    : 0;
+  if (spacingMedian < 8) distinctiveness += 0.05; // Tight spacing
+  else if (spacingMedian > 40) distinctiveness += 0.1; // Generous spacing = more distinct
+
+  // Clamp to 0-1 range
+  return Math.max(0, Math.min(1, distinctiveness));
 }
 
 function analyzeColorPsychology(colors: any[]) {
@@ -1544,15 +1581,67 @@ function determineBrandEnergy(colorPsychology: any, tokens: DesignTokens): Brand
 }
 
 function determineTrustLevel(tokens: DesignTokens, nodes: ComputedStyleNode[]): BrandPersonality['trustLevel'] {
-  // Analyze design conservatism vs innovation
-  const hasRoundedCorners = tokens.borderRadius.some(r => parseInt(r) > 8);
-  const hasComplexShadows = tokens.boxShadow.length > 2;
-  const colorCount = tokens.colors.primary.length + tokens.colors.neutral.length;
+  // V3 FIX: Improved scoring system for better variance
+  const scores = {
+    conservative: 0,
+    modern: 0,
+    innovative: 0,
+    experimental: 0,
+  };
 
-  if (colorCount <= 4 && !hasRoundedCorners && !hasComplexShadows) return 'conservative';
-  if (colorCount > 8 || hasComplexShadows) return 'innovative';
-  if (hasRoundedCorners) return 'modern';
-  return 'modern';
+  // 1. Border radius → conservative vs experimental
+  const avgRadius = tokens.borderRadius.length > 0
+    ? tokens.borderRadius.reduce((sum, r) => sum + parseFloat(r), 0) / tokens.borderRadius.length
+    : 0;
+  if (avgRadius < 2) {
+    scores.conservative += 2;
+  } else if (avgRadius > 20) {
+    scores.experimental += 2;
+    scores.innovative += 1;
+  } else if (avgRadius > 8) {
+    scores.modern += 1;
+    scores.innovative += 1;
+  }
+
+  // 2. Color count → conservative vs experimental
+  const colorCount = tokens.colors.primary.length + tokens.colors.neutral.length;
+  if (colorCount < 6) {
+    scores.conservative += 1;
+  } else if (colorCount > 12) {
+    scores.experimental += 1;
+    scores.innovative += 1;
+  } else {
+    scores.modern += 1;
+  }
+
+  // 3. Shadow complexity → conservative vs innovative
+  const shadowCount = tokens.boxShadow.length;
+  if (shadowCount === 0) {
+    scores.conservative += 1;
+  } else if (shadowCount > 3) {
+    scores.innovative += 2;
+  } else if (shadowCount > 1) {
+    scores.modern += 1;
+  }
+
+  // 4. Font family count → conservative vs experimental
+  if (tokens.typography.fontFamilies.length === 1) {
+    scores.conservative += 1;
+  } else if (tokens.typography.fontFamilies.length > 2) {
+    scores.experimental += 1;
+  }
+
+  // 5. Font weight range → conservative vs innovative
+  const weights = tokens.typography.fontWeights.map(w => typeof w === 'string' ? parseInt(w) : w);
+  const weightRange = weights.length > 0 ? Math.max(...weights) - Math.min(...weights) : 0;
+  if (weightRange < 200) {
+    scores.conservative += 1;
+  } else if (weightRange > 500) {
+    scores.innovative += 1;
+  }
+
+  // Return highest scoring trust level
+  return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0] as BrandPersonality['trustLevel'];
 }
 
 // Helper function to calculate average chroma for a set of colors

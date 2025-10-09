@@ -96,10 +96,14 @@ export default function VectorPage() {
 
   const tokens = data.artifacts.designTokens;
   const report = data.artifacts.styleReport;
-  const styleVec = data.styleProfile.style_vec;
+  const interpretableVec = data.styleProfile.interpretable_vec;
+  const visualVec = data.styleProfile.visual_vec;
+  const combinedVec = data.styleProfile.combined_vec;
   const ctaVec = data.ctaVector?.vec;
 
-  const nonZeroCount = styleVec.filter(v => v !== 0).length;
+  const interpretableNonZeroCount = interpretableVec?.filter(v => v !== 0).length || 0;
+  const visualNonZeroCount = visualVec?.filter(v => v !== 0).length || 0;
+  const combinedNonZeroCount = combinedVec?.filter(v => v !== 0).length || 0;
   const ctaNonZeroCount = ctaVec ? ctaVec.filter(v => v !== 0).length : 0;
 
   return (
@@ -180,9 +184,13 @@ export default function VectorPage() {
       <div className="max-w-7xl mx-auto px-6 py-6">
         {activeTab === 'overview' && (
           <OverviewTab
-            styleVec={styleVec}
+            interpretableVec={interpretableVec}
+            visualVec={visualVec}
+            combinedVec={combinedVec}
             ctaVec={ctaVec}
-            nonZeroCount={nonZeroCount}
+            interpretableNonZeroCount={interpretableNonZeroCount}
+            visualNonZeroCount={visualNonZeroCount}
+            combinedNonZeroCount={combinedNonZeroCount}
             ctaNonZeroCount={ctaNonZeroCount}
             report={report}
           />
@@ -197,7 +205,7 @@ export default function VectorPage() {
         )}
 
         {activeTab === 'layout' && (
-          <LayoutTab styleVec={styleVec} report={report} />
+          <LayoutTab interpretableVec={interpretableVec} report={report} />
         )}
 
         {activeTab === 'brand' && report?.brandPersonality && (
@@ -241,7 +249,11 @@ export default function VectorPage() {
 }
 
 // Overview Tab Component
-function OverviewTab({ styleVec, ctaVec, nonZeroCount, ctaNonZeroCount, report }: any) {
+function OverviewTab({ interpretableVec, visualVec, combinedVec, ctaVec, interpretableNonZeroCount, visualNonZeroCount, combinedNonZeroCount, ctaNonZeroCount, report }: any) {
+  const interpretableDim = interpretableVec?.length || 55;
+  const visualDim = visualVec?.length || 768;
+  const combinedDim = combinedVec?.length || 823;
+
   return (
     <div className="space-y-6">
       {/* Vector Health Cards - New Architecture */}
@@ -253,18 +265,18 @@ function OverviewTab({ styleVec, ctaVec, nonZeroCount, ctaNonZeroCount, report }
           </h3>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-3xl font-bold text-gray-900">64D</div>
+              <div className="text-3xl font-bold text-gray-900">{interpretableDim}D</div>
               <div className="text-xs text-gray-600">Interpretable</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-semibold text-green-600">{nonZeroCount}</div>
+              <div className="text-2xl font-semibold text-green-600">{interpretableNonZeroCount}</div>
               <div className="text-xs text-gray-600">Active</div>
             </div>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-green-600 h-2 rounded-full"
-              style={{ width: `${(nonZeroCount / 64) * 100}%` }}
+              style={{ width: `${(interpretableNonZeroCount / interpretableDim) * 100}%` }}
             ></div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
@@ -969,35 +981,34 @@ function BrandTab({ brandPersonality }: any) {
 }
 
 // Layout Tab - New Layout Features
-function LayoutTab({ styleVec, report }: any) {
-  // Extract layout features from the style vector (64D interpretable vector)
+function LayoutTab({ interpretableVec, report }: any) {
+  // Extract layout features from the interpretable vector (55D)
   // Based on global-style-vec.ts structure:
-  // 0-15: Color features
-  // 16-31: Typography features (includes hierarchy_depth at 22, weight_contrast at 23)
-  // 32-39: Spacing features (includes density_score at 35, whitespace_ratio at 36, padding_consistency at 37, image_text_balance at 38)
-  // 40-47: Shape features (includes border_heaviness at 43, shadow_depth at 44, grouping_strength at 45, compositional_complexity at 46)
-  // 48-63: Brand features (includes saturation_energy at 62, role_distinction at 63)
+  // 0-14: Color features (15D)
+  // 15-25: Typography features (11D)
+  // 26-32: Spacing features (7D)
+  // 33-39: Shape features (7D)
+  // 40-54: Brand features (15D)
 
   const layoutFeatures = {
     // Typography
-    hierarchyDepth: styleVec[22] || 0,
-    weightContrast: styleVec[23] || 0,
+    hierarchyDepth: interpretableVec?.[20] || 0,
+    weightContrast: interpretableVec?.[21] || 0,
 
     // Spacing & Density
-    densityScore: styleVec[35] || 0,
-    whitespaceRatio: styleVec[36] || 0,
-    paddingConsistency: styleVec[37] || 0,
-    imageTextBalance: styleVec[38] || 0,
+    densityScore: interpretableVec?.[29] || 0,
+    whitespaceRatio: interpretableVec?.[30] || 0,
+    paddingConsistency: interpretableVec?.[31] || 0,
+    imageTextBalance: interpretableVec?.[32] || 0,
 
     // Shape & Composition
-    borderHeaviness: styleVec[43] || 0,
-    shadowDepth: styleVec[44] || 0,
-    groupingStrength: styleVec[45] || 0,
-    compositionalComplexity: styleVec[46] || 0,
+    borderHeaviness: interpretableVec?.[36] || 0,
+    shadowDepth: interpretableVec?.[37] || 0,
+    groupingStrength: interpretableVec?.[38] || 0,
+    compositionalComplexity: interpretableVec?.[39] || 0,
 
     // Color
-    saturationEnergy: styleVec[62] || 0,
-    roleDistinction: styleVec[63] || 0,
+    roleDistinction: interpretableVec?.[54] || 0,
   };
 
   return (
@@ -1111,12 +1122,6 @@ function LayoutTab({ styleVec, report }: any) {
         icon="🌈"
         color="pink"
         features={[
-          {
-            name: 'Saturation Energy',
-            value: layoutFeatures.saturationEnergy,
-            labels: ['Muted', 'Vibrant'],
-            description: 'Average color vibrancy and saturation intensity'
-          },
           {
             name: 'Role Distinction',
             value: layoutFeatures.roleDistinction,

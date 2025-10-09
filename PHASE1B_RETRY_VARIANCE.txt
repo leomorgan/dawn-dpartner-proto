@@ -1,0 +1,372 @@
+Debugger listening on ws://127.0.0.1:59127/be2aa3d7-313d-40f1-a70c-cbb9f2042418
+For help, see: https://nodejs.org/en/docs/inspector
+Debugger attached.
+Debugger listening on ws://127.0.0.1:59132/d02fbabf-8fbc-42ac-ba89-ad4544c89b8a
+For help, see: https://nodejs.org/en/docs/inspector
+Debugger attached.
+Debugger listening on ws://127.0.0.1:59134/91a98086-d745-4cf9-9901-364022087b20
+For help, see: https://nodejs.org/en/docs/inspector
+Debugger attached.
+🔬 Analyzing Vector Variance & PCA Clustering
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+📦 Loaded 11 style profiles
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+📊 Interpretable (64D)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Total Variance:     2.610
+Avg Variance/Dim:   0.041
+Max Variance:       0.248
+Min Variance:       0.000
+Dims with Var>0.001: 48/64 (75.0%)
+Dims with Var>0.1:   7/64 (10.9%)
+
+Top 10 Highest Variance Dimensions:
+  1. Dim 48: 0.2479
+  2. Dim 56: 0.2314
+  3. Dim 55: 0.2314
+  4. Dim 53: 0.1983
+  5. Dim 41: 0.1678
+  6. Dim 49: 0.1488
+  7. Dim 51: 0.1488
+  8. Dim 42: 0.0920
+  9. Dim 13: 0.0837
+  10. Dim 36: 0.0836
+
+PCA Explained Variance:
+  PC1: 35.1%
+  PC2: 22.9%
+  PC1+PC2: 58.0%
+
+2D Projection Stats:
+  X Range: 2.780
+  Y Range: 2.570
+
+Projections:
+  https://apple.com              (0.198, -0.725)
+  https://cnn.com                (-0.796, 0.704)
+  https://dawnlabs.co            (-0.855, -1.765)
+  https://fifa.com               (0.556, -0.136)
+  https://github.com             (-0.922, 0.434)
+  https://koto.studio/           (-1.515, 0.495)
+  https://monzo.com              (-0.740, 0.805)
+  https://stripe.com             (1.265, 0.509)
+  https://stripe.com             (1.265, 0.509)
+  https://vercel.com             (0.393, -0.902)
+  https://www.bbc.co.uk/         (1.152, 0.073)
+
+Pairwise L2 Distances:
+  https://apple.com              ↔ https://cnn.com               : 2.346
+  https://apple.com              ↔ https://dawnlabs.co           : 2.150
+  https://apple.com              ↔ https://fifa.com              : 2.012
+  https://apple.com              ↔ https://github.com            : 2.440
+  https://apple.com              ↔ https://koto.studio/          : 2.590
+  https://apple.com              ↔ https://monzo.com             : 2.251
+  https://apple.com              ↔ https://stripe.com            : 1.952
+  https://apple.com              ↔ https://stripe.com            : 1.952
+  https://apple.com              ↔ https://vercel.com            : 1.466
+  https://apple.com              ↔ https://www.bbc.co.uk/        : 2.066
+  https://cnn.com                ↔ https://dawnlabs.co           : 2.804
+  https://cnn.com                ↔ https://fifa.com              : 2.402
+  https://cnn.com                ↔ https://github.com            : 2.085
+  https://cnn.com                ↔ https://koto.studio/          : 2.256
+  https://cnn.com                ↔ https://monzo.com             : 1.217
+  https://cnn.com                ↔ https://stripe.com            : 2.540
+  https://cnn.com                ↔ https://stripe.com            : 2.540
+  https://cnn.com                ↔ https://vercel.com            : 2.428
+  https://cnn.com                ↔ https://www.bbc.co.uk/        : 2.387
+  https://dawnlabs.co            ↔ https://fifa.com              : 2.618
+  https://dawnlabs.co            ↔ https://github.com            : 2.739
+  https://dawnlabs.co            ↔ https://koto.studio/          : 2.884
+  https://dawnlabs.co            ↔ https://monzo.com             : 2.814
+  https://dawnlabs.co            ↔ https://stripe.com            : 3.204
+  https://dawnlabs.co            ↔ https://stripe.com            : 3.204
+  https://dawnlabs.co            ↔ https://vercel.com            : 2.355
+  https://dawnlabs.co            ↔ https://www.bbc.co.uk/        : 2.933
+  https://fifa.com               ↔ https://github.com            : 2.492
+  https://fifa.com               ↔ https://koto.studio/          : 2.746
+  https://fifa.com               ↔ https://monzo.com             : 2.525
+  https://fifa.com               ↔ https://stripe.com            : 1.860
+  https://fifa.com               ↔ https://stripe.com            : 1.860
+  https://fifa.com               ↔ https://vercel.com            : 2.275
+  https://fifa.com               ↔ https://www.bbc.co.uk/        : 1.725
+  https://github.com             ↔ https://koto.studio/          : 2.135
+  https://github.com             ↔ https://monzo.com             : 1.993
+  https://github.com             ↔ https://stripe.com            : 2.588
+  https://github.com             ↔ https://stripe.com            : 2.588
+  https://github.com             ↔ https://vercel.com            : 2.423
+  https://github.com             ↔ https://www.bbc.co.uk/        : 2.691
+  https://koto.studio/           ↔ https://monzo.com             : 2.382
+  https://koto.studio/           ↔ https://stripe.com            : 3.047
+  https://koto.studio/           ↔ https://stripe.com            : 3.047
+  https://koto.studio/           ↔ https://vercel.com            : 3.046
+  https://koto.studio/           ↔ https://www.bbc.co.uk/        : 3.143
+  https://monzo.com              ↔ https://stripe.com            : 2.389
+  https://monzo.com              ↔ https://stripe.com            : 2.389
+  https://monzo.com              ↔ https://vercel.com            : 2.589
+  https://monzo.com              ↔ https://www.bbc.co.uk/        : 2.539
+  https://stripe.com             ↔ https://stripe.com            : 0.001
+  https://stripe.com             ↔ https://vercel.com            : 2.171
+  https://stripe.com             ↔ https://www.bbc.co.uk/        : 1.393
+  https://stripe.com             ↔ https://vercel.com            : 2.171
+  https://stripe.com             ↔ https://www.bbc.co.uk/        : 1.393
+  https://vercel.com             ↔ https://www.bbc.co.uk/        : 2.003
+
+Distance Summary:
+  Avg: 2.332
+  Max: 3.204
+  Min: 0.001
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+📊 Visual (768D)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Total Variance:     123.784
+Avg Variance/Dim:   0.161
+Max Variance:       3.947
+Min Variance:       0.010
+Dims with Var>0.001: 768/768 (100.0%)
+Dims with Var>0.1:   478/768 (62.2%)
+
+Top 10 Highest Variance Dimensions:
+  1. Dim 644: 3.9471
+  2. Dim 413: 3.4125
+  3. Dim 463: 1.9681
+  4. Dim 195: 1.9504
+  5. Dim 692: 1.7002
+  6. Dim 288: 1.3381
+  7. Dim 131: 1.3192
+  8. Dim 703: 1.3122
+  9. Dim 404: 1.2300
+  10. Dim 452: 0.9094
+
+PCA Explained Variance:
+  PC1: 33.2%
+  PC2: 17.2%
+  PC1+PC2: 50.3%
+
+2D Projection Stats:
+  X Range: 20.069
+  Y Range: 13.551
+
+Projections:
+  https://apple.com              (3.693, -0.509)
+  https://cnn.com                (-2.047, 8.800)
+  https://dawnlabs.co            (-3.260, -3.953)
+  https://fifa.com               (-6.369, 1.511)
+  https://github.com             (-7.354, -3.630)
+  https://koto.studio/           (-11.601, -0.488)
+  https://monzo.com              (5.504, -2.414)
+  https://stripe.com             (8.468, -2.691)
+  https://stripe.com             (8.468, -2.691)
+  https://vercel.com             (0.004, -3.534)
+  https://www.bbc.co.uk/         (4.495, 9.598)
+
+Pairwise L2 Distances:
+  https://apple.com              ↔ https://cnn.com               : 15.829
+  https://apple.com              ↔ https://dawnlabs.co           : 16.997
+  https://apple.com              ↔ https://fifa.com              : 16.609
+  https://apple.com              ↔ https://github.com            : 16.881
+  https://apple.com              ↔ https://koto.studio/          : 19.873
+  https://apple.com              ↔ https://monzo.com             : 13.318
+  https://apple.com              ↔ https://stripe.com            : 13.370
+  https://apple.com              ↔ https://stripe.com            : 13.370
+  https://apple.com              ↔ https://vercel.com            : 13.810
+  https://apple.com              ↔ https://www.bbc.co.uk/        : 15.567
+  https://cnn.com                ↔ https://dawnlabs.co           : 16.843
+  https://cnn.com                ↔ https://fifa.com              : 14.713
+  https://cnn.com                ↔ https://github.com            : 17.154
+  https://cnn.com                ↔ https://koto.studio/          : 17.270
+  https://cnn.com                ↔ https://monzo.com             : 17.408
+  https://cnn.com                ↔ https://stripe.com            : 17.213
+  https://cnn.com                ↔ https://stripe.com            : 17.213
+  https://cnn.com                ↔ https://vercel.com            : 15.826
+  https://cnn.com                ↔ https://www.bbc.co.uk/        : 12.524
+  https://dawnlabs.co            ↔ https://fifa.com              : 16.616
+  https://dawnlabs.co            ↔ https://github.com            : 15.718
+  https://dawnlabs.co            ↔ https://koto.studio/          : 17.419
+  https://dawnlabs.co            ↔ https://monzo.com             : 16.610
+  https://dawnlabs.co            ↔ https://stripe.com            : 17.170
+  https://dawnlabs.co            ↔ https://stripe.com            : 17.170
+  https://dawnlabs.co            ↔ https://vercel.com            : 14.285
+  https://dawnlabs.co            ↔ https://www.bbc.co.uk/        : 18.759
+  https://fifa.com               ↔ https://github.com            : 14.497
+  https://fifa.com               ↔ https://koto.studio/          : 15.042
+  https://fifa.com               ↔ https://monzo.com             : 17.937
+  https://fifa.com               ↔ https://stripe.com            : 18.113
+  https://fifa.com               ↔ https://stripe.com            : 18.113
+  https://fifa.com               ↔ https://vercel.com            : 15.095
+  https://fifa.com               ↔ https://www.bbc.co.uk/        : 18.020
+  https://github.com             ↔ https://koto.studio/          : 14.854
+  https://github.com             ↔ https://monzo.com             : 17.825
+  https://github.com             ↔ https://stripe.com            : 18.670
+  https://github.com             ↔ https://stripe.com            : 18.670
+  https://github.com             ↔ https://vercel.com            : 15.657
+  https://github.com             ↔ https://www.bbc.co.uk/        : 19.914
+  https://koto.studio/           ↔ https://monzo.com             : 20.326
+  https://koto.studio/           ↔ https://stripe.com            : 21.613
+  https://koto.studio/           ↔ https://stripe.com            : 21.613
+  https://koto.studio/           ↔ https://vercel.com            : 17.631
+  https://koto.studio/           ↔ https://www.bbc.co.uk/        : 21.286
+  https://monzo.com              ↔ https://stripe.com            : 12.207
+  https://monzo.com              ↔ https://stripe.com            : 12.207
+  https://monzo.com              ↔ https://vercel.com            : 14.412
+  https://monzo.com              ↔ https://www.bbc.co.uk/        : 15.562
+  https://stripe.com             ↔ https://stripe.com            : 0.000
+  https://stripe.com             ↔ https://vercel.com            : 14.106
+  https://stripe.com             ↔ https://www.bbc.co.uk/        : 15.293
+  https://stripe.com             ↔ https://vercel.com            : 14.106
+  https://stripe.com             ↔ https://www.bbc.co.uk/        : 15.293
+  https://vercel.com             ↔ https://www.bbc.co.uk/        : 17.379
+
+Distance Summary:
+  Avg: 16.200
+  Max: 21.613
+  Min: 0.000
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+📊 Combined (832D)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Total Variance:     0.507
+Avg Variance/Dim:   0.001
+Max Variance:       0.013
+Min Variance:       0.000
+Dims with Var>0.001: 72/832 (8.7%)
+Dims with Var>0.1:   0/832 (0.0%)
+
+Top 10 Highest Variance Dimensions:
+  1. Dim 48: 0.0127
+  2. Dim 56: 0.0119
+  3. Dim 55: 0.0115
+  4. Dim 53: 0.0113
+  5. Dim 41: 0.0090
+  6. Dim 49: 0.0078
+  7. Dim 51: 0.0075
+  8. Dim 527: 0.0063
+  9. Dim 259: 0.0060
+  10. Dim 52: 0.0051
+
+PCA Explained Variance:
+  PC1: 29.9%
+  PC2: 16.2%
+  PC1+PC2: 46.1%
+
+2D Projection Stats:
+  X Range: 1.227
+  Y Range: 0.943
+
+Projections:
+  https://apple.com              (0.162, -0.130)
+  https://cnn.com                (-0.194, 0.503)
+  https://dawnlabs.co            (-0.311, -0.337)
+  https://fifa.com               (-0.243, 0.131)
+  https://github.com             (-0.467, -0.157)
+  https://koto.studio/           (-0.634, 0.017)
+  https://monzo.com              (0.184, -0.099)
+  https://stripe.com             (0.593, -0.146)
+  https://stripe.com             (0.593, -0.146)
+  https://vercel.com             (0.021, -0.243)
+  https://www.bbc.co.uk/         (0.296, 0.606)
+
+Pairwise L2 Distances:
+  https://apple.com              ↔ https://cnn.com               : 1.042
+  https://apple.com              ↔ https://dawnlabs.co           : 1.055
+  https://apple.com              ↔ https://fifa.com              : 1.004
+  https://apple.com              ↔ https://github.com            : 1.074
+  https://apple.com              ↔ https://koto.studio/          : 1.171
+  https://apple.com              ↔ https://monzo.com             : 0.925
+  https://apple.com              ↔ https://stripe.com            : 0.914
+  https://apple.com              ↔ https://stripe.com            : 0.914
+  https://apple.com              ↔ https://vercel.com            : 0.848
+  https://apple.com              ↔ https://www.bbc.co.uk/        : 1.039
+  https://cnn.com                ↔ https://dawnlabs.co           : 1.120
+  https://cnn.com                ↔ https://fifa.com              : 0.950
+  https://cnn.com                ↔ https://github.com            : 1.029
+  https://cnn.com                ↔ https://koto.studio/          : 1.003
+  https://cnn.com                ↔ https://monzo.com             : 1.020
+  https://cnn.com                ↔ https://stripe.com            : 1.149
+  https://cnn.com                ↔ https://stripe.com            : 1.149
+  https://cnn.com                ↔ https://vercel.com            : 1.037
+  https://cnn.com                ↔ https://www.bbc.co.uk/        : 0.903
+  https://dawnlabs.co            ↔ https://fifa.com              : 1.054
+  https://dawnlabs.co            ↔ https://github.com            : 1.036
+  https://dawnlabs.co            ↔ https://koto.studio/          : 1.095
+  https://dawnlabs.co            ↔ https://monzo.com             : 1.111
+  https://dawnlabs.co            ↔ https://stripe.com            : 1.207
+  https://dawnlabs.co            ↔ https://stripe.com            : 1.207
+  https://dawnlabs.co            ↔ https://vercel.com            : 0.949
+  https://dawnlabs.co            ↔ https://www.bbc.co.uk/        : 1.254
+  https://fifa.com               ↔ https://github.com            : 0.934
+  https://fifa.com               ↔ https://koto.studio/          : 0.964
+  https://fifa.com               ↔ https://monzo.com             : 1.120
+  https://fifa.com               ↔ https://stripe.com            : 1.082
+  https://fifa.com               ↔ https://stripe.com            : 1.082
+  https://fifa.com               ↔ https://vercel.com            : 0.953
+  https://fifa.com               ↔ https://www.bbc.co.uk/        : 1.061
+  https://github.com             ↔ https://koto.studio/          : 0.869
+  https://github.com             ↔ https://monzo.com             : 1.074
+  https://github.com             ↔ https://stripe.com            : 1.197
+  https://github.com             ↔ https://stripe.com            : 1.197
+  https://github.com             ↔ https://vercel.com            : 1.002
+  https://github.com             ↔ https://www.bbc.co.uk/        : 1.266
+  https://koto.studio/           ↔ https://monzo.com             : 1.162
+  https://koto.studio/           ↔ https://stripe.com            : 1.316
+  https://koto.studio/           ↔ https://stripe.com            : 1.316
+  https://koto.studio/           ↔ https://vercel.com            : 1.130
+  https://koto.studio/           ↔ https://www.bbc.co.uk/        : 1.317
+  https://monzo.com              ↔ https://stripe.com            : 0.905
+  https://monzo.com              ↔ https://stripe.com            : 0.905
+  https://monzo.com              ↔ https://vercel.com            : 1.000
+  https://monzo.com              ↔ https://www.bbc.co.uk/        : 1.089
+  https://stripe.com             ↔ https://stripe.com            : 0.000
+  https://stripe.com             ↔ https://vercel.com            : 0.949
+  https://stripe.com             ↔ https://www.bbc.co.uk/        : 0.996
+  https://stripe.com             ↔ https://vercel.com            : 0.949
+  https://stripe.com             ↔ https://www.bbc.co.uk/        : 0.996
+  https://vercel.com             ↔ https://www.bbc.co.uk/        : 1.102
+
+Distance Summary:
+  Avg: 1.040
+  Max: 1.317
+  Min: 0.000
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+💡 CLUSTERING DIAGNOSIS
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Why are vectors clustering closely in PCA?
+
+1. LOW EXPLAINED VARIANCE:
+   - PC1+PC2 explains only 58.0% of total variance
+   - This means most variation is in higher dimensions (PC3-PC64)
+   - 2D projection loses critical differentiating information
+
+2. FEATURE SATURATION:
+   - 14/64 features have near-identical values across all sites
+   - These features contribute no discriminative power
+
+3. NORMALIZATION ISSUES:
+   - Average variance per dimension: 0.0408
+   - ⚠️  Very low variance suggests features are poorly scaled
+   - Most features clustered near same values (0.5-0.8 range)
+
+4. SMALL DATASET:
+   - Only 11 samples in 64D space
+   - PCA needs ~10x more samples than dimensions for reliable projection
+   - Recommended minimum: ~640 samples for 64D
+
+RECOMMENDATIONS:
+
+A. Increase dataset size to 50+ captures for better PCA
+B. Use t-SNE instead of PCA (better for small datasets)
+C. Select top-K most variant features (e.g., top 10-20 features)
+D. Review normalization ranges - ensure features span 0-1 effectively
+E. Consider UMAP for non-linear dimensionality reduction
+
+Waiting for the debugger to disconnect...
+Waiting for the debugger to disconnect...
+Waiting for the debugger to disconnect...

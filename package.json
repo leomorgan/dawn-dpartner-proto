@@ -24,6 +24,8 @@
     "store-vectors": "npm run build:pipeline && node scripts/store-vectors.js",
     "batch-ingest": "npm run build:pipeline && node scripts/batch-ingest.js",
     "batch-vector": "npm run build:pipeline && node scripts/batch-vector-urls.js",
+    "recapture-all": "npm run build:pipeline && node scripts/recapture-all-urls.js",
+    "full-ingest": "npm run build:pipeline && node dist/scripts/full-ingest-urls.js",
     "fixtures:serve": "npx serve fixtures/site -p 5050",
     "db:migrate": "npm run build:pipeline && node scripts/db-migrate.js"
   },
@@ -66,6 +68,7 @@
     "react-konva": "^18.2.10",
     "recharts": "^3.2.1",
     "replicate": "^1.2.0",
+    "sharp": "^0.34.4",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",

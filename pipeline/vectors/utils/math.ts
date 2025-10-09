@@ -85,3 +85,34 @@ export function normalizeLog(value: number, midpoint: number): number {
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
+
+/**
+ * Piecewise linear normalization for density values
+ * Provides more resolution in the critical 150-250 range where modern sites cluster
+ *
+ * Ranges:
+ * - 0-50: Minimal sites → 0.0-0.2 (steep curve, high sensitivity)
+ * - 50-150: Moderate sites → 0.2-0.5 (moderate curve)
+ * - 150-250: Dense sites → 0.5-0.8 (CRITICAL RANGE - more resolution)
+ * - 250+: Very dense → 0.8-1.0 (compressed, less important)
+ *
+ * @example
+ * normalizeDensityPiecewise(173.82); // Monzo → 0.571
+ * normalizeDensityPiecewise(185.82); // CNN → 0.607
+ * // Δ = 0.036 (3.3x better than log normalization)
+ */
+export function normalizeDensityPiecewise(rawDensity: number): number {
+  if (rawDensity < 50) {
+    // Minimal sites: 0-50 → 0.0-0.2
+    return (rawDensity / 50) * 0.2;
+  } else if (rawDensity < 150) {
+    // Moderate sites: 50-150 → 0.2-0.5
+    return 0.2 + ((rawDensity - 50) / 100) * 0.3;
+  } else if (rawDensity < 250) {
+    // Dense sites: 150-250 → 0.5-0.8 (CRITICAL RANGE)
+    return 0.5 + ((rawDensity - 150) / 100) * 0.3;
+  } else {
+    // Very dense: 250+ → 0.8-1.0
+    return 0.8 + Math.min((rawDensity - 250) / 250, 1) * 0.2;
+  }
+}
