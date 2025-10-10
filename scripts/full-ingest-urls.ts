@@ -111,8 +111,11 @@ async function processUrl(url: string, index: number, total: number): Promise<Pr
 async function main() {
   console.log('🚀 Full Ingestion Pipeline: Capture → Generate → Store\n');
 
-  // Read URLs from test-urls.txt
-  const testUrlsPath = join(process.cwd(), 'test-urls.txt');
+  // Read URLs from file (default: test-urls.txt, or use command line argument)
+  const urlFileName = process.argv[2] || 'test-urls.txt';
+  const testUrlsPath = join(process.cwd(), urlFileName);
+
+  console.log(`📂 Reading URLs from: ${urlFileName}\n`);
   const content = readFileSync(testUrlsPath, 'utf-8');
   const urls = content
     .split('\n')

@@ -1,11 +1,11 @@
 /**
  * Global Style Vector Builder
  *
- * Builds a 309D vector consisting of:
- * - 53D interpretable features (colors, typography, spacing, shape, personality)
+ * Builds a 312D vector consisting of:
+ * - 56D interpretable features (colors, typography, spacing, shape, personality)
  * - 256D font embedding (text embedding of font characteristics)
  *
- * Total: 53D + 256D = 309D
+ * Total: 56D + 256D = 312D
  */
 
 import type { DesignTokens, StyleReport } from '../tokens';
@@ -62,6 +62,19 @@ export async function buildGlobalStyleVec(
     report.contrastResults.aaPassRate
   );
   featureNames.push('color_harmony', 'color_saturation_mean', 'color_contrast_pass_rate');
+
+  // === 2B. COLOR COVERAGE (3D) ===
+  // Percentage of page area using brand colors, accent colors, and foundation colors
+  // Coverage can exceed 100% due to overlapping elements (text + background)
+  if (!colorHarmony.coverage) {
+    throw new Error('Missing required data: colorHarmony.coverage is undefined');
+  }
+  interpretable.push(
+    normalizeFeature(colorHarmony.coverage.brandColorCoveragePercent, 'brand_color_coverage'),
+    normalizeFeature(colorHarmony.coverage.accentColorCoveragePercent, 'accent_color_coverage'),
+    normalizeFeature(colorHarmony.coverage.foundationColorCoveragePercent, 'foundation_color_coverage')
+  );
+  featureNames.push('brand_color_coverage', 'accent_color_coverage', 'foundation_color_coverage');
 
   // === 3. TYPOGRAPHY (14D) ===
 
@@ -214,16 +227,17 @@ export async function buildGlobalStyleVec(
   featureNames.push('overall_coherence', 'design_system_maturity');
 
   // === Verify interpretable length ===
-  // 17D colors + 3D color stats + 14D typography + 11D spacing + 6D shape + 2D coherence = 53D
-  if (interpretable.length !== 53) {
-    throw new Error(`Interpretable vector must be 53D, got ${interpretable.length}D. Feature breakdown:
+  // 17D colors + 3D color stats + 3D color coverage + 14D typography + 11D spacing + 6D shape + 2D coherence = 56D
+  if (interpretable.length !== 56) {
+    throw new Error(`Interpretable vector must be 56D, got ${interpretable.length}D. Feature breakdown:
       - Colors: 17D
       - Color stats: 3D
+      - Color coverage: 3D
       - Typography: 14D
       - Spacing: 11D
       - Shape: 6D (radius 3D + palette_entropy 1D + personality 2D)
       - Coherence: 2D
-      Total: 53D`);
+      Total: 56D`);
   }
 
   // === 7. FONT EMBEDDING (256D) ===
@@ -235,12 +249,12 @@ export async function buildGlobalStyleVec(
   }
 
   // === Combine ===
-  const combinedRaw = new Float32Array(309); // 53D interpretable + 256D font = 309D
+  const combinedRaw = new Float32Array(312); // 56D interpretable + 256D font = 312D
   combinedRaw.set(interpretable, 0);
   combinedRaw.set(fontEmbedding, interpretable.length);
 
-  if (combinedRaw.length !== 309) {
-    throw new Error(`Combined vector must be 309D, got ${combinedRaw.length}D`);
+  if (combinedRaw.length !== 312) {
+    throw new Error(`Combined vector must be 312D, got ${combinedRaw.length}D`);
   }
 
   // L2 normalize the combined vector for cosine similarity

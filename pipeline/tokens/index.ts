@@ -205,6 +205,17 @@ export interface ColorHarmonyAnalysis {
   brandColorSaturation: number;  // Avg chroma of brand colors (0-1)
   accentColorSaturation: number; // Avg chroma of accent colors (0-1)
   neutralTint: number;           // Avg chroma of tinted neutrals (0-1)
+
+  // === NEW: Color coverage metrics ===
+  coverage: ColorCoverageMetrics;
+}
+
+export interface ColorCoverageMetrics {
+  brandColorCoveragePercent: number;      // % of page area using brand colors
+  accentColorCoveragePercent: number;     // % using accent colors
+  foundationColorCoveragePercent: number; // % using foundation colors
+  totalColorArea: number;                 // Sum of all color areas (can exceed 100%)
+  pageArea: number;                       // Viewport width × height
 }
 
 export interface TokenExtractionResult {
@@ -245,11 +256,24 @@ export async function extractTokens(runId: string, artifactDir?: string): Promis
     console.warn('No button hover states found or failed to read button hover states:', error);
   }
 
+  // Read metadata to get viewport dimensions
+  const metadataPath = join(rawDir, 'meta.json');
+  let viewport = { width: 1280, height: 720 }; // fallback
+  try {
+    const metadataContent = await readFile(metadataPath, 'utf8');
+    const metadata = JSON.parse(metadataContent);
+    if (metadata.viewport) {
+      viewport = metadata.viewport;
+    }
+  } catch (error) {
+    console.warn('No metadata found, using default viewport:', error);
+  }
+
   // Extract design tokens
   const tokens = await analyzeStyles(nodes, cssRules, buttonHoverStates);
 
   // Generate style report
-  const report = await generateStyleReport(nodes, tokens);
+  const report = await generateStyleReport(nodes, tokens, viewport);
 
   // Generate Tailwind config
   const tailwindConfig = generateTailwindConfig(tokens);
@@ -1164,7 +1188,12 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
 }
 
 // Real token coverage calculation - replaces hardcoded 0.95
-async function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: DesignTokens): Promise<RealTokenMetrics> {
+async function calculateRealTokenMetrics(
+  nodes: ComputedStyleNode[],
+  tokens: DesignTokens,
+  colorAreas: Map<string, number>,
+  viewport: { width: number; height: number }
+): Promise<RealTokenMetrics> {
   // Extract all colors actually used in the DOM
   const allColorsUsed = new Set<string>();
   const criticalColors = new Set<string>(); // Colors on important elements
@@ -1238,8 +1267,8 @@ async function calculateRealTokenMetrics(nodes: ComputedStyleNode[], tokens: Des
     confidenceScore
   };
 
-  const colorHarmony = analyzeColorHarmony(tokens);
-  const brandCoherence = calculateBrandCoherence(tokens, nodes);
+  const colorHarmony = analyzeColorHarmony(tokens, colorAreas, nodes);
+  const brandCoherence = calculateBrandCoherence(tokens, nodes, colorAreas, viewport);
 
   return {
     actualCoverage,
@@ -1686,11 +1715,70 @@ function calculateAvgChroma(colors: string[]): number {
   return chromas.reduce((sum, c) => sum + c, 0) / chromas.length;
 }
 
-function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
+// Helper function to calculate color coverage metrics
+function calculateColorCoverage(
+  tokens: DesignTokens,
+  colorAreas: Map<string, number>,
+  nodes: ComputedStyleNode[]
+): ColorCoverageMetrics {
+  // Calculate actual page dimensions from bounding boxes
+  let maxWidth = 0;
+  let maxHeight = 0;
+  for (const node of nodes) {
+    const right = node.bbox.x + node.bbox.w;
+    const bottom = node.bbox.y + node.bbox.h;
+    if (right > maxWidth) maxWidth = right;
+    if (bottom > maxHeight) maxHeight = bottom;
+  }
+
+  const pageArea = maxWidth * maxHeight;
+
+  // Calculate area for each tier
+  const brandColorArea = tokens.colors.brandColors.reduce((sum, colorHex) => {
+    return sum + (colorAreas.get(colorHex) || 0);
+  }, 0);
+
+  const accentColorArea = tokens.colors.accentColors.reduce((sum, colorHex) => {
+    return sum + (colorAreas.get(colorHex) || 0);
+  }, 0);
+
+  const foundationColorArea = tokens.colors.foundation.reduce((sum, colorHex) => {
+    return sum + (colorAreas.get(colorHex) || 0);
+  }, 0);
+
+  // Calculate total (for debugging - can exceed 100% due to overlaps)
+  const totalColorArea = Array.from(colorAreas.values())
+    .reduce((sum, area) => sum + area, 0);
+
+  return {
+    brandColorCoveragePercent: (brandColorArea / pageArea) * 100,
+    accentColorCoveragePercent: (accentColorArea / pageArea) * 100,
+    foundationColorCoveragePercent: (foundationColorArea / pageArea) * 100,
+    totalColorArea,
+    pageArea
+  };
+}
+
+function analyzeColorHarmony(
+  tokens: DesignTokens,
+  colorAreas: Map<string, number>,
+  nodes: ComputedStyleNode[]
+): ColorHarmonyAnalysis {
   const allColors = [...tokens.colors.primary, ...tokens.colors.neutral];
   const parsedColors = allColors.map(c => parse(c)).filter(Boolean);
 
   if (!parsedColors.length) {
+    // Calculate page area from nodes
+    let maxWidth = 0;
+    let maxHeight = 0;
+    for (const node of nodes) {
+      const right = node.bbox.x + node.bbox.w;
+      const bottom = node.bbox.y + node.bbox.h;
+      if (right > maxWidth) maxWidth = right;
+      if (bottom > maxHeight) maxHeight = bottom;
+    }
+    const pageArea = maxWidth * maxHeight;
+
     return {
       paletteType: 'monochromatic',
       harmonyScore: 0.5,
@@ -1706,6 +1794,13 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
       brandColorSaturation: 0,
       accentColorSaturation: 0,
       neutralTint: 0,
+      coverage: {
+        brandColorCoveragePercent: 0,
+        accentColorCoveragePercent: 0,
+        foundationColorCoveragePercent: 0,
+        totalColorArea: 0,
+        pageArea
+      }
     };
   }
 
@@ -1714,6 +1809,17 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
   const lchColors = parsedColors.map(color => toLch(color)).filter(Boolean);
 
   if (!lchColors.length) {
+    // Calculate page area from nodes
+    let maxWidth = 0;
+    let maxHeight = 0;
+    for (const node of nodes) {
+      const right = node.bbox.x + node.bbox.w;
+      const bottom = node.bbox.y + node.bbox.h;
+      if (right > maxWidth) maxWidth = right;
+      if (bottom > maxHeight) maxHeight = bottom;
+    }
+    const pageArea = maxWidth * maxHeight;
+
     return {
       paletteType: 'monochromatic',
       harmonyScore: 0.5,
@@ -1729,6 +1835,13 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
       brandColorSaturation: 0,
       accentColorSaturation: 0,
       neutralTint: 0,
+      coverage: {
+        brandColorCoveragePercent: 0,
+        accentColorCoveragePercent: 0,
+        foundationColorCoveragePercent: 0,
+        totalColorArea: 0,
+        pageArea
+      }
     };
   }
 
@@ -1772,6 +1885,9 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
   const accentColorSaturation = calculateAvgChroma(tokens.colors.accentColors);
   const neutralTint = calculateAvgChroma(tokens.colors.tintedNeutrals);
 
+  // === NEW: Color coverage metrics ===
+  const coverage = calculateColorCoverage(tokens, colorAreas, nodes);
+
   return {
     paletteType,
     harmonyScore,
@@ -1790,11 +1906,17 @@ function analyzeColorHarmony(tokens: DesignTokens): ColorHarmonyAnalysis {
     brandColorSaturation,    // NEW
     accentColorSaturation,   // NEW
     neutralTint,             // NEW
+    coverage,                // NEW
   };
 }
 
-function calculateBrandCoherence(tokens: DesignTokens, nodes: ComputedStyleNode[]): BrandCoherenceScore {
-  const colorHarmony = analyzeColorHarmony(tokens);
+function calculateBrandCoherence(
+  tokens: DesignTokens,
+  nodes: ComputedStyleNode[],
+  colorAreas: Map<string, number>,
+  viewport: { width: number; height: number }
+): BrandCoherenceScore {
+  const colorHarmony = analyzeColorHarmony(tokens, colorAreas, nodes);
   const spacingConsistency = analyzeSpacingConsistency(tokens.spacing);
   const typographyCoherence = analyzeTypographyCoherence(tokens.typography);
 
@@ -1885,10 +2007,34 @@ function analyzeDesignSystem(tokens: DesignTokens, nodes: ComputedStyleNode[]): 
   };
 }
 
-async function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTokens): Promise<StyleReport> {
+async function generateStyleReport(
+  nodes: ComputedStyleNode[],
+  tokens: DesignTokens,
+  viewport: { width: number; height: number }
+): Promise<StyleReport> {
   let totalPairs = 0;
   let aaPassing = 0;
   const failures: StyleReport['contrastResults']['failures'] = [];
+
+  // Calculate color areas for coverage metrics
+  const colorAreas = new Map<string, number>();
+  for (const node of nodes) {
+    const area = node.bbox.w * node.bbox.h;
+
+    // Text color
+    const textColor = parse(node.styles.color);
+    if (textColor) {
+      const hex = formatHex(textColor);
+      colorAreas.set(hex, (colorAreas.get(hex) || 0) + area);
+    }
+
+    // Background color
+    const bgColor = parse(node.styles.backgroundColor);
+    if (bgColor && (bgColor.alpha ?? 1) > 0.1) {
+      const hex = formatHex(bgColor);
+      colorAreas.set(hex, (colorAreas.get(hex) || 0) + area);
+    }
+  }
 
   // Check contrast for all text elements
   for (const node of nodes) {
@@ -1927,7 +2073,7 @@ async function generateStyleReport(nodes: ComputedStyleNode[], tokens: DesignTok
   const paletteRecall = allColors.length >= 3 ? (allColors.length >= 6 ? 1.0 : 0.75) : 0.5;
 
   // Calculate real token coverage
-  const realTokenMetrics = await calculateRealTokenMetrics(nodes, tokens);
+  const realTokenMetrics = await calculateRealTokenMetrics(nodes, tokens, colorAreas, viewport);
   const brandPersonality = await analyzeBrandPersonality(tokens, nodes);
   const designSystemAnalysis = analyzeDesignSystem(tokens, nodes);
 

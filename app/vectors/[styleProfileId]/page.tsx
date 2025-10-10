@@ -506,6 +506,50 @@ function ColorsTabFourTier({ tokens, report }: any) {
         </div>
       )}
 
+      {/* Color Coverage Metrics */}
+      {colorHarmony?.coverage && (
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-6">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">Color Coverage Analysis</h3>
+            <p className="text-xs text-gray-600 mt-1">Percentage of page area using each color tier</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CoverageMetricCard
+              title="Brand Coverage"
+              value={colorHarmony.coverage.brandColorCoveragePercent}
+              color="purple"
+              description="Vibrant brand colors"
+            />
+            <CoverageMetricCard
+              title="Accent Coverage"
+              value={colorHarmony.coverage.accentColorCoveragePercent}
+              color="blue"
+              description="Muted brand colors"
+            />
+            <CoverageMetricCard
+              title="Foundation Coverage"
+              value={colorHarmony.coverage.foundationColorCoveragePercent}
+              color="gray"
+              description="Pure neutrals"
+            />
+          </div>
+          <div className="mt-4 pt-4 border-t border-indigo-200 grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="text-gray-600">Total Color Area:</span>
+              <span className="ml-2 font-medium text-gray-900">
+                {(colorHarmony.coverage.totalColorArea / 1_000_000).toFixed(2)}M px
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-600">Page Area:</span>
+              <span className="ml-2 font-medium text-gray-900">
+                {(colorHarmony.coverage.pageArea / 1_000_000).toFixed(2)}M px
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Brand Colors (Vibrant Identity, Chroma > 50) */}
       <div className="bg-white rounded-lg border-2 border-purple-200 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -791,6 +835,59 @@ function SaturationMetricCard({ title, value, color }: {
         <div
           className={`h-2 rounded-full transition-all ${barColorClasses[color]}`}
           style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+}
+
+// Helper component for coverage metrics
+function CoverageMetricCard({ title, value, color, description }: {
+  title: string;
+  value: number;
+  color: 'purple' | 'blue' | 'gray';
+  description: string;
+}) {
+  const colorClasses = {
+    purple: 'border-purple-300 text-purple-800 bg-white',
+    blue: 'border-blue-300 text-blue-800 bg-white',
+    gray: 'border-gray-400 text-gray-800 bg-white',
+  };
+
+  const barColorClasses = {
+    purple: 'bg-gradient-to-r from-purple-500 to-purple-600',
+    blue: 'bg-gradient-to-r from-blue-500 to-blue-600',
+    gray: 'bg-gradient-to-r from-gray-500 to-gray-600',
+  };
+
+  const iconClasses = {
+    purple: 'text-purple-600',
+    blue: 'text-blue-600',
+    gray: 'text-gray-600',
+  };
+
+  // Handle both regular percentages and values that might already be percentages over 100
+  const displayValue = value.toFixed(1);
+  const barWidth = Math.min(value, 100); // Cap bar width at 100%
+
+  return (
+    <div className={`rounded-lg border-2 p-4 ${colorClasses[color]} shadow-sm`}>
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1">
+          <div className="text-xs font-medium mb-0.5 opacity-75">{description}</div>
+          <div className="text-2xl font-bold">{displayValue}%</div>
+        </div>
+        <div className={`text-2xl ${iconClasses[color]}`}>
+          {color === 'purple' && '◆'}
+          {color === 'blue' && '●'}
+          {color === 'gray' && '■'}
+        </div>
+      </div>
+      <div className="text-xs font-semibold mb-2">{title}</div>
+      <div className="w-full bg-gray-100 rounded-full h-2">
+        <div
+          className={`h-2 rounded-full transition-all ${barColorClasses[color]}`}
+          style={{ width: `${barWidth}%` }}
         ></div>
       </div>
     </div>

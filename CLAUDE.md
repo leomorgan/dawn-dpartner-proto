@@ -138,5 +138,6 @@ This is an **MVP tech demo** with a core focus on **crafted design output qualit
 - **Simple over scalable** - direct implementations over complex architectures
 - **Demo-ready over production-ready** - optimize for showcasing design generation capabilities
 - **Deterministic behavior** - consistent results for reliable demos
+- **No data preservation concerns** - nuke the database and start fresh as needed; no legacy data structure support required
 
 **Success Criteria**: Code running is baseline; the true measure is whether generated designs look like they were created by a skilled designer who understood the source brand.

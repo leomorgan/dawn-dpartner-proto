@@ -405,6 +405,24 @@
       "min": 20,
       "max": 60,
       "note": "Minimum tap target size. Accessibility guideline 44-48px."
+    },
+    "brand_color_coverage": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 200,
+      "note": "Percentage of page area using brand colors. Can exceed 100% due to text + background overlap."
+    },
+    "accent_color_coverage": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 200,
+      "note": "Percentage of page area using accent colors. Can exceed 100% due to text + background overlap."
+    },
+    "foundation_color_coverage": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 200,
+      "note": "Percentage of page area using foundation colors. Can exceed 100% due to text + background overlap."
     }
   }
 }

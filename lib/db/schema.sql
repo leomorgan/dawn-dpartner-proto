@@ -32,17 +32,14 @@ CREATE TABLE IF NOT EXISTS style_profiles (
   -- Full tokens from design_tokens.json (10KB typical)
   tokens_json JSONB NOT NULL,
 
-  -- 192D fixed vector (legacy - nullable, deprecated)
-  style_vec VECTOR(192),
-
-  -- 53D interpretable vector (colors 17D, color stats 3D, typography 14D, spacing 11D, shape 6D, coherence 2D)
-  interpretable_vec VECTOR(53),
+  -- 56D interpretable vector (colors 17D, color stats 3D, color coverage 3D, typography 14D, spacing 11D, shape 6D, coherence 2D)
+  interpretable_vec VECTOR(56),
 
   -- 256D font embedding (text-embedding-3-small)
   font_embedding_vec VECTOR(256),
 
-  -- 309D combined vector [53D interpretable + 256D font] for hybrid search
-  combined_vec VECTOR(309),
+  -- 312D combined vector [56D interpretable + 256D font] for hybrid search
+  combined_vec VECTOR(312),
 
   -- Font description used to generate embedding
   font_description TEXT,

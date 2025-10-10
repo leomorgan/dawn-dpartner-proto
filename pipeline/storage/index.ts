@@ -186,9 +186,9 @@ export async function storeVectors(
         [
           captureId,
           JSON.stringify(tokens),
-          floatArrayToPgVector(vectorResult.globalStyleVec.interpretable),      // 53D interpretable
+          floatArrayToPgVector(vectorResult.globalStyleVec.interpretable),      // 56D interpretable
           floatArrayToPgVector(vectorResult.globalStyleVec.fontEmbedding),      // 256D font embedding
-          floatArrayToPgVector(vectorResult.globalStyleVec.combined),           // 309D combined
+          floatArrayToPgVector(vectorResult.globalStyleVec.combined),           // 312D combined
           vectorResult.globalStyleVec.metadata.fontDescription,
           JSON.stringify(uxSummary)
         ]
@@ -207,9 +207,9 @@ export async function storeVectors(
           captureId,
           meta.url,
           JSON.stringify(tokens),
-          floatArrayToPgVector(vectorResult.globalStyleVec.interpretable),      // 53D interpretable
+          floatArrayToPgVector(vectorResult.globalStyleVec.interpretable),      // 56D interpretable
           floatArrayToPgVector(vectorResult.globalStyleVec.fontEmbedding),      // 256D font embedding
-          floatArrayToPgVector(vectorResult.globalStyleVec.combined),           // 309D combined
+          floatArrayToPgVector(vectorResult.globalStyleVec.combined),           // 312D combined
           vectorResult.globalStyleVec.metadata.fontDescription,
           JSON.stringify(uxSummary)
         ]

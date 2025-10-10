@@ -76,7 +76,7 @@ export function explainCosineSimple(
 }
 
 /**
- * Feature names for the 53D interpretable vector.
+ * Feature names for the 56D interpretable vector.
  * Must match the order in pipeline/vectors/global-style-vec.ts
  */
 export const INTERPRETABLE_FEATURE_NAMES = [
@@ -109,6 +109,11 @@ export const INTERPRETABLE_FEATURE_NAMES = [
   'color_harmony',
   'color_saturation_mean',
   'color_contrast_pass_rate',
+
+  // === 2B. COLOR COVERAGE (3D) ===
+  'brand_color_coverage',
+  'accent_color_coverage',
+  'foundation_color_coverage',
 
   // === 3. TYPOGRAPHY (14D) ===
   // Font size (3D)
@@ -174,6 +179,11 @@ export function humanizeFeatureName(name: string): string {
     'color_harmony': 'Color Harmony',
     'color_saturation_mean': 'Average Saturation',
     'color_contrast_pass_rate': 'Contrast Pass Rate',
+
+    // === COLOR COVERAGE (3D) ===
+    'brand_color_coverage': 'Brand Color Coverage',
+    'accent_color_coverage': 'Accent Color Coverage',
+    'foundation_color_coverage': 'Foundation Color Coverage',
 
     // === TYPOGRAPHY (14D) ===
     // Font size (3D)
