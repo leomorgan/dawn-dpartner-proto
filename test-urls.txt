@@ -4,13 +4,10 @@
 # Fintech (professional, muted)
 https://stripe.com
 https://monzo.com
-https://revolut.com
+https://dojo.tech
 
 # Lifestyle/Travel (warm, inviting)
-https://airbnb.com
-
-# Sports (bold, high contrast)
-https://fifa.com
+https://airbnb.co.uk
 
 # Tech/Creative (minimal, modern)
 https://dawnlabs.co
@@ -20,12 +17,10 @@ https://github.com
 # E-commerce (varied)
 https://apple.com
 
-# Media (complex palettes)
-https://cnn.com
-
 # AI Tools (modern, clean)
 https://v0.app/
 
 # News/Media (editorial, information-dense)
 https://www.ft.com/
 https://www.theguardian.com/uk
+https://cnn.com

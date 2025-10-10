@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { INTERPRETABLE_FEATURE_NAMES, humanizeFeatureName } from '@/lib/vectors/cosine-explainer';
+import { formatRawValue } from '@/lib/vectors/raw-values-extractor';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 
@@ -161,7 +163,7 @@ export default function VectorPage() {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-6">
-            {['overview', 'colors', 'typography', 'layout', 'brand', 'cta'].map(tab => (
+            {['overview', 'similarity', 'colors', 'typography', 'layout', 'brand', 'cta'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -193,6 +195,15 @@ export default function VectorPage() {
             combinedNonZeroCount={combinedNonZeroCount}
             ctaNonZeroCount={ctaNonZeroCount}
             report={report}
+          />
+        )}
+
+        {activeTab === 'similarity' && (
+          <SimilarityTab
+            styleProfileId={styleProfileId}
+            sourceUrl={data.styleProfile.source_url}
+            sourceRunId={data.capture.runId}
+            sourceTokens={tokens}
           />
         )}
 
@@ -1234,6 +1245,542 @@ function FeatureBar({
           <span>{labels[1]}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Similarity Tab
+function SimilarityTab({ styleProfileId, sourceUrl, sourceRunId, sourceTokens }: {
+  styleProfileId: string;
+  sourceUrl: string;
+  sourceRunId: string;
+  sourceTokens: any;
+}) {
+  const [similarities, setSimilarities] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSimilarities = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/vectors/${styleProfileId}/similarity`);
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch similarities');
+        }
+
+        const result = await response.json();
+        setSimilarities(result.similarities);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSimilarities();
+  }, [styleProfileId]);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg border p-8">
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="ml-3 text-gray-600">Loading similarity comparisons...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-lg border p-8">
+        <div className="text-center text-red-600">
+          <p>Error: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (similarities.length === 0) {
+    return (
+      <div className="bg-white rounded-lg border p-8">
+        <div className="text-center text-gray-600">
+          <p>No other profiles to compare. Capture more URLs to see similarity scores.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract key dataset info from source tokens
+  const hasNewTierSystem = sourceTokens.colors.foundation !== undefined;
+  const colorCount = hasNewTierSystem
+    ? (sourceTokens.colors.foundation?.length || 0) +
+      (sourceTokens.colors.tintedNeutrals?.length || 0) +
+      (sourceTokens.colors.accentColors?.length || 0) +
+      (sourceTokens.colors.brandColors?.length || 0)
+    : (sourceTokens.colors.primary?.length || 0) + (sourceTokens.colors.neutral?.length || 0);
+
+  const fontCount = sourceTokens.typography?.fontFamilies?.length || 0;
+  const fontSizeCount = sourceTokens.typography?.fontSizes?.length || 0;
+  const spacingCount = sourceTokens.spacing?.scale?.length || 0;
+  const radiusCount = sourceTokens.shapes?.radius?.length || 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-6">
+        <div className="flex items-start gap-4">
+          <div className="text-4xl">🔍</div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Similarity Analysis
+            </h3>
+            <p className="text-sm text-gray-700 mb-4">
+              Comparing <span className="font-mono font-semibold">{sourceUrl}</span> against {similarities.length} other captured {similarities.length === 1 ? 'URL' : 'URLs'}.
+              Similarity scores range from 0% (completely different) to 100% (identical).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Source Dataset Summary */}
+      <div className="bg-white rounded-lg border p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="text-2xl">📊</div>
+          <div>
+            <h4 className="text-base font-semibold text-gray-900">Source Design System</h4>
+            <p className="text-xs text-gray-600">{sourceUrl}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+            <div className="text-2xl font-bold text-purple-700">{colorCount}</div>
+            <div className="text-xs text-purple-600 font-medium mt-1">Colors</div>
+          </div>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+            <div className="text-2xl font-bold text-blue-700">{fontCount}</div>
+            <div className="text-xs text-blue-600 font-medium mt-1">Font Families</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+            <div className="text-2xl font-bold text-green-700">{fontSizeCount}</div>
+            <div className="text-xs text-green-600 font-medium mt-1">Font Sizes</div>
+          </div>
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+            <div className="text-2xl font-bold text-orange-700">{spacingCount}</div>
+            <div className="text-xs text-orange-600 font-medium mt-1">Spacing Steps</div>
+          </div>
+          <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg p-4 border border-pink-200">
+            <div className="text-2xl font-bold text-pink-700">{radiusCount}</div>
+            <div className="text-xs text-pink-600 font-medium mt-1">Border Radii</div>
+          </div>
+          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-4 border border-indigo-200">
+            <div className="text-2xl font-bold text-indigo-700">55D</div>
+            <div className="text-xs text-indigo-600 font-medium mt-1">Vector Dims</div>
+          </div>
+        </div>
+
+        {sourceRunId && (
+          <div className="mt-4 pt-4 border-t">
+            <img
+              src={`/api/artifact/${sourceRunId}/raw/page.png`}
+              alt={sourceUrl}
+              className="w-full max-w-xs rounded border border-gray-200 shadow-sm"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Similarity Table */}
+      <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '42%' }} />
+              <col style={{ width: '28%' }} />
+              <col style={{ width: '15%' }} />
+            </colgroup>
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  URL
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Style Token Similarity
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  CLIP Similarity
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {similarities.map((sim) => (
+                <>
+                  <tr
+                    key={sim.id}
+                    className={`transition-colors ${expandedRow === sim.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col gap-2">
+                        {sim.runId && (
+                          <img
+                            src={`/api/artifact/${sim.runId}/raw/page.png`}
+                            alt={sim.sourceUrl}
+                            className="w-12 h-12 object-cover object-top rounded border border-gray-200"
+                          />
+                        )}
+                        <div className="text-[10px] font-medium text-gray-900 truncate" title={sim.sourceUrl}>
+                          {sim.sourceUrl.replace(/^https?:\/\/(www\.)?/, '')}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <SimilarityBar
+                        value={sim.styleSimilarity}
+                        label="Style Tokens"
+                        color="green"
+                        topFeatures={sim.topFeatures}
+                        bottomFeatures={sim.bottomFeatures}
+                      />
+                    </td>
+                    <td className="px-4 py-4">
+                      <SimilarityBar
+                        value={sim.clipSimilarity}
+                        label="CLIP"
+                        color="purple"
+                      />
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setExpandedRow(expandedRow === sim.id ? null : sim.id)}
+                          className="text-xs text-gray-600 hover:text-gray-900 font-medium px-2 py-1 rounded hover:bg-gray-100"
+                        >
+                          {expandedRow === sim.id ? '▼ Hide' : '▶ Compare'}
+                        </button>
+                        <a
+                          href={`/vectors/${sim.id}`}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          View →
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Accordion Content */}
+                  {expandedRow === sim.id && (
+                    <tr key={`${sim.id}-detail`} className="bg-gradient-to-br from-blue-50 to-purple-50">
+                      <td colSpan={4} className="px-4 py-6">
+                        <ComparisonDetail
+                          sourceUrl={sourceUrl}
+                          targetUrl={sim.sourceUrl}
+                          sourceRunId={sourceRunId}
+                          targetRunId={sim.runId}
+                          sourceVector={sim.sourceVector}
+                          targetVector={sim.targetVector}
+                          sourceVectorRaw={sim.sourceVectorRaw}
+                          targetVectorRaw={sim.targetVectorRaw}
+                          rawUnits={sim.rawUnits}
+                          rawLabels={sim.rawLabels}
+                          topFeatures={sim.topFeatures}
+                          bottomFeatures={sim.bottomFeatures}
+                          styleSimilarity={sim.styleSimilarity}
+                          clipSimilarity={sim.clipSimilarity}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="bg-gray-50 border rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-gray-900 mb-3">Understanding Similarity Scores & Feature Weights</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div>
+            <div className="font-semibold text-green-700 mb-1">Style Token Similarity (55D)</div>
+            <p className="text-gray-600 text-xs">
+              Measures similarity in design tokens: colors, typography, spacing, shapes, and brand personality.
+              Based on interpretable vector features.
+            </p>
+          </div>
+          <div>
+            <div className="font-semibold text-purple-700 mb-1">CLIP Similarity (768D)</div>
+            <p className="text-gray-600 text-xs">
+              Measures visual similarity using OpenAI CLIP embeddings of page screenshots.
+              Captures overall visual appearance and layout patterns.
+            </p>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-700 mb-1">Feature Contributions</div>
+            <p className="text-gray-600 text-xs">
+              <span className="text-green-700 font-medium">Similar:</span> Absolute % contribution to cosine similarity (higher = stronger driver of similarity).
+              <span className="text-red-700 font-medium ml-1">Different:</span> Absolute % raw value difference (higher = more different between sites).
+              Neither is normalized - values show true magnitude of each feature's impact.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Comparison Detail Component
+function ComparisonDetail({
+  sourceUrl,
+  targetUrl,
+  sourceRunId,
+  targetRunId,
+  sourceVector,
+  targetVector,
+  sourceVectorRaw,
+  targetVectorRaw,
+  rawUnits,
+  rawLabels,
+  topFeatures,
+  bottomFeatures,
+  styleSimilarity,
+  clipSimilarity
+}: {
+  sourceUrl: string;
+  targetUrl: string;
+  sourceRunId: string;
+  targetRunId: string;
+  sourceVector: number[];
+  targetVector: number[];
+  sourceVectorRaw: number[] | null;
+  targetVectorRaw: number[] | null;
+  rawUnits: string[] | null;
+  rawLabels: string[] | null;
+  topFeatures: any[];
+  bottomFeatures: any[];
+  styleSimilarity: number;
+  clipSimilarity: number;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900">Vector Comparison</h4>
+          <p className="text-xs text-gray-600">Complete 55D interpretable feature breakdown</p>
+        </div>
+        <div className="flex gap-4 text-xs">
+          <div>
+            <span className="text-gray-600">Style Similarity:</span>
+            <span className="ml-2 font-mono font-bold">{(styleSimilarity * 100).toFixed(1)}%</span>
+          </div>
+          <div>
+            <span className="text-gray-600">CLIP Similarity:</span>
+            <span className="ml-2 font-mono font-bold">{(clipSimilarity * 100).toFixed(1)}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Vector Data Table */}
+      <div className="bg-white border rounded overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-100 border-b">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold text-gray-700">Index</th>
+                <th className="px-3 py-2 text-left font-semibold text-gray-700">Feature Name</th>
+                <th className="px-3 py-2 text-right font-semibold text-gray-700" colSpan={2}>Source</th>
+                <th className="px-3 py-2 text-right font-semibold text-gray-700" colSpan={2}>Target</th>
+                <th className="px-3 py-2 text-right font-semibold text-gray-700">Norm Δ</th>
+              </tr>
+              <tr>
+                <th></th>
+                <th></th>
+                <th className="px-3 py-1 text-right text-[10px] font-medium text-gray-600">Raw</th>
+                <th className="px-3 py-1 text-right text-[10px] font-medium text-gray-600">Norm</th>
+                <th className="px-3 py-1 text-right text-[10px] font-medium text-gray-600">Raw</th>
+                <th className="px-3 py-1 text-right text-[10px] font-medium text-gray-600">Norm</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 font-mono">
+              {(() => {
+                // Create array of feature data with sorting keys
+                const featureRows = INTERPRETABLE_FEATURE_NAMES.map((featureName, idx) => {
+                  const sourceValue = sourceVector[idx];
+                  const targetValue = targetVector[idx];
+                  const difference = Math.abs(sourceValue - targetValue);
+
+                  const sourceRaw = sourceVectorRaw?.[idx];
+                  const targetRaw = targetVectorRaw?.[idx];
+                  const unit = rawUnits?.[idx];
+
+                  // Find this feature in top or bottom features
+                  const topFeature = topFeatures.find(f => f.name === featureName);
+                  const bottomFeature = bottomFeatures.find(f => f.name === featureName);
+                  const feature = topFeature || bottomFeature;
+
+                  const isTopFeature = !!topFeature;
+                  const isBottomFeature = !!bottomFeature;
+
+                  // Sorting key: contribution (positive = similar) or negative difference (= different)
+                  const sortKey = feature?.contribution || -difference;
+
+                  return {
+                    idx,
+                    featureName,
+                    sourceValue,
+                    targetValue,
+                    difference,
+                    sourceRaw,
+                    targetRaw,
+                    unit,
+                    feature,
+                    isTopFeature,
+                    isBottomFeature,
+                    sortKey
+                  };
+                });
+
+                // Sort by sortKey descending (most similar at top)
+                featureRows.sort((a, b) => b.sortKey - a.sortKey);
+
+                return featureRows.map((row) => (
+                  <tr
+                    key={row.idx}
+                    className={`
+                      ${row.isTopFeature ? 'bg-green-50' : ''}
+                      ${row.isBottomFeature ? 'bg-red-50' : ''}
+                      hover:bg-blue-50
+                    `}
+                  >
+                    <td className="px-3 py-2 text-gray-600">{row.idx}</td>
+                    <td className="px-3 py-2 font-sans text-gray-900">
+                      {humanizeFeatureName(row.featureName)}
+                      <div className="text-[10px] text-gray-500 font-mono">{row.featureName}</div>
+                    </td>
+                    <td className="px-3 py-2 text-right text-blue-700 font-semibold">
+                      {row.sourceRaw !== undefined && row.unit ? formatRawValue(row.sourceRaw, row.unit) : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-600 text-[10px]">
+                      {row.sourceValue.toFixed(2)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-blue-700 font-semibold">
+                      {row.targetRaw !== undefined && row.unit ? formatRawValue(row.targetRaw, row.unit) : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-600 text-[10px]">
+                      {row.targetValue.toFixed(2)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold">
+                      <span className={row.isBottomFeature ? 'text-red-600' : row.difference > 0.1 ? 'text-orange-600' : 'text-gray-700'}>
+                        {row.difference.toFixed(2)}
+                      </span>
+                    </td>
+                  </tr>
+                ));
+              })()}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded border">
+        <div className="font-semibold mb-1">Legend:</div>
+        <div className="flex gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
+            <span>Top 3 most similar features</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-red-50 border border-red-200 rounded"></div>
+            <span>Top 3 most different features</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Similarity Bar Component
+function SimilarityBar({
+  value,
+  label,
+  color,
+  topFeatures,
+  bottomFeatures
+}: {
+  value: number;
+  label: string;
+  color: 'green' | 'purple';
+  topFeatures?: Array<{ name: string; label: string; weight: number; contribution: number }>;
+  bottomFeatures?: Array<{ name: string; label: string; weight: number; rawDifference: number }>;
+}) {
+  const percentage = Math.round(value * 100);
+
+  const colorClasses = {
+    green: 'bg-green-600',
+    purple: 'bg-purple-600',
+  };
+
+  const textColorClasses = {
+    green: 'text-green-700',
+    purple: 'text-purple-700',
+  };
+
+  return (
+    <div className="w-full max-w-xs">
+      <div className="flex items-center justify-between mb-1">
+        <span className={`text-xs font-medium ${textColorClasses[color]}`}>
+          {percentage}%
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+        <div
+          className={`h-2.5 rounded-full transition-all duration-300 ${colorClasses[color]}`}
+          style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+
+      {/* Feature explanations */}
+      {topFeatures && bottomFeatures && (
+        <div className="mt-2 text-[10px] grid grid-cols-2 gap-2">
+          <div>
+            <div className="text-green-700 font-semibold mb-0.5">Similar:</div>
+            <div className="space-y-0.5">
+              {topFeatures.map((f, i) => (
+                <div key={i} className="flex items-center justify-between gap-1">
+                  <span className="text-gray-700 truncate">{f.label}</span>
+                  <span className="text-green-600 font-mono text-[9px] whitespace-nowrap">
+                    {(f.weight * 100).toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="text-red-700 font-semibold mb-0.5">Different:</div>
+            <div className="space-y-0.5">
+              {bottomFeatures.map((f, i) => (
+                <div key={i} className="flex items-center justify-between gap-1">
+                  <span className="text-gray-700 truncate">{f.label}</span>
+                  <span className="text-red-600 font-mono text-[9px] whitespace-nowrap">
+                    {(f.weight * 100).toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

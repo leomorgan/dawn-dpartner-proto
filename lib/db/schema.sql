@@ -32,8 +32,19 @@ CREATE TABLE IF NOT EXISTS style_profiles (
   -- Full tokens from design_tokens.json (10KB typical)
   tokens_json JSONB NOT NULL,
 
-  -- 192D fixed vector
-  style_vec VECTOR(192) NOT NULL,
+  -- 192D fixed vector (legacy - nullable since we now use interpretable+visual)
+  style_vec VECTOR(192),
+
+  -- 768D visual embedding from CLIP
+  visual_vec VECTOR(768),
+  visual_model TEXT,                   -- e.g., "openai/clip-vit-large-patch14-336"
+  visual_embedding_date TIMESTAMPTZ,   -- when visual vector was last generated
+
+  -- 55D interpretable vector (color 15D, typography 11D, spacing 7D, shape 7D, brand 15D)
+  interpretable_vec VECTOR(55),
+
+  -- 823D combined vector [55D interpretable + 768D visual] for hybrid search
+  combined_vec VECTOR(823),
 
   -- UX/brand summary from style_report.json
   ux_summary JSONB,
@@ -43,7 +54,15 @@ CREATE TABLE IF NOT EXISTS style_profiles (
 
 CREATE INDEX IF NOT EXISTS idx_style_profiles_url ON style_profiles(source_url);
 CREATE INDEX IF NOT EXISTS idx_style_profiles_tokens_gin ON style_profiles USING GIN (tokens_json);
--- No IVFFlat index yet - wait for 1000+ vectors
+
+-- Vector indexes (IVFFlat for approximate nearest neighbor search)
+CREATE INDEX IF NOT EXISTS idx_style_profiles_interpretable ON style_profiles
+  USING ivfflat (interpretable_vec vector_cosine_ops)
+  WITH (lists = 100);
+
+CREATE INDEX IF NOT EXISTS idx_style_profiles_combined ON style_profiles
+  USING ivfflat (combined_vec vector_cosine_ops)
+  WITH (lists = 100);
 
 -- PrimaryCTA role vectors (one per URL/capture)
 CREATE TABLE IF NOT EXISTS role_vectors_primarycta (

@@ -17,12 +17,21 @@ export function buildGlobalStyleVec(
   viewport: { width: number; height: number }
 ): {
   interpretable: Float32Array;
+  interpretableRaw: Float32Array;
   visual: Float32Array;
   combined: Float32Array;
   metadata: { featureNames: string[]; nonZeroCount: number };
 } {
   const interpretable: number[] = [];
+  const interpretableRaw: number[] = [];  // NEW: Store unnormalized values
   const featureNames: string[] = [];
+
+  // Helper function to push both raw and normalized values
+  const pushFeature = (name: string, rawValue: number, normalizedValue: number) => {
+    featureNames.push(name);
+    interpretable.push(normalizedValue);
+    interpretableRaw.push(rawValue);
+  };
 
   // Extract layout features from DOM data
   const layoutFeats = extractLayoutFeatures(nodes, viewport);
@@ -30,12 +39,12 @@ export function buildGlobalStyleVec(
   // === Color Features (16D) ===
 
   // KEEP: Primary color count (log-normalized) - backward compat
-  featureNames.push('color_primary_count');
-  interpretable.push(normalizeLog(tokens.colors.primary.length, 5));
+  const primaryCount = tokens.colors.primary.length;
+  pushFeature('color_primary_count', primaryCount, normalizeLog(primaryCount, 5));
 
   // KEEP: Neutral color count (log-normalized) - backward compat
-  featureNames.push('color_neutral_count');
-  interpretable.push(normalizeLog(tokens.colors.neutral.length, 5));
+  const neutralCount = tokens.colors.neutral.length;
+  pushFeature('color_neutral_count', neutralCount, normalizeLog(neutralCount, 5));
 
   // Palette entropy (already 0-1)
   const paletteEntropy = calculatePaletteEntropy(
@@ -288,6 +297,7 @@ export function buildGlobalStyleVec(
 
   return {
     interpretable: Float32Array.from(interpretable),
+    interpretableRaw: Float32Array.from(interpretableRaw),
     visual: Float32Array.from(visual),
     combined: Float32Array.from(combined),
     metadata: {
