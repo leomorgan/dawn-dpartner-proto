@@ -63,17 +63,18 @@ export async function GET(
         sp2.source_url,
         sp2.created_at,
         sp2.interpretable_vec,
+        sp2.font_embedding_vec,
         sp2.tokens_json,
         c.run_id,
         1 - (sp2.interpretable_vec <=> sp1.interpretable_vec) AS style_similarity,
-        1 - (sp2.visual_vec <=> sp1.visual_vec) AS clip_similarity
+        1 - (sp2.font_embedding_vec <=> sp1.font_embedding_vec) AS font_similarity
       FROM style_profiles sp1
       CROSS JOIN style_profiles sp2
       LEFT JOIN captures c ON c.id = sp2.capture_id
       WHERE sp1.id = $1
         AND sp2.id != $1
         AND sp2.interpretable_vec IS NOT NULL
-        AND sp2.visual_vec IS NOT NULL
+        AND sp2.font_embedding_vec IS NOT NULL
       ORDER BY style_similarity DESC`,
       [styleProfileId]
     );
@@ -118,7 +119,7 @@ export async function GET(
         createdAt: row.created_at,
         runId: row.run_id,
         styleSimilarity: parseFloat(row.style_similarity),
-        clipSimilarity: parseFloat(row.clip_similarity),
+        fontSimilarity: parseFloat(row.font_similarity),
         sourceVector: sourceVec,
         targetVector: targetVec,
         sourceVectorRaw: sourceRawResult?.raw || null,

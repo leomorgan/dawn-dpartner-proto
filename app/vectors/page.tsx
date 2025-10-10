@@ -16,7 +16,7 @@ interface PCAData {
     y: number;
     brandTone: string;
     brandEnergy: string;
-    visualModel: string;
+    fontDescription: string;
     capturedAt: string;
   }>;
   explainedVariance: {
@@ -30,7 +30,7 @@ interface PCAData {
 export default function VectorsPage() {
   const router = useRouter();
   const [interpretableData, setInterpretableData] = useState<PCAData | null>(null);
-  const [visualData, setVisualData] = useState<PCAData | null>(null);
+  const [fontEmbeddingData, setFontEmbeddingData] = useState<PCAData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,22 +40,22 @@ export default function VectorsPage() {
         setLoading(true);
 
         // Fetch both PCA projections in parallel
-        const [interpretableRes, visualRes] = await Promise.all([
+        const [interpretableRes, fontEmbeddingRes] = await Promise.all([
           fetch('/api/vectors/pca?type=interpretable'),
-          fetch('/api/vectors/pca?type=visual'),
+          fetch('/api/vectors/pca?type=font_embedding'),
         ]);
 
-        if (!interpretableRes.ok || !visualRes.ok) {
+        if (!interpretableRes.ok || !fontEmbeddingRes.ok) {
           throw new Error('Failed to fetch PCA data');
         }
 
-        const [interpretable, visual] = await Promise.all([
+        const [interpretable, fontEmbedding] = await Promise.all([
           interpretableRes.json(),
-          visualRes.json(),
+          fontEmbeddingRes.json(),
         ]);
 
         setInterpretableData(interpretable);
-        setVisualData(visual);
+        setFontEmbeddingData(fontEmbedding);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {
@@ -81,7 +81,7 @@ export default function VectorsPage() {
     );
   }
 
-  if (error || !interpretableData || !visualData) {
+  if (error || !interpretableData || !fontEmbeddingData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -130,18 +130,18 @@ export default function VectorsPage() {
             </div>
 
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <div className="text-xs font-medium text-purple-700 mb-1">Visual Embeddings</div>
-              <div className="text-2xl font-bold text-purple-900">{visualData.dimensions}D → 2D</div>
+              <div className="text-xs font-medium text-purple-700 mb-1">Font Embeddings</div>
+              <div className="text-2xl font-bold text-purple-900">{fontEmbeddingData.dimensions}D → 2D</div>
               <div className="text-xs text-purple-600 mt-1">
-                {visualData.explainedVariance.total}% variance captured
+                {fontEmbeddingData.explainedVariance.total}% variance captured
               </div>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="text-xs font-medium text-blue-700 mb-1">Visual Model</div>
-              <div className="text-lg font-bold text-blue-900">OpenAI CLIP</div>
+              <div className="text-xs font-medium text-blue-700 mb-1">Text Model</div>
+              <div className="text-lg font-bold text-blue-900">Text Embedding</div>
               <div className="text-xs text-blue-600 mt-1">
-                {visualData.projections[0]?.visualModel || 'openai-clip'}
+                text-embedding-3-small
               </div>
             </div>
 
@@ -201,7 +201,7 @@ export default function VectorsPage() {
         {/* Interpretable (Style Tokens) Plot */}
         <VectorScatterPlot
           data={interpretableData.projections}
-          title="🎨 Style Token Embeddings (55D)"
+          title="🎨 Style Token Embeddings (53D)"
           explainedVariance={{
             pc1: interpretableData.explainedVariance.pc1,
             pc2: interpretableData.explainedVariance.pc2,
@@ -209,13 +209,13 @@ export default function VectorsPage() {
           onPointClick={handlePointClick}
         />
 
-        {/* Visual (CLIP) Plot */}
+        {/* Font Embedding Plot */}
         <VectorScatterPlot
-          data={visualData.projections}
-          title="👁️ Visual Embeddings (768D CLIP)"
+          data={fontEmbeddingData.projections}
+          title="🔤 Font Embeddings (256D)"
           explainedVariance={{
-            pc1: visualData.explainedVariance.pc1,
-            pc2: visualData.explainedVariance.pc2,
+            pc1: fontEmbeddingData.explainedVariance.pc1,
+            pc2: fontEmbeddingData.explainedVariance.pc2,
           }}
           onPointClick={handlePointClick}
         />

@@ -11,7 +11,10 @@ interface VectorData {
     id: string;
     source_url: string;
     tokens: any;
-    style_vec: number[];
+    interpretable_vec: number[];
+    font_embedding_vec: number[];
+    combined_vec: number[];
+    font_description: string;
     ux_summary: any;
     created_at: string;
   };
@@ -99,12 +102,13 @@ export default function VectorPage() {
   const tokens = data.artifacts.designTokens;
   const report = data.artifacts.styleReport;
   const interpretableVec = data.styleProfile.interpretable_vec;
-  const visualVec = data.styleProfile.visual_vec;
+  const fontEmbeddingVec = data.styleProfile.font_embedding_vec;
   const combinedVec = data.styleProfile.combined_vec;
+  const fontDescription = data.styleProfile.font_description;
   const ctaVec = data.ctaVector?.vec;
 
   const interpretableNonZeroCount = interpretableVec?.filter(v => v !== 0).length || 0;
-  const visualNonZeroCount = visualVec?.filter(v => v !== 0).length || 0;
+  const fontEmbeddingNonZeroCount = fontEmbeddingVec?.filter(v => v !== 0).length || 0;
   const combinedNonZeroCount = combinedVec?.filter(v => v !== 0).length || 0;
   const ctaNonZeroCount = ctaVec ? ctaVec.filter(v => v !== 0).length : 0;
 
@@ -187,11 +191,12 @@ export default function VectorPage() {
         {activeTab === 'overview' && (
           <OverviewTab
             interpretableVec={interpretableVec}
-            visualVec={visualVec}
+            fontEmbeddingVec={fontEmbeddingVec}
             combinedVec={combinedVec}
+            fontDescription={fontDescription}
             ctaVec={ctaVec}
             interpretableNonZeroCount={interpretableNonZeroCount}
-            visualNonZeroCount={visualNonZeroCount}
+            fontEmbeddingNonZeroCount={fontEmbeddingNonZeroCount}
             combinedNonZeroCount={combinedNonZeroCount}
             ctaNonZeroCount={ctaNonZeroCount}
             report={report}
@@ -260,10 +265,10 @@ export default function VectorPage() {
 }
 
 // Overview Tab Component
-function OverviewTab({ interpretableVec, visualVec, combinedVec, ctaVec, interpretableNonZeroCount, visualNonZeroCount, combinedNonZeroCount, ctaNonZeroCount, report }: any) {
-  const interpretableDim = interpretableVec?.length || 55;
-  const visualDim = visualVec?.length || 768;
-  const combinedDim = combinedVec?.length || 823;
+function OverviewTab({ interpretableVec, fontEmbeddingVec, combinedVec, fontDescription, ctaVec, interpretableNonZeroCount, fontEmbeddingNonZeroCount, combinedNonZeroCount, ctaNonZeroCount, report }: any) {
+  const interpretableDim = interpretableVec?.length || 53;
+  const fontEmbeddingDim = fontEmbeddingVec?.length || 256;
+  const combinedDim = combinedVec?.length || 309;
 
   return (
     <div className="space-y-6">
@@ -295,26 +300,26 @@ function OverviewTab({ interpretableVec, visualVec, combinedVec, ctaVec, interpr
           </p>
         </div>
 
-        {/* Visual (CLIP) */}
+        {/* Font Embedding */}
         <div className="bg-white rounded-lg border p-6">
           <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-            👁️ Visual Embedding
+            🔤 Font Embedding
           </h3>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-3xl font-bold text-gray-900">768D</div>
-              <div className="text-xs text-gray-600">OpenAI CLIP</div>
+              <div className="text-3xl font-bold text-gray-900">{fontEmbeddingDim}D</div>
+              <div className="text-xs text-gray-600">Text Embedding</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-semibold text-purple-600">✓</div>
-              <div className="text-xs text-gray-600">Embedded</div>
+              <div className="text-2xl font-semibold text-purple-600">{fontEmbeddingNonZeroCount}</div>
+              <div className="text-xs text-gray-600">Active</div>
             </div>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div className="bg-purple-600 h-2 rounded-full w-full"></div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Screenshot visual features (CLIP)
+            {fontDescription || 'Font characteristics (text-embedding-3-small)'}
           </p>
         </div>
 
@@ -325,19 +330,19 @@ function OverviewTab({ interpretableVec, visualVec, combinedVec, ctaVec, interpr
           </h3>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-3xl font-bold text-blue-900">832D</div>
-              <div className="text-xs text-blue-600">L2 normalized</div>
+              <div className="text-3xl font-bold text-blue-900">{combinedDim}D</div>
+              <div className="text-xs text-blue-600">Concatenated</div>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-semibold text-blue-600">✓</div>
-              <div className="text-xs text-blue-600">Hybrid</div>
+              <div className="text-2xl font-semibold text-blue-600">{combinedNonZeroCount}</div>
+              <div className="text-xs text-blue-600">Active</div>
             </div>
           </div>
           <div className="w-full bg-blue-100 rounded-full h-2">
             <div className="bg-blue-600 h-2 rounded-full w-full"></div>
           </div>
           <p className="text-xs text-blue-600 mt-2">
-            64D style + 768D visual (normalized)
+            {interpretableDim}D style + {fontEmbeddingDim}D font embedding
           </p>
         </div>
 
@@ -346,7 +351,7 @@ function OverviewTab({ interpretableVec, visualVec, combinedVec, ctaVec, interpr
             <h3 className="text-sm font-semibold text-gray-700 mb-4">CTA Vector</h3>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <div className="text-3xl font-bold text-gray-900">64D</div>
+                <div className="text-3xl font-bold text-gray-900">26D</div>
                 <div className="text-sm text-gray-600">Total dimensions</div>
               </div>
               <div className="text-right">
@@ -357,11 +362,11 @@ function OverviewTab({ interpretableVec, visualVec, combinedVec, ctaVec, interpr
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-blue-600 h-2 rounded-full"
-                style={{ width: `${(ctaNonZeroCount / 64) * 100}%` }}
+                style={{ width: `${(ctaNonZeroCount / 26) * 100}%` }}
               ></div>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Feature Density: {ctaNonZeroCount}/64 ({Math.round((ctaNonZeroCount / 64) * 100)}%)
+              Feature Density: {ctaNonZeroCount}/26 ({Math.round((ctaNonZeroCount / 26) * 100)}%)
             </p>
           </div>
         )}
@@ -993,33 +998,33 @@ function BrandTab({ brandPersonality }: any) {
 
 // Layout Tab - New Layout Features
 function LayoutTab({ interpretableVec, report }: any) {
-  // Extract layout features from the interpretable vector (55D)
+  // Extract layout features from the interpretable vector (53D)
   // Based on global-style-vec.ts structure:
-  // 0-14: Color features (15D)
-  // 15-25: Typography features (11D)
-  // 26-32: Spacing features (7D)
-  // 33-39: Shape features (7D)
-  // 40-54: Brand features (15D)
+  // 0-19: Color features (17D colors + 3D color stats = 20D)
+  // 20-33: Typography features (14D)
+  // 34-44: Spacing features (11D)
+  // 45-50: Shape features (6D)
+  // 51-52: Brand coherence (2D)
 
   const layoutFeatures = {
-    // Typography
-    hierarchyDepth: interpretableVec?.[20] || 0,
-    weightContrast: interpretableVec?.[21] || 0,
+    // Typography (indices 23-33)
+    hierarchyDepth: interpretableVec?.[26] || 0,  // typo_hierarchy_depth (index 26)
+    weightContrast: interpretableVec?.[25] || 0,  // font_weight_contrast (index 25)
 
-    // Spacing & Density
-    densityScore: interpretableVec?.[29] || 0,
-    whitespaceRatio: interpretableVec?.[30] || 0,
-    paddingConsistency: interpretableVec?.[31] || 0,
-    imageTextBalance: interpretableVec?.[32] || 0,
+    // Spacing & Density (indices 34-44)
+    densityScore: interpretableVec?.[38] || 0,  // visual_density (index 38)
+    whitespaceRatio: interpretableVec?.[39] || 0,  // whitespace_ratio (index 39)
+    paddingConsistency: interpretableVec?.[37] || 0,  // spacing_consistency (index 37)
+    imageTextBalance: interpretableVec?.[40] || 0,  // image_text_balance (index 40)
 
     // Shape & Composition
-    borderHeaviness: interpretableVec?.[36] || 0,
-    shadowDepth: interpretableVec?.[37] || 0,
-    groupingStrength: interpretableVec?.[38] || 0,
-    compositionalComplexity: interpretableVec?.[39] || 0,
+    borderHeaviness: interpretableVec?.[42] || 0,  // border_heaviness (index 42)
+    shadowDepth: interpretableVec?.[43] || 0,  // shadow_depth (index 43)
+    groupingStrength: interpretableVec?.[41] || 0,  // gestalt_grouping (index 41)
+    compositionalComplexity: interpretableVec?.[31] || 0,  // compositional_complexity (index 31)
 
     // Color
-    roleDistinction: interpretableVec?.[54] || 0,
+    roleDistinction: interpretableVec?.[33] || 0,  // color_role_distinction (index 33)
   };
 
   return (
@@ -1378,7 +1383,7 @@ function SimilarityTab({ styleProfileId, sourceUrl, sourceRunId, sourceTokens }:
             <div className="text-xs text-pink-600 font-medium mt-1">Border Radii</div>
           </div>
           <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-4 border border-indigo-200">
-            <div className="text-2xl font-bold text-indigo-700">55D</div>
+            <div className="text-2xl font-bold text-indigo-700">53D</div>
             <div className="text-xs text-indigo-600 font-medium mt-1">Vector Dims</div>
           </div>
         </div>
@@ -1413,7 +1418,7 @@ function SimilarityTab({ styleProfileId, sourceUrl, sourceRunId, sourceTokens }:
                   Style Token Similarity
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                  CLIP Similarity
+                  Font Similarity
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                   Actions
@@ -1452,8 +1457,8 @@ function SimilarityTab({ styleProfileId, sourceUrl, sourceRunId, sourceTokens }:
                     </td>
                     <td className="px-4 py-4">
                       <SimilarityBar
-                        value={sim.clipSimilarity}
-                        label="CLIP"
+                        value={sim.fontSimilarity}
+                        label="Font"
                         color="purple"
                       />
                     </td>
@@ -1493,7 +1498,7 @@ function SimilarityTab({ styleProfileId, sourceUrl, sourceRunId, sourceTokens }:
                           topFeatures={sim.topFeatures}
                           bottomFeatures={sim.bottomFeatures}
                           styleSimilarity={sim.styleSimilarity}
-                          clipSimilarity={sim.clipSimilarity}
+                          fontSimilarity={sim.fontSimilarity}
                         />
                       </td>
                     </tr>
@@ -1510,17 +1515,17 @@ function SimilarityTab({ styleProfileId, sourceUrl, sourceRunId, sourceTokens }:
         <h4 className="text-sm font-semibold text-gray-900 mb-3">Understanding Similarity Scores & Feature Weights</h4>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <div className="font-semibold text-green-700 mb-1">Style Token Similarity (55D)</div>
+            <div className="font-semibold text-green-700 mb-1">Style Token Similarity (53D)</div>
             <p className="text-gray-600 text-xs">
               Measures similarity in design tokens: colors, typography, spacing, shapes, and brand personality.
               Based on interpretable vector features.
             </p>
           </div>
           <div>
-            <div className="font-semibold text-purple-700 mb-1">CLIP Similarity (768D)</div>
+            <div className="font-semibold text-purple-700 mb-1">Font Similarity (256D)</div>
             <p className="text-gray-600 text-xs">
-              Measures visual similarity using OpenAI CLIP embeddings of page screenshots.
-              Captures overall visual appearance and layout patterns.
+              Measures font similarity using text embeddings of font characteristics.
+              Captures semantic understanding of font families and styles.
             </p>
           </div>
           <div>
@@ -1528,7 +1533,7 @@ function SimilarityTab({ styleProfileId, sourceUrl, sourceRunId, sourceTokens }:
             <p className="text-gray-600 text-xs">
               <span className="text-green-700 font-medium">Similar:</span> Absolute % contribution to cosine similarity (higher = stronger driver of similarity).
               <span className="text-red-700 font-medium ml-1">Different:</span> Absolute % raw value difference (higher = more different between sites).
-              Neither is normalized - values show true magnitude of each feature's impact.
+              Neither is normalized - values show true magnitude of each feature&apos;s impact.
             </p>
           </div>
         </div>
@@ -1552,7 +1557,7 @@ function ComparisonDetail({
   topFeatures,
   bottomFeatures,
   styleSimilarity,
-  clipSimilarity
+  fontSimilarity
 }: {
   sourceUrl: string;
   targetUrl: string;
@@ -1567,7 +1572,7 @@ function ComparisonDetail({
   topFeatures: any[];
   bottomFeatures: any[];
   styleSimilarity: number;
-  clipSimilarity: number;
+  fontSimilarity: number;
 }) {
   return (
     <div className="space-y-4">
@@ -1575,7 +1580,7 @@ function ComparisonDetail({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-sm font-semibold text-gray-900">Vector Comparison</h4>
-          <p className="text-xs text-gray-600">Complete 55D interpretable feature breakdown</p>
+          <p className="text-xs text-gray-600">Complete 53D interpretable feature breakdown</p>
         </div>
         <div className="flex gap-4 text-xs">
           <div>
@@ -1583,8 +1588,8 @@ function ComparisonDetail({
             <span className="ml-2 font-mono font-bold">{(styleSimilarity * 100).toFixed(1)}%</span>
           </div>
           <div>
-            <span className="text-gray-600">CLIP Similarity:</span>
-            <span className="ml-2 font-mono font-bold">{(clipSimilarity * 100).toFixed(1)}%</span>
+            <span className="text-gray-600">Font Similarity:</span>
+            <span className="ml-2 font-mono font-bold">{(fontSimilarity * 100).toFixed(1)}%</span>
           </div>
         </div>
       </div>

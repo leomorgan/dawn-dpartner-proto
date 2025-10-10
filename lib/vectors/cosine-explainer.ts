@@ -76,74 +76,68 @@ export function explainCosineSimple(
 }
 
 /**
- * Feature names for the 55D interpretable vector.
+ * Feature names for the 53D interpretable vector.
  * Must match the order in pipeline/vectors/global-style-vec.ts
  */
 export const INTERPRETABLE_FEATURE_NAMES = [
-  // Color features (15D)
-  'color_primary_count',
-  'color_neutral_count',
-  'color_palette_entropy',
-  'color_contrast_pass_rate',
-  'color_dominant_hue',
+  // === 1. COLORS (17D) ===
+  // Brand palette relationships (3D)
+  'color_palette_avg_distance',
+  'color_palette_min_distance',
+  'color_palette_max_distance',
+  // Semantic relationships (4D)
+  'color_bg_text_distance',
+  'color_cta_bg_distance',
+  'color_cta_text_distance',
+  'color_hero_bg_distance',
+  // Background absolute (2D)
+  'color_bg_lightness',
+  'color_bg_chroma',
+  // Text absolute (1D)
+  'color_text_lightness',
+  // Hero brand color absolute (4D)
+  'color_hero_lightness',
+  'color_hero_chroma',
+  'color_hero_hue_cos',
+  'color_hero_hue_sin',
+  // CTA color (3D)
+  'color_cta_lightness',
+  'color_cta_chroma',
+  'color_cta_hero_distance',
+
+  // === 2. COLOR STATISTICS (3D) ===
+  'color_harmony',
   'color_saturation_mean',
-  'color_lightness_mean',
-  'color_button_diversity',
-  'color_link_diversity',
-  'color_harmony_score',
-  'color_coherence',
-  'color_foundation_count',
-  'color_brand_count',
-  'color_brand_saturation',
-  'color_neutral_tint',
+  'color_contrast_pass_rate',
 
-  // Typography features (11D)
-  'typo_size_range',
-  'typo_size_count',
-  'typo_weight_count',
-  'typo_lineheight_count',
-  'typo_coherence',
-  'typo_hierarchy_depth',
-  'typo_weight_contrast',
-  'layout_element_scale_variance',
-  'layout_vertical_rhythm',
-  'layout_grid_regularity',
-  'layout_above_fold_density',
+  // === 3. TYPOGRAPHY (14D) ===
+  // Font size (3D)
+  'font_size_min', 'font_size_max', 'font_size_range',
+  // Font weight (3D)
+  'font_weight_min', 'font_weight_max', 'font_weight_contrast',
+  // Typography hierarchy (3D)
+  'typo_hierarchy_depth', 'typo_coherence', 'element_scale_variance',
+  // Layout metrics (5D)
+  'vertical_rhythm', 'grid_regularity', 'above_fold_density', 'compositional_complexity', 'color_role_distinction',
 
-  // Spacing features (7D)
-  'spacing_scale_length',
-  'spacing_median',
+  // === 4. SPACING (11D) ===
+  // Core spacing (3D)
+  'spacing_min', 'spacing_median', 'spacing_max',
+  // Spacing consistency (1D)
   'spacing_consistency',
-  'spacing_density_score',
-  'spacing_whitespace_ratio',
-  'spacing_padding_consistency',
-  'spacing_image_text_balance',
+  // Visual density (4D)
+  'visual_density', 'whitespace_ratio', 'image_text_balance', 'gestalt_grouping',
+  // Structure (3D)
+  'border_heaviness', 'shadow_depth', 'shadow_count',
 
-  // Shape features (7D)
-  'shape_radius_count',
-  'shape_radius_median',
-  'shape_shadow_count',
-  'shape_border_heaviness',
-  'shape_shadow_depth',
-  'shape_grouping_strength',
-  'shape_compositional_complexity',
+  // === 5. SHAPE (6D) ===
+  // Border radius (3D)
+  'radius_min', 'radius_median', 'radius_max',
+  // Diversity & personality (3D)
+  'palette_entropy', 'brand_confidence', 'color_coherence',
 
-  // Brand personality features (15D)
-  'brand_tone_professional',
-  'brand_tone_playful',
-  'brand_tone_elegant',
-  'brand_tone_bold',
-  'brand_tone_minimal',
-  'brand_energy_calm',
-  'brand_energy_energetic',
-  'brand_energy_sophisticated',
-  'brand_energy_dynamic',
-  'brand_trust_conservative',
-  'brand_trust_modern',
-  'brand_trust_innovative',
-  'brand_trust_experimental',
-  'brand_confidence',
-  'brand_color_role_distinction',
+  // === 6. BRAND COHERENCE (2D) ===
+  'overall_coherence', 'design_system_maturity',
 ];
 
 /**
@@ -151,70 +145,86 @@ export const INTERPRETABLE_FEATURE_NAMES = [
  */
 export function humanizeFeatureName(name: string): string {
   const labels: Record<string, string> = {
-    // Color
-    'color_primary_count': 'Primary Palette Size',
-    'color_neutral_count': 'Neutral Palette Size',
-    'color_palette_entropy': 'Color Diversity',
-    'color_contrast_pass_rate': 'Contrast Compliance',
-    'color_dominant_hue': 'Dominant Hue',
-    'color_saturation_mean': 'Color Vibrancy',
-    'color_lightness_mean': 'Overall Lightness',
-    'color_button_diversity': 'Button Color Variety',
-    'color_link_diversity': 'Link Color Variety',
-    'color_harmony_score': 'Color Harmony',
-    'color_coherence': 'Color System Coherence',
-    'color_foundation_count': 'Foundation Colors',
-    'color_brand_count': 'Brand Colors',
-    'color_brand_saturation': 'Brand Color Intensity',
-    'color_neutral_tint': 'Neutral Tinting',
+    // === COLORS (17D) ===
+    // Brand palette relationships (3D)
+    'color_palette_avg_distance': 'Brand Palette Avg Distance',
+    'color_palette_min_distance': 'Brand Palette Min Distance',
+    'color_palette_max_distance': 'Brand Palette Max Distance',
+    // Semantic relationships (4D)
+    'color_bg_text_distance': 'Background-Text Distance',
+    'color_cta_bg_distance': 'CTA-Background Distance',
+    'color_cta_text_distance': 'CTA-Text Distance',
+    'color_hero_bg_distance': 'Hero-Background Distance',
+    // Background absolute (2D)
+    'color_bg_lightness': 'Background Lightness',
+    'color_bg_chroma': 'Background Chroma',
+    // Text absolute (1D)
+    'color_text_lightness': 'Text Lightness',
+    // Hero brand color absolute (4D)
+    'color_hero_lightness': 'Hero Color Lightness',
+    'color_hero_chroma': 'Hero Color Chroma',
+    'color_hero_hue_cos': 'Hero Hue (cos)',
+    'color_hero_hue_sin': 'Hero Hue (sin)',
+    // CTA color (3D)
+    'color_cta_lightness': 'CTA Lightness',
+    'color_cta_chroma': 'CTA Chroma',
+    'color_cta_hero_distance': 'CTA-Hero Distance',
 
-    // Typography
-    'typo_size_range': 'Type Scale Range',
-    'typo_size_count': 'Font Size Steps',
-    'typo_weight_count': 'Font Weight Variety',
-    'typo_lineheight_count': 'Line Height Steps',
-    'typo_coherence': 'Typography Consistency',
-    'typo_hierarchy_depth': 'Visual Hierarchy',
-    'typo_weight_contrast': 'Weight Contrast',
-    'layout_element_scale_variance': 'Element Sizing Variety',
-    'layout_vertical_rhythm': 'Vertical Rhythm',
-    'layout_grid_regularity': 'Grid Structure',
-    'layout_above_fold_density': 'Above-Fold Density',
+    // === COLOR STATISTICS (3D) ===
+    'color_harmony': 'Color Harmony',
+    'color_saturation_mean': 'Average Saturation',
+    'color_contrast_pass_rate': 'Contrast Pass Rate',
 
-    // Spacing
-    'spacing_scale_length': 'Spacing Scale Steps',
-    'spacing_median': 'Spacing Size',
+    // === TYPOGRAPHY (14D) ===
+    // Font size (3D)
+    'font_size_min': 'Minimum Font Size',
+    'font_size_max': 'Maximum Font Size',
+    'font_size_range': 'Font Size Range',
+    // Font weight (3D)
+    'font_weight_min': 'Minimum Font Weight',
+    'font_weight_max': 'Maximum Font Weight',
+    'font_weight_contrast': 'Font Weight Contrast',
+    // Typography hierarchy (3D)
+    'typo_hierarchy_depth': 'Typography Hierarchy Depth',
+    'typo_coherence': 'Typography Coherence',
+    'element_scale_variance': 'Element Scale Variance',
+    // Layout metrics (5D)
+    'vertical_rhythm': 'Vertical Rhythm',
+    'grid_regularity': 'Grid Regularity',
+    'above_fold_density': 'Above-Fold Density',
+    'compositional_complexity': 'Compositional Complexity',
+    'color_role_distinction': 'Color Role Distinction',
+
+    // === SPACING (11D) ===
+    // Core spacing (3D)
+    'spacing_min': 'Minimum Spacing',
+    'spacing_median': 'Median Spacing',
+    'spacing_max': 'Maximum Spacing',
+    // Spacing consistency (1D)
     'spacing_consistency': 'Spacing Consistency',
-    'spacing_density_score': 'Visual Density',
-    'spacing_whitespace_ratio': 'Whitespace Generosity',
-    'spacing_padding_consistency': 'Padding System',
-    'spacing_image_text_balance': 'Image/Text Balance',
+    // Visual density (4D)
+    'visual_density': 'Visual Density',
+    'whitespace_ratio': 'Whitespace Ratio',
+    'image_text_balance': 'Image/Text Balance',
+    'gestalt_grouping': 'Gestalt Grouping',
+    // Structure (3D)
+    'border_heaviness': 'Border Heaviness',
+    'shadow_depth': 'Shadow Depth',
+    'shadow_count': 'Shadow Count',
 
-    // Shape
-    'shape_radius_count': 'Border Radius Steps',
-    'shape_radius_median': 'Typical Roundness',
-    'shape_shadow_count': 'Shadow Variety',
-    'shape_border_heaviness': 'Border Weight',
-    'shape_shadow_depth': 'Elevation Style',
-    'shape_grouping_strength': 'Visual Grouping',
-    'shape_compositional_complexity': 'Layout Complexity',
-
-    // Brand
-    'brand_tone_professional': 'Professional Tone',
-    'brand_tone_playful': 'Playful Tone',
-    'brand_tone_elegant': 'Elegant Tone',
-    'brand_tone_bold': 'Bold Tone',
-    'brand_tone_minimal': 'Minimal Tone',
-    'brand_energy_calm': 'Calm Energy',
-    'brand_energy_energetic': 'Energetic Feel',
-    'brand_energy_sophisticated': 'Sophisticated Feel',
-    'brand_energy_dynamic': 'Dynamic Energy',
-    'brand_trust_conservative': 'Conservative Trust',
-    'brand_trust_modern': 'Modern Trust',
-    'brand_trust_innovative': 'Innovative Trust',
-    'brand_trust_experimental': 'Experimental Trust',
+    // === SHAPE (6D) ===
+    // Border radius (3D)
+    'radius_min': 'Minimum Border Radius',
+    'radius_median': 'Median Border Radius',
+    'radius_max': 'Maximum Border Radius',
+    // Diversity & personality (3D)
+    'palette_entropy': 'Palette Entropy',
     'brand_confidence': 'Brand Confidence',
-    'brand_color_role_distinction': 'Color Role Clarity',
+    'color_coherence': 'Color Coherence',
+
+    // === BRAND COHERENCE (2D) ===
+    'overall_coherence': 'Overall Coherence',
+    'design_system_maturity': 'Design System Maturity',
   };
 
   return labels[name] || name;

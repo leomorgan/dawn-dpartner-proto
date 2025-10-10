@@ -1,0 +1,410 @@
+{
+  "version": "1.0.0",
+  "computed_from": "45 brands (empirical analysis on 2025-10-10)",
+  "approach": "Fixed min-max bounds informed by 5th-95th percentiles from raw-feature-analysis.json",
+  "note": "Bounds are FROZEN - work for one-by-one ingestion, no population stats needed",
+  "features": {
+    "font_size_min": {
+      "strategy": "minmax",
+      "min": 6,
+      "max": 20,
+      "note": "From empirical p95=16.8, extended to 20px. Min raised to 6px (validation filter)."
+    },
+    "font_size_max": {
+      "strategy": "minmax",
+      "min": 20,
+      "max": 150,
+      "note": "From empirical p05=19.2, p95=94, extended to 150px to capture large hero text."
+    },
+    "font_size_range": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "From empirical p95=86.5, extended to 100px."
+    },
+    "font_weight_min": {
+      "strategy": "log-minmax",
+      "min": 100,
+      "max": 400,
+      "note": "Highly skewed (-1.79). Empirical range [300, 400], extended down to 100."
+    },
+    "font_weight_max": {
+      "strategy": "minmax",
+      "min": 400,
+      "max": 900,
+      "note": "Moderately skewed (0.89). Empirical range [600, 900]."
+    },
+    "font_weight_contrast": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 900,
+      "note": "Weight range, max theoretical 900."
+    },
+    "spacing_min": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 16,
+      "note": "Now filtered to > 0 in extraction, but keep 0 as lower bound for safety."
+    },
+    "spacing_median": {
+      "strategy": "log-minmax",
+      "min": 8,
+      "max": 64,
+      "note": "Highly skewed (-1.58). Empirical p05=16, p95=24, extended for variety."
+    },
+    "spacing_max": {
+      "strategy": "minmax",
+      "min": 16,
+      "max": 96,
+      "note": "Symmetric (skew=0.01). Empirical p05=32, p95=48, extended to 96px."
+    },
+    "radius_min": {
+      "strategy": "log-minmax",
+      "min": 0,
+      "max": 8,
+      "note": "Highly skewed (3.28) due to outliers. Post-validation, cap at 8px."
+    },
+    "radius_median": {
+      "strategy": "log-minmax",
+      "min": 0,
+      "max": 32,
+      "note": "Highly skewed (3.28). Post-validation, typical range 4-32px."
+    },
+    "radius_max": {
+      "strategy": "log-minmax",
+      "min": 0,
+      "max": 100,
+      "note": "Highly skewed (2.71). After capping at 100px in extraction, use 0-100 range."
+    },
+    "shadow_count": {
+      "strategy": "log-minmax",
+      "min": 0,
+      "max": 3,
+      "note": "Count feature. Empirical range [0, 3]. Log scale for counts."
+    },
+    "color_role_distinction": {
+      "strategy": "minmax",
+      "min": 3000,
+      "max": 8000,
+      "note": "Layout feature. Hardcoded range from original implementation."
+    },
+    "image_text_balance": {
+      "strategy": "log-minmax",
+      "min": 0.1,
+      "max": 10,
+      "note": "Ratio feature, log scale. Centered at 1.0 (balanced)."
+    },
+    "gestalt_grouping": {
+      "strategy": "minmax",
+      "min": 3000,
+      "max": 8000,
+      "note": "Layout feature. Hardcoded range from original implementation."
+    },
+    "color_palette_avg_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance. Theoretical max ~100 for opposing colors."
+    },
+    "color_palette_min_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance. Perceptually uniform."
+    },
+    "color_palette_max_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance. Perceptually uniform."
+    },
+    "color_bg_text_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance between background and text."
+    },
+    "color_cta_bg_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance between CTA and background."
+    },
+    "color_cta_text_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance between CTA and text colors."
+    },
+    "color_hero_bg_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance between hero and background."
+    },
+    "color_bg_lightness": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 100,
+      "note": "LCH lightness. Theoretical bounds [0, 100]."
+    },
+    "color_bg_chroma": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 150,
+      "note": "LCH chroma. Theoretical max ~150 for sRGB gamut."
+    },
+    "color_text_lightness": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 100,
+      "note": "LCH lightness. Theoretical bounds [0, 100]."
+    },
+    "color_hero_lightness": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 100,
+      "note": "LCH lightness. Theoretical bounds [0, 100]."
+    },
+    "color_hero_chroma": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 150,
+      "note": "LCH chroma. Theoretical max ~150 for sRGB gamut."
+    },
+    "color_hero_hue_cos": {
+      "strategy": "absolute",
+      "min": -1,
+      "max": 1,
+      "note": "Cosine of hue angle. Circular encoding."
+    },
+    "color_hero_hue_sin": {
+      "strategy": "absolute",
+      "min": -1,
+      "max": 1,
+      "note": "Sine of hue angle. Circular encoding."
+    },
+    "color_cta_lightness": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 100,
+      "note": "LCH lightness. Theoretical bounds [0, 100]."
+    },
+    "color_cta_chroma": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 150,
+      "note": "LCH chroma. Theoretical max ~150 for sRGB gamut."
+    },
+    "color_cta_hero_distance": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 100,
+      "note": "CIEDE2000 distance between CTA and hero colors."
+    },
+    "color_harmony": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized score [0, 1]."
+    },
+    "color_saturation_mean": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized avg saturation [0, 1]."
+    },
+    "color_contrast_pass_rate": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized rate [0, 1]."
+    },
+    "typo_hierarchy_depth": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized layout feature [0, 1]."
+    },
+    "typo_coherence": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized coherence score [0, 1]."
+    },
+    "element_scale_variance": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized layout feature [0, 1]."
+    },
+    "vertical_rhythm": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized consistency metric [0, 1]."
+    },
+    "grid_regularity": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized score [0, 1]."
+    },
+    "above_fold_density": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized density metric [0, 1]."
+    },
+    "compositional_complexity": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized complexity score [0, 1]."
+    },
+    "spacing_consistency": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized consistency score [0, 1]."
+    },
+    "visual_density": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized density score [0, 1]."
+    },
+    "whitespace_ratio": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized ratio [0, 1]."
+    },
+    "border_heaviness": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized metric [0, 1]."
+    },
+    "shadow_depth": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized elevation depth [0, 1]."
+    },
+    "palette_entropy": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized entropy [0, 1]."
+    },
+    "brand_confidence": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized confidence score [0, 1]."
+    },
+    "color_coherence": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 1,
+      "note": "Already normalized harmony score [0, 1]."
+    },
+    "cta_bg_lightness": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 100,
+      "note": "LCH lightness for CTA background. Theoretical bounds [0, 100]."
+    },
+    "cta_bg_chroma": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 150,
+      "note": "LCH chroma for CTA background. Theoretical max ~150 for sRGB gamut."
+    },
+    "cta_bg_hue_cos": {
+      "strategy": "absolute",
+      "min": -1,
+      "max": 1,
+      "note": "Cosine of CTA background hue angle. Circular encoding."
+    },
+    "cta_bg_hue_sin": {
+      "strategy": "absolute",
+      "min": -1,
+      "max": 1,
+      "note": "Sine of CTA background hue angle. Circular encoding."
+    },
+    "cta_text_lightness": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 100,
+      "note": "LCH lightness for CTA text. Theoretical bounds [0, 100]."
+    },
+    "cta_text_chroma": {
+      "strategy": "absolute",
+      "min": 0,
+      "max": 150,
+      "note": "LCH chroma for CTA text. Theoretical max ~150 for sRGB gamut."
+    },
+    "cta_text_hue_cos": {
+      "strategy": "absolute",
+      "min": -1,
+      "max": 1,
+      "note": "Cosine of CTA text hue angle. Circular encoding."
+    },
+    "cta_text_hue_sin": {
+      "strategy": "absolute",
+      "min": -1,
+      "max": 1,
+      "note": "Sine of CTA text hue angle. Circular encoding."
+    },
+    "cta_font_size": {
+      "strategy": "minmax",
+      "min": 10,
+      "max": 24,
+      "note": "CTA button font size. Typical range for button text."
+    },
+    "cta_font_weight": {
+      "strategy": "minmax",
+      "min": 300,
+      "max": 900,
+      "note": "CTA button font weight. Standard CSS weights."
+    },
+    "cta_border_radius": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 32,
+      "note": "CTA button border radius. Typical range for buttons."
+    },
+    "cta_padding_x": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 48,
+      "note": "CTA horizontal padding. Typical range for buttons."
+    },
+    "cta_padding_y": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 32,
+      "note": "CTA vertical padding. Typical range for buttons."
+    },
+    "cta_hover_opacity": {
+      "strategy": "minmax",
+      "min": 0.7,
+      "max": 1,
+      "note": "CTA hover opacity. Common range for opacity changes."
+    },
+    "cta_contrast": {
+      "strategy": "minmax",
+      "min": 0,
+      "max": 21,
+      "note": "WCAG contrast ratio. Theoretical max 21:1."
+    },
+    "cta_min_tap_side": {
+      "strategy": "minmax",
+      "min": 20,
+      "max": 60,
+      "note": "Minimum tap target size. Accessibility guideline 44-48px."
+    }
+  }
+}

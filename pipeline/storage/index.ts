@@ -2,8 +2,6 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { parse, converter } from 'culori';
 import { buildVectors } from '../vectors';
-import { buildVisualEmbedding } from '../vectors/visual-embedding';
-import { normalizeL2 } from '../vectors/utils';
 import { transaction } from '../../lib/db/client';
 import type { DesignTokens, StyleReport } from '../tokens';
 
@@ -49,45 +47,22 @@ export async function storeVectors(
   const metaPath = join(runDir, 'raw', 'meta.json');
   const meta: CaptureMetadata = JSON.parse(await readFile(metaPath, 'utf8'));
 
-  // 2. Build interpretable vectors
-  console.log(`Building interpretable vectors for ${runId}...`);
+  // 2. Build vectors (interpretable + font embedding)
+  console.log(`Building vectors for ${runId}...`);
   const vectorResult = await buildVectors(runId, artifactDir);
 
-  // 3. Build visual embedding (CLIP)
-  console.log(`Building visual embedding (CLIP) for ${runId}...`);
-  let visualEmbedding: number[] | null = null;
-  let visualModel: string | null = null;
+  console.log(`✓ Global vector: ${vectorResult.globalStyleVec.combined.length}D (53D interpretable + 256D font embedding)`);
+  console.log(`✓ Primary CTA vector: ${vectorResult.primaryCtaVec.combined.length}D`);
+  console.log(`✓ Font description: ${vectorResult.globalStyleVec.metadata.fontDescription}`);
 
-  try {
-    const visualResult = await buildVisualEmbedding(runId);
-    visualEmbedding = visualResult.embedding;
-    visualModel = visualResult.model;
-    console.log(`✓ Visual embedding: ${visualResult.dimensions}D from ${visualResult.model}`);
-  } catch (error) {
-    console.warn(`⚠️  Visual embedding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    console.warn(`   Continuing with interpretable vectors only...`);
-  }
-
-  // 4. Read tokens and report for DB storage
+  // 3. Read tokens and report for DB storage
   const tokensPath = join(runDir, 'design_tokens.json');
   const tokens: DesignTokens = JSON.parse(await readFile(tokensPath, 'utf8'));
 
   const reportPath = join(runDir, 'style_report.json');
   const report: StyleReport = JSON.parse(await readFile(reportPath, 'utf8'));
 
-  // 5. Build combined vector with proper L2 normalization
-  // Normalize each vector separately before concatenation to ensure equal contribution
-  const interpretableVec = Array.from(vectorResult.globalStyleVec.interpretable);
-  const visualVec = visualEmbedding || new Array(768).fill(0); // Use zeros if CLIP failed (768D from openai/clip)
-
-  // L2 normalize both vectors to unit length (CLIP is already normalized, but normalize explicitly for consistency)
-  const interpretableNorm = normalizeL2(interpretableVec);
-  const visualNorm = normalizeL2(visualVec);
-
-  // Concatenate normalized vectors - each contributes equally
-  const combinedVec = [...interpretableNorm, ...visualNorm];
-
-  // 6. Build UX summary for style_profiles
+  // 4. Build UX summary for style_profiles
   const uxSummary = {
     contrastMedian: report.contrastResults?.aaPassRate || 0,
     brandPersonality: report.brandPersonality?.tone,
@@ -95,7 +70,7 @@ export async function storeVectors(
     consistencyScore: report.designSystemAnalysis?.consistency?.overall || 0
   };
 
-  // 7. Prepare CTA data (handle missing primary button gracefully)
+  // 5. Prepare CTA data (handle missing primary button gracefully)
   const primaryButton = tokens.buttons?.variants?.find((v: any) => v.type === 'primary');
   const hasCtaButton = !!primaryButton;
 
@@ -152,12 +127,12 @@ export async function storeVectors(
     ctaConfidence = Math.min(Math.max((contrastScore + prominenceScore) / 2, 0), 1);
   }
 
-  // 8. Build file:// URIs for artifacts
+  // 6. Build file:// URIs for artifacts
   const domUri = `file://${join(runDir, 'raw', 'dom.html')}`;
   const cssUri = `file://${join(runDir, 'raw', 'computed_styles.json')}`;
   const screenshotUri = `file://${join(runDir, 'raw', 'page.png')}`;
 
-  // 9. Transaction: insert all rows atomically
+  // 7. Transaction: insert all rows atomically
   console.log(`Storing vectors in database...`);
 
   const result = await transaction(async (client) => {
@@ -202,20 +177,19 @@ export async function storeVectors(
         `UPDATE style_profiles SET
           tokens_json = $2,
           interpretable_vec = $3,
-          visual_vec = $4,
+          font_embedding_vec = $4,
           combined_vec = $5,
-          visual_model = $6,
-          visual_embedding_date = NOW(),
+          font_description = $6,
           ux_summary = $7
         WHERE capture_id = $1
         RETURNING id`,
         [
           captureId,
           JSON.stringify(tokens),
-          `[${interpretableVec.join(',')}]`,  // 55D interpretable
-          `[${visualVec.join(',')}]`,         // 768D visual
-          `[${combinedVec.join(',')}]`,       // 823D combined
-          visualModel,
+          floatArrayToPgVector(vectorResult.globalStyleVec.interpretable),      // 53D interpretable
+          floatArrayToPgVector(vectorResult.globalStyleVec.fontEmbedding),      // 256D font embedding
+          floatArrayToPgVector(vectorResult.globalStyleVec.combined),           // 309D combined
+          vectorResult.globalStyleVec.metadata.fontDescription,
           JSON.stringify(uxSummary)
         ]
       );
@@ -225,18 +199,18 @@ export async function storeVectors(
       const styleProfileRes = await client.query(
         `INSERT INTO style_profiles (
           capture_id, source_url, tokens_json,
-          interpretable_vec, visual_vec, combined_vec, visual_model, visual_embedding_date,
+          interpretable_vec, font_embedding_vec, combined_vec, font_description,
           ux_summary
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id`,
         [
           captureId,
           meta.url,
           JSON.stringify(tokens),
-          `[${interpretableVec.join(',')}]`,  // 55D interpretable
-          `[${visualVec.join(',')}]`,         // 768D visual
-          `[${combinedVec.join(',')}]`,       // 823D combined
-          visualModel,
+          floatArrayToPgVector(vectorResult.globalStyleVec.interpretable),      // 53D interpretable
+          floatArrayToPgVector(vectorResult.globalStyleVec.fontEmbedding),      // 256D font embedding
+          floatArrayToPgVector(vectorResult.globalStyleVec.combined),           // 309D combined
+          vectorResult.globalStyleVec.metadata.fontDescription,
           JSON.stringify(uxSummary)
         ]
       );

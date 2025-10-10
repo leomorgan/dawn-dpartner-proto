@@ -3,7 +3,10 @@
  * Uses culori for color parsing and conversions
  */
 
-import { parse, converter, differenceEuclidean, type Lch } from 'culori';
+import { parse, converter, differenceEuclidean, differenceCiede2000, type Lch } from 'culori';
+
+// Re-export Lch type for consumers
+export type { Lch };
 
 // Converter from any color to LCH (Lightness, Chroma, Hue)
 const toLch = converter('lch');
@@ -41,7 +44,7 @@ export function parseColor(cssColor: string): Lch | null {
 /**
  * Calculate perceptual color difference using ΔE (Delta E)
  * Uses Euclidean distance in LCH space as a simplified ΔE metric
- * (For production, consider ΔE2000 for better perceptual accuracy)
+ * (For production, use calculateDeltaE2000 for better perceptual accuracy)
  *
  * Scale:
  * - ΔE < 1: Not perceptible by human eyes
@@ -68,6 +71,45 @@ export function calculateDeltaE(color1: Lch, color2: Lch): number {
 
   // Scale to 0-100 range (Euclidean in LCH typically ranges 0-1.5)
   return (distance || 0) * 100;
+}
+
+/**
+ * Calculate perceptual color difference using CIEDE2000 (ΔE2000)
+ * This is the most accurate perceptual color distance metric, accounting for
+ * non-linearities in human color perception.
+ *
+ * CIEDE2000 improves upon earlier ΔE metrics by:
+ * - Accounting for lightness/chroma/hue interactions
+ * - Weighting neutral colors correctly
+ * - Handling edge cases near grays
+ *
+ * Scale (same as ΔE):
+ * - ΔE2000 < 1: Not perceptible by human eyes
+ * - ΔE2000 1-2: Perceptible through close observation
+ * - ΔE2000 2-10: Perceptible at a glance
+ * - ΔE2000 11-49: Colors are more similar than opposite
+ * - ΔE2000 > 50: Completely different colors
+ *
+ * @param color1 First LCH color
+ * @param color2 Second LCH color
+ * @returns ΔE2000 value (0-100 range, typically 0-80 for real colors)
+ *
+ * @example
+ * const purple1 = parseColor('#8B5CF6');
+ * const purple2 = parseColor('#9333EA');
+ * calculateDeltaE2000(purple1, purple2); // ~8 (similar purples)
+ *
+ * const yellow = parseColor('#FBBF24');
+ * calculateDeltaE2000(purple1, yellow); // ~65 (very different)
+ */
+export function calculateDeltaE2000(color1: Lch, color2: Lch): number {
+  if (!color1 || !color2) return 0;
+
+  // Use culori's CIEDE2000 implementation
+  // Returns value in 0-100 scale (no scaling needed)
+  const distance = differenceCiede2000()(color1, color2);
+
+  return distance
 }
 
 /**

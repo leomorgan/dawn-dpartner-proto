@@ -1,7 +1,7 @@
-# Test URLs for Multi-Tier Color Classification
-# Diverse brand palette types
+# Test URLs for Vector Encoding Verification
+# Diverse brand palette types for testing CIEDE2000 color encoding
 
-# Fintech (professional, muted)
+# Fintech (professional, purple/blue palettes)
 https://stripe.com
 https://monzo.com
 https://dojo.tech
@@ -10,7 +10,6 @@ https://dojo.tech
 https://airbnb.co.uk
 
 # Tech/Creative (minimal, modern)
-https://dawnlabs.co
 https://vercel.com
 https://github.com
 
@@ -22,5 +21,5 @@ https://v0.app/
 
 # News/Media (editorial, information-dense)
 https://www.ft.com/
-https://www.theguardian.com/uk
+https://www.bbc.co.uk
 https://cnn.com

@@ -457,7 +457,12 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     fontFamilies.set(node.styles.fontFamily, (fontFamilies.get(node.styles.fontFamily) || 0) + 1);
 
     const fontSize = parseFloat(node.styles.fontSize);
-    if (!isNaN(fontSize)) {
+    // FIX: Filter out hidden elements and invalid font sizes
+    // Hidden elements often have 0px fonts, which pollutes our token set
+    const isVisible = node.bbox.w > 0 && node.bbox.h > 0 && node.styles.display !== 'none';
+    const isValidFont = !isNaN(fontSize) && fontSize >= 6; // Min 6px (below this = hidden/micro text)
+
+    if (isVisible && isValidFont) {
       fontSizes.set(fontSize, (fontSizes.get(fontSize) || 0) + 1);
     }
 
@@ -477,14 +482,33 @@ async function analyzeStyles(nodes: ComputedStyleNode[], cssRules: any[] = [], b
     letterSpacings.set('normal', (letterSpacings.get('normal') || 0) + 1);
     textTransforms.set('none', (textTransforms.get('none') || 0) + 1);
 
-    // Process spacing
-    const margins = node.styles.margin.split(' ').map(v => parseFloat(v)).filter(v => !isNaN(v) && v >= 0);
-    const paddings = node.styles.padding.split(' ').map(v => parseFloat(v)).filter(v => !isNaN(v) && v >= 0);
+    // Process spacing - FIX: Only include non-zero, valid spacing values
+    // Zero spacing is not a meaningful design token - we want actual spacing decisions
+    const margins = node.styles.margin.split(' ')
+      .map(v => parseFloat(v))
+      .filter(v => !isNaN(v) && v > 0 && v <= 500); // Max 500px to catch overflow bugs
+
+    const paddings = node.styles.padding.split(' ')
+      .map(v => parseFloat(v))
+      .filter(v => !isNaN(v) && v > 0 && v <= 500); // Max 500px to catch overflow bugs
+
     spacingValues.push(...margins, ...paddings);
 
-    // Process border radius
+    // Process border radius - FIX: Cap extreme values (9999px hack, overflow bugs)
     if (node.styles.borderRadius && node.styles.borderRadius !== '0px') {
-      radiusValues.set(node.styles.borderRadius, (radiusValues.get(node.styles.borderRadius) || 0) + 1);
+      let radiusValue = parseFloat(node.styles.borderRadius);
+
+      // Cap at 100px - anything above is effectively "fully rounded"
+      // This catches both the 9999px CSS hack and overflow bugs (33M px)
+      if (radiusValue > 100) {
+        radiusValue = 100;
+      }
+
+      // Only include valid radii >= 0
+      if (radiusValue >= 0 && isFinite(radiusValue)) {
+        const cappedRadius = `${radiusValue}px`;
+        radiusValues.set(cappedRadius, (radiusValues.get(cappedRadius) || 0) + 1);
+      }
     }
 
     // Process box shadow

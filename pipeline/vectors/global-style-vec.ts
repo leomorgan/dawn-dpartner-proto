@@ -1,320 +1,282 @@
+/**
+ * Global Style Vector Builder
+ *
+ * Builds a 309D vector consisting of:
+ * - 53D interpretable features (colors, typography, spacing, shape, personality)
+ * - 256D font embedding (text embedding of font characteristics)
+ *
+ * Total: 53D + 256D = 309D
+ */
+
 import type { DesignTokens, StyleReport } from '../tokens';
 import type { ComputedStyleNode } from '../capture';
-import { normalizeLinear, normalizeLog, hexToLCH } from './utils';
+import { hexToLCH } from './utils';
 import { extractLayoutFeatures } from './extractors/layout-features';
+import { encodePaletteFeatures, getColorFeatureNames } from './color-encoding-v2';
+import { generateFontEmbedding } from './font-embedding';
+import { normalizeFeature, l2Normalize as l2NormalizeVec } from './normalization';
+import { parse } from 'culori';
 
-/**
- * Builds an 823D global style vector:
- * - 55D interpretable: normalized token statistics + layout features (reduced from 64D → 58D → 55D)
- *   - Removed 6 reserved slots (64D → 58D)
- *   - Removed 3 dead features: color_background_variation, typo_family_count, brand_color_saturation_energy (58D → 55D)
- * - 768D visual: CLIP embeddings from screenshot
- */
-export function buildGlobalStyleVec(
+export async function buildGlobalStyleVec(
   tokens: DesignTokens,
   report: StyleReport,
   nodes: ComputedStyleNode[],
   viewport: { width: number; height: number }
-): {
+): Promise<{
   interpretable: Float32Array;
-  interpretableRaw: Float32Array;
-  visual: Float32Array;
+  fontEmbedding: Float32Array;
   combined: Float32Array;
-  metadata: { featureNames: string[]; nonZeroCount: number };
-} {
+  metadata: {
+    featureNames: string[];
+    nonZeroCount: number;
+    fontDescription: string;
+  };
+}> {
   const interpretable: number[] = [];
-  const interpretableRaw: number[] = [];  // NEW: Store unnormalized values
   const featureNames: string[] = [];
 
-  // Helper function to push both raw and normalized values
-  const pushFeature = (name: string, rawValue: number, normalizedValue: number) => {
-    featureNames.push(name);
-    interpretable.push(normalizedValue);
-    interpretableRaw.push(rawValue);
-  };
-
-  // Extract layout features from DOM data
+  // Extract layout features once
   const layoutFeats = extractLayoutFeatures(nodes, viewport);
 
-  // === Color Features (16D) ===
+  // === 1. COLORS (17D) ===
+  // Using CIEDE2000 perceptual distance encoding (color-encoding-v2)
+  // - 3D: Brand palette relationships (pairwise distances)
+  // - 4D: Semantic color relationships (bg/text/cta distances)
+  // - 2D: Background absolute (L, C)
+  // - 1D: Text absolute (L)
+  // - 4D: Hero brand color absolute (L, C, hue cos/sin)
+  // - 3D: CTA color (L, C, distance from hero)
+  const colorFeatures = encodePaletteFeatures(tokens);
+  interpretable.push(...colorFeatures);
+  featureNames.push(...getColorFeatureNames());
 
-  // KEEP: Primary color count (log-normalized) - backward compat
-  const primaryCount = tokens.colors.primary.length;
-  pushFeature('color_primary_count', primaryCount, normalizeLog(primaryCount, 5));
-
-  // KEEP: Neutral color count (log-normalized) - backward compat
-  const neutralCount = tokens.colors.neutral.length;
-  pushFeature('color_neutral_count', neutralCount, normalizeLog(neutralCount, 5));
-
-  // Palette entropy (already 0-1)
-  const paletteEntropy = calculatePaletteEntropy(
-    [...tokens.colors.primary, ...tokens.colors.neutral]
+  // === 2. COLOR STATISTICS (3D) ===
+  // Harmony, saturation mean, and WCAG contrast pass rate
+  if (!report.realTokenMetrics?.colorHarmony) {
+    throw new Error('Missing required data: report.realTokenMetrics.colorHarmony is undefined');
+  }
+  const colorHarmony = report.realTokenMetrics.colorHarmony;
+  interpretable.push(
+    colorHarmony.harmonyScore,
+    colorHarmony.saturationRange.avg,
+    report.contrastResults.aaPassRate
   );
-  featureNames.push('color_palette_entropy');
-  interpretable.push(paletteEntropy);
+  featureNames.push('color_harmony', 'color_saturation_mean', 'color_contrast_pass_rate');
 
-  // Contrast pass rate (already 0-1)
-  featureNames.push('color_contrast_pass_rate');
-  interpretable.push(report.contrastResults.aaPassRate);
+  // === 3. TYPOGRAPHY (14D) ===
 
-  // Dominant hue (circular normalize 0-360 → 0-1) - ROBUST NULL HANDLING
-  const dominantHue = report.realTokenMetrics?.colorHarmony?.dominantHue ?? 0;
-  featureNames.push('color_dominant_hue');
-  interpretable.push(normalizeLinear(dominantHue, 0, 360));
+  const fontSizes = tokens.typography.fontSizes;
+  const fontWeights = tokens.typography.fontWeights;
 
-  // Saturation mean (already 0-1) - ROBUST NULL HANDLING
-  const satMean = report.realTokenMetrics?.colorHarmony?.saturationRange?.avg ?? 0.5;
-  featureNames.push('color_saturation_mean');
-  interpretable.push(satMean);
+  if (fontSizes.length === 0) {
+    throw new Error('Missing required data: tokens.typography.fontSizes is empty');
+  }
+  if (fontWeights.length === 0) {
+    throw new Error('Missing required data: tokens.typography.fontWeights is empty');
+  }
 
-  // Lightness mean (already 0-1) - ROBUST NULL HANDLING
-  const lightMean = report.realTokenMetrics?.colorHarmony?.lightnessRange?.avg ?? 0.5;
-  featureNames.push('color_lightness_mean');
-  interpretable.push(lightMean);
+  // Size metrics (3D)
+  interpretable.push(
+    normalizeFeature(Math.min(...fontSizes), 'font_size_min'),
+    normalizeFeature(Math.max(...fontSizes), 'font_size_max'),
+    normalizeFeature(Math.max(...fontSizes) - Math.min(...fontSizes), 'font_size_range')
+  );
+  featureNames.push('font_size_min', 'font_size_max', 'font_size_range');
 
-  // Button color diversity (log-normalized)
-  featureNames.push('color_button_diversity');
-  interpretable.push(normalizeLog(tokens.colors.contextual.buttons.length, 3));
+  // Weight metrics (3D)
+  interpretable.push(
+    normalizeFeature(Math.min(...fontWeights), 'font_weight_min'),
+    normalizeFeature(Math.max(...fontWeights), 'font_weight_max'),
+    normalizeFeature(Math.max(...fontWeights) - Math.min(...fontWeights), 'font_weight_contrast')
+  );
+  featureNames.push('font_weight_min', 'font_weight_max', 'font_weight_contrast');
 
-  // Link color diversity (log-normalized)
-  featureNames.push('color_link_diversity');
-  interpretable.push(normalizeLog(tokens.colors.contextual.links.length, 3));
+  // Hierarchy & scale (3D)
+  if (!report.realTokenMetrics?.brandCoherence) {
+    throw new Error('Missing required data: report.realTokenMetrics.brandCoherence is undefined');
+  }
 
-  // Background variation (log-normalized)
-  // REMOVED: color_background_variation - not discriminative (all sites have 3-4 backgrounds)
+  interpretable.push(
+    layoutFeats.typographicHierarchyDepth,
+    report.realTokenMetrics.brandCoherence.typographyCoherence,
+    layoutFeats.elementScaleVariance
+  );
+  featureNames.push('typo_hierarchy_depth', 'typo_coherence', 'element_scale_variance');
 
-  // Harmony score (already 0-1) - ROBUST NULL HANDLING
-  const harmonyScore = report.realTokenMetrics?.colorHarmony?.harmonyScore ?? 0.5;
-  featureNames.push('color_harmony_score');
-  interpretable.push(harmonyScore);
+  // Layout metrics (5D)
+  interpretable.push(
+    layoutFeats.verticalRhythmConsistency,
+    layoutFeats.gridRegularityScore,
+    layoutFeats.aboveFoldDensity,
+    layoutFeats.compositionalComplexity,
+    normalizeFeature(layoutFeats.colorRoleDistinction, 'color_role_distinction')
+  );
+  featureNames.push(
+    'vertical_rhythm', 'grid_regularity', 'above_fold_density',
+    'compositional_complexity', 'color_role_distinction'
+  );
 
-  // Color coherence (already 0-1) - ROBUST NULL HANDLING
-  const colorCoherence = report.realTokenMetrics?.brandCoherence?.colorHarmony ?? 0.5;
-  featureNames.push('color_coherence');
-  interpretable.push(colorCoherence);
+  // === 4. SPACING (11D) ===
+  // Removed duplicates: padding_consistency (duplicate of spacing_consistency)
+  // Kept: core spacing metrics, density, borders, shadows
 
-  // === NEW: Use reserved slots for tier metrics ===
-  // Foundation color count (replaces color_reserved_1)
-  featureNames.push('color_foundation_count');
-  interpretable.push(normalizeLog(tokens.colors.foundation.length, 5));
+  const spacing = tokens.spacing;
+  if (spacing.length === 0) {
+    throw new Error('Missing required data: tokens.spacing is empty');
+  }
 
-  // Brand color count (replaces color_reserved_2)
-  featureNames.push('color_brand_count');
-  interpretable.push(normalizeLog(tokens.colors.brandColors.length, 3));
+  const sortedSpacing = [...spacing].sort((a, b) => a - b);
+  const spacingMedian = sortedSpacing[Math.floor(sortedSpacing.length / 2)];
 
-  // Brand color saturation (replaces color_reserved_3)
-  const brandSat = report.realTokenMetrics?.colorHarmony?.brandColorSaturation ?? 0.5;
-  featureNames.push('color_brand_saturation');
-  interpretable.push(brandSat);
+  // Core spacing (3D)
+  interpretable.push(
+    normalizeFeature(Math.min(...spacing), 'spacing_min'),
+    normalizeFeature(spacingMedian, 'spacing_median'),
+    normalizeFeature(Math.max(...spacing), 'spacing_max')
+  );
+  featureNames.push('spacing_min', 'spacing_median', 'spacing_max');
 
-  // Neutral tint (replaces color_reserved_4)
-  const neutralTint = report.realTokenMetrics?.colorHarmony?.neutralTint ?? 0;
-  featureNames.push('color_neutral_tint');
-  interpretable.push(neutralTint);
-
-  // === Typography Features (16D) ===
-
-  // REMOVED: typo_family_count - not discriminative (all sites use exactly 2 font families in modern web design)
-
-  // Font size range (robust normalize, typical 10-40px)
-  const fontSizeRange = tokens.typography.fontSizes.length > 0
-    ? Math.max(...tokens.typography.fontSizes) - Math.min(...tokens.typography.fontSizes)
-    : 0;
-  featureNames.push('typo_size_range');
-  interpretable.push(normalizeLinear(fontSizeRange, 0, 50));
-
-  // Font size count (log-normalized, typical 5-10)
-  featureNames.push('typo_size_count');
-  interpretable.push(normalizeLog(tokens.typography.fontSizes.length, 7));
-
-  // Font weight count (log-normalized, typical 2-4)
-  featureNames.push('typo_weight_count');
-  interpretable.push(normalizeLog(tokens.typography.fontWeights.length, 3));
-
-  // Line height count (log-normalized, typical 2-4)
-  featureNames.push('typo_lineheight_count');
-  interpretable.push(normalizeLog(tokens.typography.lineHeights.length, 3));
-
-  // Typography coherence (already 0-1)
-  const typoCoherence = report.realTokenMetrics?.brandCoherence?.typographyCoherence ?? 0.5;
-  featureNames.push('typo_coherence');
-  interpretable.push(typoCoherence);
-
-  // NEW: Typographic hierarchy depth (coefficient of variation)
-  featureNames.push('typo_hierarchy_depth');
-  interpretable.push(layoutFeats.typographicHierarchyDepth);
-
-  // NEW: Font weight contrast (normalized)
-  featureNames.push('typo_weight_contrast');
-  interpretable.push(layoutFeats.fontWeightContrast);
-
-  // V2: New layout features (using reserved slots)
-  featureNames.push('layout_element_scale_variance');
-  interpretable.push(layoutFeats.elementScaleVariance);
-
-  featureNames.push('layout_vertical_rhythm');
-  interpretable.push(layoutFeats.verticalRhythmConsistency);
-
-  featureNames.push('layout_grid_regularity');
-  interpretable.push(layoutFeats.gridRegularityScore);
-
-  featureNames.push('layout_above_fold_density');
-  interpretable.push(layoutFeats.aboveFoldDensity);
-
-  // === Spacing Features (7D) - removed 1 reserved slot ===
-
-  // Spacing scale length (log-normalized)
-  featureNames.push('spacing_scale_length');
-  interpretable.push(normalizeLog(tokens.spacing.length, 6));
-
-  // Spacing median (linear normalize)
-  // V3 FIX: Adjust range from 0-48 to 8-64 to better capture real variation
-  const spacingMedian = tokens.spacing.length > 0
-    ? tokens.spacing[Math.floor(tokens.spacing.length / 2)]
-    : 0;
-  featureNames.push('spacing_median');
-  interpretable.push(normalizeLinear(spacingMedian, 8, 64));
-
-  // Spacing consistency (already 0-1)
-  const spacingConsistency = report.realTokenMetrics?.brandCoherence?.spacingConsistency ?? 0.5;
+  // Consistency (1D)
+  interpretable.push(
+    report.realTokenMetrics.brandCoherence.spacingConsistency
+  );
   featureNames.push('spacing_consistency');
-  interpretable.push(spacingConsistency);
 
-  // NEW: Visual density score
-  featureNames.push('spacing_density_score');
-  interpretable.push(layoutFeats.visualDensityScore);
+  // Density & whitespace (4D)
+  interpretable.push(
+    layoutFeats.visualDensityScore,
+    layoutFeats.whitespaceBreathingRatio,
+    normalizeFeature(layoutFeats.imageToTextBalance, 'image_text_balance'),
+    normalizeFeature(layoutFeats.gestaltGroupingStrength, 'gestalt_grouping')
+  );
+  featureNames.push('visual_density', 'whitespace_ratio', 'image_text_balance', 'gestalt_grouping');
 
-  // NEW: Whitespace breathing ratio
-  featureNames.push('spacing_whitespace_ratio');
-  interpretable.push(layoutFeats.whitespaceBreathingRatio);
+  // Border & structure (3D)
+  interpretable.push(
+    layoutFeats.borderHeaviness,
+    layoutFeats.shadowElevationDepth,
+    normalizeFeature(tokens.boxShadow.length, 'shadow_count')
+  );
+  featureNames.push('border_heaviness', 'shadow_depth', 'shadow_count');
 
-  // NEW: Padding consistency
-  featureNames.push('spacing_padding_consistency');
-  interpretable.push(layoutFeats.paddingConsistency);
+  // === 5. SHAPE (6D) ===
+  // Removed duplicates: shadow_elevation_depth (duplicate of shadow_depth),
+  // shadow_complexity (duplicate of shadow_count), border_heaviness (duplicate),
+  // gestalt_grouping_strength (duplicate of gestalt_grouping),
+  // compositional_complexity (duplicate from typography)
+  // Includes: 3D border radius + 1D palette entropy + 2D personality (brand_confidence, color_coherence)
 
-  // NEW: Image to text balance (log scale, >1 = image-heavy, <1 = text-heavy)
-  featureNames.push('spacing_image_text_balance');
-  interpretable.push(normalizeLog(layoutFeats.imageToTextBalance, 1.0));
-
-  // === Shape Features (7D) - removed 1 reserved slot ===
-
-  // Border radius count (log-normalized)
-  featureNames.push('shape_radius_count');
-  interpretable.push(normalizeLog(tokens.borderRadius.length, 3));
-
-  // Border radius median (linear normalize, typical 0-32px)
-  const radiusMedian = tokens.borderRadius.length > 0
-    ? parseFloat(tokens.borderRadius[Math.floor(tokens.borderRadius.length / 2)])
-    : 0;
-  featureNames.push('shape_radius_median');
-  interpretable.push(normalizeLinear(radiusMedian, 0, 32));
-
-  // Shadow count (log-normalized)
-  featureNames.push('shape_shadow_count');
-  interpretable.push(normalizeLog(tokens.boxShadow.length, 3));
-
-  // NEW: Border heaviness
-  featureNames.push('shape_border_heaviness');
-  interpretable.push(layoutFeats.borderHeaviness);
-
-  // NEW: Shadow elevation depth
-  featureNames.push('shape_shadow_depth');
-  interpretable.push(layoutFeats.shadowElevationDepth);
-
-  // NEW: Gestalt grouping strength
-  featureNames.push('shape_grouping_strength');
-  interpretable.push(layoutFeats.gestaltGroupingStrength);
-
-  // NEW: Compositional complexity
-  featureNames.push('shape_compositional_complexity');
-  interpretable.push(layoutFeats.compositionalComplexity);
-
-  // === Brand Personality Features (16D) ===
-
-  if (report.brandPersonality) {
-    // Tone (5D one-hot)
-    const toneMap: Record<string, number> = {
-      professional: 0, playful: 1, elegant: 2, bold: 3, minimal: 4, luxury: 2, friendly: 1
-    };
-    const toneOneHot = Array(5).fill(0);
-    toneOneHot[toneMap[report.brandPersonality.tone] || 0] = 1;
-    featureNames.push('brand_tone_professional', 'brand_tone_playful', 'brand_tone_elegant', 'brand_tone_bold', 'brand_tone_minimal');
-    interpretable.push(...toneOneHot);
-
-    // Energy (4D one-hot)
-    const energyMap: Record<string, number> = {
-      calm: 0, energetic: 1, sophisticated: 2, dynamic: 3
-    };
-    const energyOneHot = Array(4).fill(0);
-    energyOneHot[energyMap[report.brandPersonality.energy] || 0] = 1;
-    featureNames.push('brand_energy_calm', 'brand_energy_energetic', 'brand_energy_sophisticated', 'brand_energy_dynamic');
-    interpretable.push(...energyOneHot);
-
-    // Trust level (4D one-hot)
-    const trustMap: Record<string, number> = {
-      conservative: 0, modern: 1, innovative: 2, experimental: 3
-    };
-    const trustOneHot = Array(4).fill(0);
-    trustOneHot[trustMap[report.brandPersonality.trustLevel] || 1] = 1;
-    featureNames.push('brand_trust_conservative', 'brand_trust_modern', 'brand_trust_innovative', 'brand_trust_experimental');
-    interpretable.push(...trustOneHot);
-
-    // Confidence (1D, already 0-1)
-    featureNames.push('brand_confidence');
-    interpretable.push(report.brandPersonality.confidence);
-
-    // NEW: Color saturation energy (replaces brand_reserved_1)
-    // REMOVED: brand_color_saturation_energy - extraction broken (layoutFeatures not saved to style_report.json, all values = 0)
-
-    // NEW: Color role distinction (replaces brand_reserved_2)
-    // V3 FIX: Narrow range from 0-10000 to 3000-8000 (observed: 5325-6225)
-    featureNames.push('brand_color_role_distinction');
-    interpretable.push(normalizeLinear(layoutFeats.colorRoleDistinction, 3000, 8000));
-  } else {
-    // Fallback: all zeros
-    for (let i = 0; i < 16; i++) {
-      featureNames.push(`brand_missing_${i + 1}`);
-      interpretable.push(0);
-    }
+  const radii = tokens.borderRadius.map(r => parseFloat(r) || 0);
+  if (radii.length === 0) {
+    throw new Error('Missing required data: tokens.borderRadius is empty');
   }
 
-  // === Verify Length ===
-  // Reduced from 64D → 58D (removed 6 reserved slots) → 55D (removed 3 dead features)
-  if (interpretable.length !== 55) {
-    throw new Error(`Interpretable vector must be 55D, got ${interpretable.length}D`);
+  const sortedRadii = [...radii].sort((a, b) => a - b);
+  const radiusMedian = sortedRadii[Math.floor(sortedRadii.length / 2)];
+
+  // Border radius (3D)
+  interpretable.push(
+    normalizeFeature(Math.min(...radii), 'radius_min'),
+    normalizeFeature(radiusMedian, 'radius_median'),
+    normalizeFeature(Math.max(...radii), 'radius_max')
+  );
+  featureNames.push('radius_min', 'radius_median', 'radius_max');
+
+  // Palette entropy (1D)
+  const allColors = [...tokens.colors.primary, ...tokens.colors.neutral];
+  const paletteEntropy = calculatePaletteEntropy(allColors);
+  interpretable.push(paletteEntropy);
+  featureNames.push('palette_entropy');
+
+  // Personality features (2D - empirical metrics, non-categorical)
+  if (!report.brandPersonality?.confidence) {
+    throw new Error('Missing required data: report.brandPersonality.confidence');
+  }
+  if (!report.realTokenMetrics?.brandCoherence) {
+    throw new Error('Missing required data: report.realTokenMetrics.brandCoherence');
+  }
+  interpretable.push(
+    report.brandPersonality.confidence,
+    report.realTokenMetrics.brandCoherence.colorHarmony
+  );
+  featureNames.push('brand_confidence', 'color_coherence');
+
+  // === 6. BRAND COHERENCE (2D) ===
+  // Overall coherence and design system maturity
+  if (!report.designSystemAnalysis?.consistency?.overall) {
+    throw new Error('Missing required data: report.designSystemAnalysis.consistency.overall');
   }
 
-  // === Visual Features (768D) - CLIP embeddings ===
-  // Note: Visual vector should be populated by CLIP, not zero-padded
-  // For now we just verify it exists in the combined vector
-  const visual = Array(768).fill(0);
+  interpretable.push(
+    report.realTokenMetrics.brandCoherence.overallCoherence,
+    report.designSystemAnalysis.consistency.overall
+  );
+  featureNames.push('overall_coherence', 'design_system_maturity');
+
+  // === Verify interpretable length ===
+  // 17D colors + 3D color stats + 14D typography + 11D spacing + 6D shape + 2D coherence = 53D
+  if (interpretable.length !== 53) {
+    throw new Error(`Interpretable vector must be 53D, got ${interpretable.length}D. Feature breakdown:
+      - Colors: 17D
+      - Color stats: 3D
+      - Typography: 14D
+      - Spacing: 11D
+      - Shape: 6D (radius 3D + palette_entropy 1D + personality 2D)
+      - Coherence: 2D
+      Total: 53D`);
+  }
+
+  // === 7. FONT EMBEDDING (256D) ===
+
+  const { embedding: fontEmbedding, description: fontDescription } = await generateFontEmbedding(tokens);
+
+  if (fontEmbedding.length !== 256) {
+    throw new Error(`Font embedding must be 256D, got ${fontEmbedding.length}D`);
+  }
 
   // === Combine ===
-  const combined = [...interpretable, ...visual];
+  const combinedRaw = new Float32Array(309); // 53D interpretable + 256D font = 309D
+  combinedRaw.set(interpretable, 0);
+  combinedRaw.set(fontEmbedding, interpretable.length);
+
+  if (combinedRaw.length !== 309) {
+    throw new Error(`Combined vector must be 309D, got ${combinedRaw.length}D`);
+  }
+
+  // L2 normalize the combined vector for cosine similarity
+  const combined = l2NormalizeVec(Array.from(combinedRaw));
 
   // === Metadata ===
   const nonZeroCount = interpretable.filter(x => x !== 0).length;
 
   return {
     interpretable: Float32Array.from(interpretable),
-    interpretableRaw: Float32Array.from(interpretableRaw),
-    visual: Float32Array.from(visual),
-    combined: Float32Array.from(combined),
+    fontEmbedding,
+    combined,
     metadata: {
       featureNames,
-      nonZeroCount
+      nonZeroCount,
+      fontDescription
     }
   };
 }
 
+/**
+ * Calculate Shannon entropy of color hue distribution
+ * Used to measure color palette diversity
+ */
 function calculatePaletteEntropy(colors: string[]): number {
-  // Shannon entropy of color hue distribution
   if (colors.length === 0) return 0;
 
-  const hues = colors.map(c => {
-    const lch = hexToLCH(c);
-    return lch.h;
-  });
+  const hues: number[] = [];
+  for (const colorHex of colors) {
+    const parsed = parse(colorHex);
+    if (!parsed) continue;
+    const lch = hexToLCH(colorHex);
+    hues.push(lch.h);
+  }
+
+  if (hues.length === 0) return 0;
 
   // Bin into 12 buckets (30° each)
   const bins = Array(12).fill(0);

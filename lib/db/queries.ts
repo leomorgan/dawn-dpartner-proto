@@ -14,15 +14,16 @@ export async function findNearestStyleProfiles(
   limit: number = 10
 ): Promise<NearestStyleProfile[]> {
   // For <1000 vectors, brute force is faster than IVFFlat
+  // Using combined_vec (309D: 53D interpretable + 256D font embedding)
   const res = await query(`
     SELECT
       sp2.id,
       sp2.source_url,
-      sp2.style_vec <-> sp1.style_vec AS distance,
+      sp2.combined_vec <-> sp1.combined_vec AS distance,
       sp2.tokens_json,
       sp2.ux_summary
     FROM style_profiles sp1, style_profiles sp2
-    WHERE sp1.id = $1 AND sp2.id != sp1.id
+    WHERE sp1.id = $1 AND sp2.id != sp1.id AND sp1.combined_vec IS NOT NULL AND sp2.combined_vec IS NOT NULL
     ORDER BY distance ASC
     LIMIT $2
   `, [referenceProfileId, limit]);

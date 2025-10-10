@@ -1,10 +1,15 @@
 import type { DesignTokens, StyleReport } from '../tokens';
-import { normalizeLinear, hexToLCH, calculateContrast } from './utils';
+import { hexToLCH, calculateContrast } from './utils';
+import { normalizeFeature, l2Normalize as l2NormalizeVec } from './normalization';
 
 /**
- * Builds a 64D PrimaryCTA role vector:
- * - 24D interpretable: button-specific features
- * - 40D visual: zero-padded for MVP (future: button crop embeddings)
+ * Builds a 26D PrimaryCTA role vector:
+ * - 26D interpretable: button-specific features (8D colors + 4D typography + 6D shape + 4D interaction + 4D UX)
+ * - Visual features removed (no longer needed)
+ *
+ * CHANGES from 24D:
+ * - Color features: 6D → 8D (circular hue encoding: cos/sin instead of linear 0-360)
+ * - Chroma normalization fixed: 0-100 → 0-150
  */
 export function buildPrimaryCtaVec(
   tokens: DesignTokens,
@@ -22,13 +27,13 @@ export function buildPrimaryCtaVec(
     : tokens.buttons.variants[0];
 
   if (!primaryButton) {
-    // No buttons found - return zero vector
+    // No buttons found - return zero vector (26D)
     return {
-      interpretable: Float32Array.from(Array(24).fill(0)),
-      visual: Float32Array.from(Array(40).fill(0)),
-      combined: Float32Array.from(Array(64).fill(0)),
+      interpretable: Float32Array.from(Array(26).fill(0)),
+      visual: Float32Array.from([]),  // Empty - visual features removed
+      combined: Float32Array.from(Array(26).fill(0)),
       metadata: {
-        featureNames: Array(64).fill('missing'),
+        featureNames: Array(26).fill('missing'),
         nonZeroCount: 0,
         buttonIndex: -1
       }
@@ -38,35 +43,40 @@ export function buildPrimaryCtaVec(
   const interpretable: number[] = [];
   const featureNames: string[] = [];
 
-  // === Color Features (6D) ===
+  // === Color Features (8D) ===
+  // FIXED: Circular hue encoding (cos/sin) and correct chroma range (0-150)
 
-  // Background color LCH (3D)
+  // Background color LCH (4D: L, C, H_cos, H_sin)
   const bgLCH = hexToLCH(primaryButton.backgroundColor);
-  featureNames.push('cta_bg_L', 'cta_bg_C', 'cta_bg_h');
+  featureNames.push('cta_bg_lightness', 'cta_bg_chroma', 'cta_bg_hue_cos', 'cta_bg_hue_sin');
+  const bgHueRad = (bgLCH.h * Math.PI) / 180;
   interpretable.push(
-    normalizeLinear(bgLCH.l, 0, 100),
-    normalizeLinear(bgLCH.c, 0, 100),
-    normalizeLinear(bgLCH.h, 0, 360)
+    normalizeFeature(bgLCH.l, 'cta_bg_lightness'),
+    normalizeFeature(bgLCH.c, 'cta_bg_chroma'),
+    Math.cos(bgHueRad),                 // Already normalized [-1, 1]
+    Math.sin(bgHueRad)                  // Already normalized [-1, 1]
   );
 
-  // Text color LCH (3D)
+  // Text color LCH (4D: L, C, H_cos, H_sin)
   const fgLCH = hexToLCH(primaryButton.color);
-  featureNames.push('cta_fg_L', 'cta_fg_C', 'cta_fg_h');
+  featureNames.push('cta_text_lightness', 'cta_text_chroma', 'cta_text_hue_cos', 'cta_text_hue_sin');
+  const fgHueRad = (fgLCH.h * Math.PI) / 180;
   interpretable.push(
-    normalizeLinear(fgLCH.l, 0, 100),
-    normalizeLinear(fgLCH.c, 0, 100),
-    normalizeLinear(fgLCH.h, 0, 360)
+    normalizeFeature(fgLCH.l, 'cta_text_lightness'),
+    normalizeFeature(fgLCH.c, 'cta_text_chroma'),
+    Math.cos(fgHueRad),                 // Already normalized [-1, 1]
+    Math.sin(fgHueRad)                  // Already normalized [-1, 1]
   );
 
   // === Typography Features (4D) ===
 
-  // Font size (linear normalize, typical 10-24px)
+  // Font size
   featureNames.push('cta_font_size');
-  interpretable.push(normalizeLinear(primaryButton.fontSize, 10, 24));
+  interpretable.push(normalizeFeature(primaryButton.fontSize, 'cta_font_size'));
 
-  // Font weight (linear normalize, 300-900)
+  // Font weight
   featureNames.push('cta_font_weight');
-  interpretable.push(normalizeLinear(primaryButton.fontWeight, 300, 900));
+  interpretable.push(normalizeFeature(primaryButton.fontWeight, 'cta_font_weight'));
 
   // Casing score (from textContent if available)
   const casingScore = primaryButton.textContent
@@ -81,10 +91,10 @@ export function buildPrimaryCtaVec(
 
   // === Shape Features (6D) ===
 
-  // Border radius (linear normalize, typical 0-32px)
+  // Border radius
   const radiusPx = parseFloat(primaryButton.borderRadius) || 0;
   featureNames.push('cta_border_radius');
-  interpretable.push(normalizeLinear(radiusPx, 0, 32));
+  interpretable.push(normalizeFeature(radiusPx, 'cta_border_radius'));
 
   // Stroke width (binary: has border or not)
   const strokePx = primaryButton.borderColor ? 1 : 0;
@@ -95,8 +105,8 @@ export function buildPrimaryCtaVec(
   const [padY, padX] = parsePadding(primaryButton.padding);
   featureNames.push('cta_padding_x', 'cta_padding_y');
   interpretable.push(
-    normalizeLinear(padX, 0, 48),
-    normalizeLinear(padY, 0, 32)
+    normalizeFeature(padX, 'cta_padding_x'),
+    normalizeFeature(padY, 'cta_padding_y')
   );
 
   // Reserved (2D)
@@ -115,9 +125,9 @@ export function buildPrimaryCtaVec(
   featureNames.push('cta_hover_color_shift');
   interpretable.push(hoverColorShift);
 
-  // Hover opacity change (linear normalize)
+  // Hover opacity change
   const hoverOpacity = primaryButton.hover?.opacity
-    ? normalizeLinear(primaryButton.hover.opacity, 0.7, 1)
+    ? normalizeFeature(primaryButton.hover.opacity, 'cta_hover_opacity')
     : 0;
   featureNames.push('cta_hover_opacity');
   interpretable.push(hoverOpacity);
@@ -128,38 +138,50 @@ export function buildPrimaryCtaVec(
 
   // === UX Features (4D) ===
 
-  // Contrast ratio (linear normalize, WCAG 0-21)
+  // Contrast ratio
   const contrast = calculateContrast(primaryButton.color, primaryButton.backgroundColor);
   featureNames.push('cta_contrast');
-  interpretable.push(normalizeLinear(contrast, 0, 21));
+  interpretable.push(normalizeFeature(contrast, 'cta_contrast'));
 
-  // Min tap side (linear normalize, typical 20-60px)
+  // Min tap side
   const minTapSide = Math.min(padX, padY) * 2 + primaryButton.fontSize;
   featureNames.push('cta_min_tap_side');
-  interpretable.push(normalizeLinear(minTapSide, 20, 60));
+  interpretable.push(normalizeFeature(minTapSide, 'cta_min_tap_side'));
 
   // Reserved (2D)
   featureNames.push('cta_ux_reserved_1', 'cta_ux_reserved_2');
   interpretable.push(0, 0);
 
   // === Verify Length ===
-  if (interpretable.length !== 24) {
-    throw new Error(`Interpretable vector must be 24D, got ${interpretable.length}D`);
+  // 8D colors + 4D typography + 6D shape + 4D interaction + 4D UX = 26D
+  if (interpretable.length !== 26) {
+    throw new Error(`Interpretable vector must be 26D, got ${interpretable.length}D. Breakdown:
+      - Colors: 8D (bg: 4D, fg: 4D with circular hue)
+      - Typography: 4D
+      - Shape: 6D
+      - Interaction: 4D
+      - UX: 4D
+      Total: 26D`);
   }
 
-  // === Visual Features (40D) - Zero-padded for MVP ===
-  const visual = Array(40).fill(0);
+  // === Visual Features - Removed (empty array) ===
+  const visual = Float32Array.from([]);
 
-  // === Combine ===
-  const combined = [...interpretable, ...visual];
+  // === Combined is just interpretable now (26D) ===
+  // L2 normalize for cosine similarity
+  const combined = l2NormalizeVec(interpretable);
+
+  if (combined.length !== 26) {
+    throw new Error(`Combined vector must be 26D, got ${combined.length}D`);
+  }
 
   // === Metadata ===
   const nonZeroCount = interpretable.filter(x => x !== 0).length;
 
   return {
     interpretable: Float32Array.from(interpretable),
-    visual: Float32Array.from(visual),
-    combined: Float32Array.from(combined),
+    visual,
+    combined,
     metadata: {
       featureNames,
       nonZeroCount,

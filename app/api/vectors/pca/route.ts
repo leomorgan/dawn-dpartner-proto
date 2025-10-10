@@ -11,13 +11,13 @@ interface VectorProjection {
   y: number;
   brandTone: string;
   brandEnergy: string;
-  visualModel: string;
+  fontDescription: string;
   capturedAt: string;
   runId: string;
 }
 
 /**
- * GET /api/vectors/pca?type=interpretable|visual|combined
+ * GET /api/vectors/pca?type=interpretable|font_embedding|combined
  *
  * Computes PCA projection (high-D → 2D) for all style profiles
  */
@@ -27,9 +27,9 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || 'interpretable';
 
     // Validate type
-    if (!['interpretable', 'visual', 'combined'].includes(type)) {
+    if (!['interpretable', 'font_embedding', 'combined'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid type. Must be: interpretable, visual, or combined' },
+        { error: 'Invalid type. Must be: interpretable, font_embedding, or combined' },
         { status: 400 }
       );
     }
@@ -40,15 +40,15 @@ export async function GET(request: NextRequest) {
         sp.id,
         sp.source_url,
         sp.interpretable_vec,
-        sp.visual_vec,
+        sp.font_embedding_vec,
         sp.combined_vec,
-        sp.visual_model,
+        sp.font_description,
         sp.ux_summary,
         c.captured_at,
         c.run_id
       FROM style_profiles sp
       JOIN captures c ON c.id = sp.capture_id
-      WHERE sp.visual_vec IS NOT NULL
+      WHERE sp.combined_vec IS NOT NULL
       ORDER BY c.captured_at DESC
     `);
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     let vectors: number[][] = [];
     const columnMap = {
       interpretable: 'interpretable_vec',
-      visual: 'visual_vec',
+      font_embedding: 'font_embedding_vec',
       combined: 'combined_vec',
     };
 
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         y: projectionArray[i][1],
         brandTone: uxSummary.brandPersonality,
         brandEnergy: uxSummary.designSystemMaturity,
-        visualModel: row.visual_model || 'none',
+        fontDescription: row.font_description || 'none',
         capturedAt: row.captured_at,
         runId: row.run_id,
       };

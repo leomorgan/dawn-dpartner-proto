@@ -32,19 +32,20 @@ CREATE TABLE IF NOT EXISTS style_profiles (
   -- Full tokens from design_tokens.json (10KB typical)
   tokens_json JSONB NOT NULL,
 
-  -- 192D fixed vector (legacy - nullable since we now use interpretable+visual)
+  -- 192D fixed vector (legacy - nullable, deprecated)
   style_vec VECTOR(192),
 
-  -- 768D visual embedding from CLIP
-  visual_vec VECTOR(768),
-  visual_model TEXT,                   -- e.g., "openai/clip-vit-large-patch14-336"
-  visual_embedding_date TIMESTAMPTZ,   -- when visual vector was last generated
+  -- 53D interpretable vector (colors 17D, color stats 3D, typography 14D, spacing 11D, shape 6D, coherence 2D)
+  interpretable_vec VECTOR(53),
 
-  -- 55D interpretable vector (color 15D, typography 11D, spacing 7D, shape 7D, brand 15D)
-  interpretable_vec VECTOR(55),
+  -- 256D font embedding (text-embedding-3-small)
+  font_embedding_vec VECTOR(256),
 
-  -- 823D combined vector [55D interpretable + 768D visual] for hybrid search
-  combined_vec VECTOR(823),
+  -- 309D combined vector [53D interpretable + 256D font] for hybrid search
+  combined_vec VECTOR(309),
+
+  -- Font description used to generate embedding
+  font_description TEXT,
 
   -- UX/brand summary from style_report.json
   ux_summary JSONB,
@@ -64,13 +65,17 @@ CREATE INDEX IF NOT EXISTS idx_style_profiles_combined ON style_profiles
   USING ivfflat (combined_vec vector_cosine_ops)
   WITH (lists = 100);
 
+CREATE INDEX IF NOT EXISTS idx_style_profiles_font_embedding ON style_profiles
+  USING ivfflat (font_embedding_vec vector_cosine_ops)
+  WITH (lists = 100);
+
 -- PrimaryCTA role vectors (one per URL/capture)
 CREATE TABLE IF NOT EXISTS role_vectors_primarycta (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   style_profile_id UUID REFERENCES style_profiles(id) ON DELETE CASCADE,
 
-  -- 64D fixed vector
-  vec VECTOR(64) NOT NULL,
+  -- 26D interpretable features (8D colors with circular hue + 4D typography + 6D shape + 4D interaction + 4D UX)
+  vec VECTOR(26) NOT NULL,
 
   -- Button metadata from buttons.variants[primary]
   tokens_json JSONB NOT NULL,

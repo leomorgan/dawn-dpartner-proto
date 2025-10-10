@@ -11,9 +11,9 @@ export interface VectorBuildResult {
   runId: string;
   globalStyleVec: {
     interpretable: Float32Array;
-    visual: Float32Array;
+    fontEmbedding: Float32Array;
     combined: Float32Array;
-    metadata: { featureNames: string[]; nonZeroCount: number };
+    metadata: { featureNames: string[]; nonZeroCount: number; fontDescription: string };
   };
   primaryCtaVec: {
     interpretable: Float32Array;
@@ -65,16 +65,16 @@ export async function buildVectors(
   }
 
   // Build vectors
-  const globalStyleVec = buildGlobalStyleVec(tokens, report, nodes, meta.viewport);
+  const globalStyleVec = await buildGlobalStyleVec(tokens, report, nodes, meta.viewport);
   const primaryCtaVec = buildPrimaryCtaVec(tokens, report);
 
-  // Verify dimensions (reduced from 192D to 826D to 823D: 55D interpretable + 768D visual)
-  if (globalStyleVec.combined.length !== 823) {
-    throw new Error(`GlobalStyleVec must be 823D, got ${globalStyleVec.combined.length}D`);
+  // Verify dimensions (309D global: 53D interpretable + 256D font embedding, 26D CTA)
+  if (globalStyleVec.combined.length !== 309) {
+    throw new Error(`GlobalStyleVec must be 309D, got ${globalStyleVec.combined.length}D`);
   }
 
-  if (primaryCtaVec.combined.length !== 64) {
-    throw new Error(`PrimaryCtaVec must be 64D, got ${primaryCtaVec.combined.length}D`);
+  if (primaryCtaVec.combined.length !== 26) {
+    throw new Error(`PrimaryCtaVec must be 26D, got ${primaryCtaVec.combined.length}D`);
   }
 
   return {
